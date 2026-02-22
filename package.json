@@ -1,8 +1,6 @@
 {
-  "name": "3eesher-cloud-platform",
+  "name": "3eesher-cloud",
   "version": "1.0.0",
-  "description": "Video gallery and blog platform",
-  "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
