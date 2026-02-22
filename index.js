@@ -1,4 +1,4 @@
-// ==================== FULL 3EESHER.CLOUD WEBSITE ====================
+// ==================== COMPLETE 3EESHER.CLOUD MONETIZATION PLATFORM ====================
 const express = require('express');
 const session = require('express-session');
 const multer = require('multer');
@@ -10,7 +10,7 @@ const bcrypt = require('bcrypt');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- SETUP ---
+// --- CONFIGURATION ---
 const UPLOADS_FOLDER = './uploads';
 if (!fs.existsSync(UPLOADS_FOLDER)) fs.mkdirSync(UPLOADS_FOLDER, { recursive: true });
 
@@ -18,113 +18,460 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_FOLDER));
 app.use(session({
-    secret: '3eesher-final',
+    secret: '3eesher-monetization',
     resave: false,
     saveUninitialized: true,
     cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }
 }));
 
-// --- DATABASE ---
+// ==================== DATABASE SETUP ====================
 const db = new sqlite3.Database('./3eesher.db');
 db.serialize(() => {
-    // Users table
+    // USERS TABLE
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
+        email TEXT UNIQUE,
         password TEXT,
-        role TEXT DEFAULT 'viewer'
+        full_name TEXT,
+        role TEXT DEFAULT 'viewer',
+        earnings REAL DEFAULT 0,
+        wallet_address TEXT,
+        approved INTEGER DEFAULT 1,
+        created_date TEXT
     )`);
     
-    // Videos table
+    // VIDEOS TABLE
     db.run(`CREATE TABLE IF NOT EXISTS videos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
         filename TEXT,
-        description TEXT,
         thumbnail TEXT,
+        description TEXT,
         views INTEGER DEFAULT 0,
+        revenue REAL DEFAULT 0,
         featured INTEGER DEFAULT 0,
         created_date TEXT
     )`);
     
-    // Blog posts table
+    // BLOG POSTS TABLE
     db.run(`CREATE TABLE IF NOT EXISTS posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
+        slug TEXT UNIQUE,
         content TEXT,
+        excerpt TEXT,
         image TEXT,
         views INTEGER DEFAULT 0,
+        revenue REAL DEFAULT 0,
+        published_date TEXT,
         created_date TEXT
     )`);
     
-    // Gallery table
-    db.run(`CREATE TABLE IF NOT EXISTS gallery (
+    // ========== PAYMENT METHODS TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS payment_methods (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        filename TEXT,
-        type TEXT,
+        name TEXT,
+        type TEXT, -- 'stripe', 'paypal', 'credit_card', 'crypto', 'bank'
+        enabled INTEGER DEFAULT 1,
+        api_key TEXT,
+        api_secret TEXT,
+        webhook_secret TEXT,
+        fee_percentage REAL DEFAULT 2.9,
+        fee_fixed REAL DEFAULT 0.30,
+        min_amount REAL DEFAULT 1,
+        max_amount REAL DEFAULT 10000,
+        currencies TEXT, -- JSON array
+        countries TEXT, -- JSON array
+        display_order INTEGER DEFAULT 0,
         created_date TEXT
     )`);
     
-    // Placeholders table
-    db.run(`CREATE TABLE IF NOT EXISTS placeholders (
+    // ========== CRYPTO WALLETS TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS crypto_wallets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        filename TEXT,
-        link TEXT,
-        location TEXT,
+        currency TEXT, -- 'BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOT', 'MATIC'
+        network TEXT, -- 'bitcoin', 'ethereum', 'bsc', 'polygon', 'solana'
+        address TEXT,
+        qr_code TEXT,
+        label TEXT,
+        enabled INTEGER DEFAULT 1,
         created_date TEXT
     )`);
     
-    // Settings table
+    // ========== TRANSACTIONS TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        amount REAL,
+        currency TEXT,
+        payment_method TEXT,
+        payment_id TEXT,
+        status TEXT, -- 'pending', 'completed', 'failed', 'refunded'
+        type TEXT, -- 'payment', 'withdrawal', 'refund'
+        description TEXT,
+        created_date TEXT,
+        completed_date TEXT
+    )`);
+    
+    // ========== AD NETWORKS TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS ad_networks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT, -- 'Google AdSense', 'Taboola', 'Outbrain', 'Mediavine', 'Ezoic', 'AdThrive', 'Direct'
+        type TEXT, -- 'display', 'native', 'video', 'popup'
+        enabled INTEGER DEFAULT 1,
+        publisher_id TEXT,
+        api_key TEXT,
+        api_secret TEXT,
+        config TEXT, -- JSON config
+        created_date TEXT
+    )`);
+    
+    // ========== AD PLACEMENTS TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS ad_placements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        location TEXT, -- 'header', 'sidebar_top', 'sidebar_middle', 'sidebar_bottom', 'content_top', 'content_middle', 'content_bottom', 'footer', 'popup', 'interstitial', 'infeed'
+        code TEXT,
+        network_id INTEGER,
+        devices TEXT, -- 'all', 'desktop', 'mobile', 'tablet'
+        countries TEXT, -- JSON array
+        user_roles TEXT, -- JSON array
+        min_views INTEGER DEFAULT 0,
+        enabled INTEGER DEFAULT 1,
+        priority INTEGER DEFAULT 0,
+        impressions INTEGER DEFAULT 0,
+        clicks INTEGER DEFAULT 0,
+        revenue REAL DEFAULT 0,
+        created_date TEXT,
+        FOREIGN KEY (network_id) REFERENCES ad_networks(id)
+    )`);
+    
+    // ========== AD CAMPAIGNS TABLE (For Direct Ads) ==========
+    db.run(`CREATE TABLE IF NOT EXISTS ad_campaigns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        advertiser TEXT,
+        budget REAL,
+        spent REAL DEFAULT 0,
+        target_url TEXT,
+        target_impressions INTEGER DEFAULT 0,
+        target_clicks INTEGER DEFAULT 0,
+        cost_per_impression REAL DEFAULT 0, -- CPM
+        cost_per_click REAL DEFAULT 0, -- CPC
+        start_date TEXT,
+        end_date TEXT,
+        countries TEXT, -- JSON array
+        devices TEXT, -- JSON array
+        placements TEXT, -- JSON array
+        status TEXT DEFAULT 'active', -- 'active', 'paused', 'ended'
+        created_date TEXT
+    )`);
+    
+    // ========== AD TRACKING TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS ad_tracking (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        placement_id INTEGER,
+        campaign_id INTEGER,
+        user_id INTEGER,
+        session_id TEXT,
+        ip_address TEXT,
+        user_agent TEXT,
+        country TEXT,
+        device TEXT,
+        browser TEXT,
+        impression_id TEXT,
+        click_id TEXT,
+        conversion_id TEXT,
+        conversion_value REAL,
+        revenue REAL,
+        timestamp TEXT
+    )`);
+    
+    // ========== CONVERSION TRACKING TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS conversion_tracking (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        provider TEXT, -- 'google', 'facebook', 'tiktok', 'twitter', 'linkedin', 'pinterest', 'snapchat'
+        pixel_code TEXT,
+        event_name TEXT, -- 'Purchase', 'Lead', 'SignUp', 'ViewContent', 'AddToCart'
+        value REAL DEFAULT 0,
+        currency TEXT DEFAULT 'USD',
+        enabled INTEGER DEFAULT 1,
+        created_date TEXT
+    )`);
+    
+    // ========== RETARGETING PIXELS TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS retargeting_pixels (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        provider TEXT, -- 'facebook', 'google', 'tiktok', 'twitter', 'pinterest', 'criteo', 'adroll'
+        pixel_id TEXT,
+        pixel_code TEXT,
+        events TEXT, -- JSON array of events to track
+        enabled INTEGER DEFAULT 1,
+        placement TEXT, -- 'header', 'footer'
+        created_date TEXT
+    )`);
+    
+    // ========== INJECTIONS TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS injections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        location TEXT, -- 'head', 'body_start', 'before_content', 'after_content', 'footer', 'body_end', 'custom_css', 'custom_js'
+        code TEXT,
+        active INTEGER DEFAULT 1,
+        created_date TEXT
+    )`);
+    
+    // ========== SETTINGS TABLE ==========
     db.run(`CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT
     )`);
     
-    // Create default admin
+    // ========== PAGES TABLE ==========
+    db.run(`CREATE TABLE IF NOT EXISTS pages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
+        slug TEXT UNIQUE,
+        content TEXT,
+        published INTEGER DEFAULT 1,
+        created_date TEXT
+    )`);
+    
+    // ==================== DEFAULT DATA ====================
+    
+    // Create admin user
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync('admin123', salt);
-    db.run(`INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)`,
-        ['admin', hash, 'super_admin']);
+    db.run(`INSERT OR IGNORE INTO users (username, email, password, full_name, role, created_date) VALUES (?, ?, ?, ?, ?, ?)`,
+        ['admin', 'admin@3eesher.cloud', hash, 'Super Admin', 'super_admin', new Date().toISOString()]);
     
     // Default settings
     const settings = [
         ['site_name', '3eesher.cloud'],
-        ['site_title', '3eesher.cloud - Video Gallery & Blog Platform'],
-        ['site_description', 'Share your videos and stories with the world'],
+        ['site_title', '3eesher.cloud - Monetization Platform'],
+        ['site_description', 'Earn money with videos, blog, and ads'],
         ['primary_color', '#667eea'],
         ['secondary_color', '#764ba2'],
-        ['hero_title', 'Welcome to 3eesher.cloud'],
-        ['hero_subtitle', 'Share your videos and connect with creators'],
-        ['footer_text', '© 2024 3eesher.cloud. All rights reserved.']
+        ['hero_title', 'Create. Share. Earn.'],
+        ['hero_subtitle', 'Join thousands of creators making money'],
+        ['footer_text', '© 2024 3eesher.cloud. All rights reserved.'],
+        ['currency', 'USD'],
+        ['currency_symbol', '$'],
+        ['default_payment_method', 'stripe'],
+        ['ads_enabled', 'true'],
+        ['payments_enabled', 'true'],
+        ['affiliate_enabled', 'true'],
+        ['crypto_enabled', 'true'],
+        ['min_withdrawal', '10'],
+        ['withdrawal_fee', '1']
     ];
     
     settings.forEach(([key, value]) => {
         db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`, [key, value]);
     });
     
-    // Add sample data if empty
-    db.get(`SELECT COUNT(*) as count FROM videos`, [], (err, row) => {
-        if (row.count === 0) {
-            db.run(`INSERT INTO videos (title, description, views, featured, created_date) VALUES 
-                ('Welcome Video', 'Welcome to 3eesher.cloud!', 1250, 1, datetime('now')),
-                ('How to Create Videos', 'Learn video creation tips', 890, 1, datetime('now')),
-                ('Behind the Scenes', 'Watch how we make content', 567, 0, datetime('now'))`);
-        }
+    // ========== DEFAULT PAYMENT METHODS ==========
+    const payments = [
+        ['Stripe', 'stripe', 1, 'pk_live_...', 'sk_live_...', 'whsec_...', 2.9, 0.30, 1, 10000, '["USD","EUR","GBP"]', '[]', 1],
+        ['PayPal', 'paypal', 1, 'client_id_...', 'secret_...', '', 3.5, 0, 1, 10000, '["USD","EUR","GBP"]', '[]', 2],
+        ['Credit Card', 'credit_card', 1, '', '', '', 2.9, 0.30, 1, 10000, '["USD","EUR","GBP"]', '[]', 3],
+        ['Visa', 'credit_card', 1, '', '', '', 2.9, 0.30, 1, 10000, '["USD","EUR","GBP"]', '[]', 4],
+        ['Mastercard', 'credit_card', 1, '', '', '', 2.9, 0.30, 1, 10000, '["USD","EUR","GBP"]', '[]', 5],
+        ['American Express', 'credit_card', 1, '', '', '', 3.5, 0.30, 1, 10000, '["USD","EUR","GBP"]', '[]', 6],
+        ['Discover', 'credit_card', 1, '', '', '', 2.9, 0.30, 1, 10000, '["USD"]', '[]', 7],
+        ['Bank Transfer', 'bank', 1, '', '', '', 0, 0, 10, 10000, '["USD","EUR","GBP"]', '[]', 8]
+    ];
+    
+    payments.forEach(([name, type, enabled, key, secret, webhook, fee_pct, fee_fixed, min, max, currencies, countries, order]) => {
+        db.run(`INSERT OR IGNORE INTO payment_methods (name, type, enabled, api_key, api_secret, webhook_secret, fee_percentage, fee_fixed, min_amount, max_amount, currencies, countries, display_order, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name, type, enabled, key, secret, webhook, fee_pct, fee_fixed, min, max, currencies, countries, order, new Date().toISOString()]);
     });
     
-    db.get(`SELECT COUNT(*) as count FROM posts`, [], (err, row) => {
-        if (row.count === 0) {
-            db.run(`INSERT INTO posts (title, content, views, created_date) VALUES 
-                ('Getting Started on 3eesher.cloud', 'Welcome to our platform! Here you can share videos, write blog posts, and connect with others.', 342, datetime('now')),
-                ('Top Video Tips for Beginners', 'Learn the best practices for creating engaging video content that viewers love.', 267, datetime('now')),
-                ('Community Spotlight', 'Check out amazing content from our community members.', 189, datetime('now'))`);
-        }
+    // ========== DEFAULT CRYPTO WALLETS ==========
+    const wallets = [
+        ['BTC', 'bitcoin', 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', '', 'Bitcoin Main', 1],
+        ['ETH', 'ethereum', '0x742d35Cc6634C0532925a3b844Bc9e7593f0bA9c', '', 'Ethereum Main', 1],
+        ['USDT', 'ethereum', '0x742d35Cc6634C0532925a3b844Bc9e7593f0bA9c', '', 'USDT (ERC20)', 1],
+        ['USDT', 'bsc', '0x742d35Cc6634C0532925a3b844Bc9e7593f0bA9c', '', 'USDT (BSC)', 1],
+        ['BNB', 'bsc', '0x742d35Cc6634C0532925a3b844Bc9e7593f0bA9c', '', 'Binance Coin', 1],
+        ['SOL', 'solana', '5K1x8KjzB5Q9qQ9qQ9qQ9qQ9qQ9qQ9qQ9qQ9qQ9', '', 'Solana', 1],
+        ['XRP', 'ripple', 'rLHzPsX6oXkzU2qLqkzU2qLqkzU2qLqkzU2qLqkzU', '', 'Ripple', 1],
+        ['ADA', 'cardano', 'addr1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', '', 'Cardano', 1],
+        ['DOT', 'polkadot', '1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', '', 'Polkadot', 1],
+        ['MATIC', 'polygon', '0x742d35Cc6634C0532925a3b844Bc9e7593f0bA9c', '', 'Polygon', 1]
+    ];
+    
+    wallets.forEach(([currency, network, address, qr, label, enabled]) => {
+        db.run(`INSERT OR IGNORE INTO crypto_wallets (currency, network, address, qr_code, label, enabled, created_date) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [currency, network, address, qr, label, enabled, new Date().toISOString()]);
+    });
+    
+    // ========== DEFAULT AD NETWORKS ==========
+    const adNetworks = [
+        ['Google AdSense', 'display', 1, 'pub-0000000000000000', '', '', '{}'],
+        ['Taboola', 'native', 1, 'taboola_000000', '', '', '{}'],
+        ['Outbrain', 'native', 1, 'outbrain_000000', '', '', '{}'],
+        ['Mediavine', 'display', 1, 'mediavine_000000', '', '', '{}'],
+        ['Ezoic', 'display', 1, 'ezoic_000000', '', '', '{}'],
+        ['AdThrive', 'display', 1, 'adthrive_000000', '', '', '{}'],
+        ['Direct Ads', 'display', 1, '', '', '', '{}'],
+        ['Amazon Associates', 'affiliate', 1, 'amzn_assoc_tracking_id', '', '', '{}'],
+        ['ShareASale', 'affiliate', 1, 'shareasale_000000', '', '', '{}'],
+        ['CJ Affiliate', 'affiliate', 1, 'cj_000000', '', '', '{}']
+    ];
+    
+    adNetworks.forEach(([name, type, enabled, pub_id, key, secret, config]) => {
+        db.run(`INSERT OR IGNORE INTO ad_networks (name, type, enabled, publisher_id, api_key, api_secret, config, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name, type, enabled, pub_id, key, secret, config, new Date().toISOString()]);
+    });
+    
+    // ========== DEFAULT AD PLACEMENTS ==========
+    const adPlacements = [
+        ['Header Banner', 'header', '<!-- Google AdSense Header -->', 1, 'all', '[]', '[]', 0, 1, 1],
+        ['Sidebar Top', 'sidebar_top', '<!-- Sidebar Top Ad -->', 1, 'desktop', '[]', '[]', 0, 1, 2],
+        ['Sidebar Middle', 'sidebar_middle', '<!-- Sidebar Middle Ad -->', 1, 'desktop', '[]', '[]', 0, 1, 3],
+        ['Sidebar Bottom', 'sidebar_bottom', '<!-- Sidebar Bottom Ad -->', 1, 'desktop', '[]', '[]', 0, 1, 4],
+        ['Content Top', 'content_top', '<!-- Content Top Ad -->', 1, 'all', '[]', '[]', 0, 1, 5],
+        ['Content Middle', 'content_middle', '<!-- Content Middle Ad -->', 1, 'all', '[]', '[]', 0, 1, 6],
+        ['Content Bottom', 'content_bottom', '<!-- Content Bottom Ad -->', 1, 'all', '[]', '[]', 0, 1, 7],
+        ['Footer Banner', 'footer', '<!-- Footer Ad -->', 1, 'all', '[]', '[]', 0, 1, 8],
+        ['Popup Ad', 'popup', '<!-- Popup Ad -->', 1, 'all', '[]', '[]', 0, 1, 9],
+        ['In-feed Ad', 'infeed', '<!-- In-feed Ad -->', 1, 'all', '[]', '[]', 0, 1, 10],
+        ['Interstitial', 'interstitial', '<!-- Interstitial Ad -->', 1, 'mobile', '[]', '[]', 0, 1, 11]
+    ];
+    
+    adPlacements.forEach(([name, location, code, network_id, devices, countries, roles, min_views, enabled, priority]) => {
+        db.run(`INSERT OR IGNORE INTO ad_placements (name, location, code, network_id, devices, countries, user_roles, min_views, enabled, priority, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name, location, code, network_id, devices, countries, roles, min_views, enabled, priority, new Date().toISOString()]);
+    });
+    
+    // ========== DEFAULT CONVERSION TRACKING ==========
+    const conversions = [
+        ['Google Ads Purchase', 'google', '<!-- Google Ads Conversion -->', 'Purchase', 0, 'USD', 1],
+        ['Facebook Pixel Purchase', 'facebook', '<!-- Facebook Pixel -->', 'Purchase', 0, 'USD', 1],
+        ['TikTok Pixel', 'tiktok', '<!-- TikTok Pixel -->', 'CompletePayment', 0, 'USD', 1],
+        ['Twitter Pixel', 'twitter', '<!-- Twitter Pixel -->', 'Purchase', 0, 'USD', 1],
+        ['LinkedIn Pixel', 'linkedin', '<!-- LinkedIn Pixel -->', 'Lead', 0, 'USD', 1],
+        ['Pinterest Pixel', 'pinterest', '<!-- Pinterest Pixel -->', 'Checkout', 0, 'USD', 1],
+        ['Snapchat Pixel', 'snapchat', '<!-- Snapchat Pixel -->', 'Purchase', 0, 'USD', 1]
+    ];
+    
+    conversions.forEach(([name, provider, code, event_name, value, currency, enabled]) => {
+        db.run(`INSERT OR IGNORE INTO conversion_tracking (name, provider, pixel_code, event_name, value, currency, enabled, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name, provider, code, event_name, value, currency, enabled, new Date().toISOString()]);
+    });
+    
+    // ========== DEFAULT RETARGETING PIXELS ==========
+    const retargeting = [
+        ['Facebook Retargeting', 'facebook', '123456789', '<!-- Facebook Pixel -->', '["PageView","ViewContent","AddToCart","Purchase"]', 1, 'header'],
+        ['Google Remarketing', 'google', 'AW-123456789', '<!-- Google Remarketing -->', '["page_view","add_to_cart","purchase"]', 1, 'header'],
+        ['TikTok Retargeting', 'tiktok', '123456789', '<!-- TikTok Pixel -->', '["PageView","CompletePayment"]', 1, 'header'],
+        ['Twitter Retargeting', 'twitter', '123456789', '<!-- Twitter Pixel -->', '["PageView","Purchase"]', 1, 'header'],
+        ['Pinterest Retargeting', 'pinterest', '123456789', '<!-- Pinterest Pixel -->', '["PageVisit","Checkout"]', 1, 'header'],
+        ['Criteo', 'criteo', '123456789', '<!-- Criteo -->', '["view","add_to_cart","purchase"]', 1, 'header'],
+        ['AdRoll', 'adroll', '123456789', '<!-- AdRoll -->', '["pageView","addToCart","purchase"]', 1, 'header']
+    ];
+    
+    retargeting.forEach(([name, provider, pixel_id, code, events, enabled, placement]) => {
+        db.run(`INSERT OR IGNORE INTO retargeting_pixels (name, provider, pixel_id, pixel_code, events, enabled, placement, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name, provider, pixel_id, code, events, enabled, placement, new Date().toISOString()]);
+    });
+    
+    // ========== DEFAULT PAGES ==========
+    const pages = [
+        ['About Us', 'about', generateAboutPage(), 1],
+        ['Privacy Policy', 'privacy', generatePrivacyPage(), 1],
+        ['Terms of Service', 'terms', generateTermsPage(), 1],
+        ['Affiliate Disclosure', 'disclosure', generateDisclosurePage(), 1],
+        ['Cookie Policy', 'cookies', generateCookiePage(), 1],
+        ['Contact Us', 'contact', generateContactPage(), 1],
+        ['Earnings Disclaimer', 'earnings', generateEarningsPage(), 1],
+        ['Refund Policy', 'refunds', generateRefundPage(), 1]
+    ];
+    
+    pages.forEach(([title, slug, content, published]) => {
+        db.run(`INSERT OR IGNORE INTO pages (title, slug, content, published, created_date) VALUES (?, ?, ?, ?, ?)`,
+            [title, slug, content, published, new Date().toISOString()]);
     });
 });
 
-// --- UPLOAD SETUP ---
+// ==================== PAGE CONTENT GENERATORS ====================
+function generateAboutPage() {
+    return `
+        <div class="about-page">
+            <h1>About 3eesher.cloud</h1>
+            <p>We're a complete monetization platform helping creators earn from their content.</p>
+        </div>
+    `;
+}
+
+function generatePrivacyPage() {
+    return `
+        <div class="privacy-page">
+            <h1>Privacy Policy</h1>
+            <p>Your privacy is important to us. This policy explains how we handle your data.</p>
+        </div>
+    `;
+}
+
+function generateTermsPage() {
+    return `
+        <div class="terms-page">
+            <h1>Terms of Service</h1>
+            <p>By using our platform, you agree to these terms.</p>
+        </div>
+    `;
+}
+
+function generateDisclosurePage() {
+    return `
+        <div class="disclosure-page">
+            <h1>Affiliate Disclosure</h1>
+            <p>We may earn commissions from affiliate links.</p>
+        </div>
+    `;
+}
+
+function generateCookiePage() {
+    return `
+        <div class="cookie-page">
+            <h1>Cookie Policy</h1>
+            <p>We use cookies to improve your experience.</p>
+        </div>
+    `;
+}
+
+function generateContactPage() {
+    return `
+        <div class="contact-page">
+            <h1>Contact Us</h1>
+            <p>Email: support@3eesher.cloud</p>
+        </div>
+    `;
+}
+
+function generateEarningsPage() {
+    return `
+        <div class="earnings-page">
+            <h1>Earnings Disclaimer</h1>
+            <p>Results may vary. Past performance doesn't guarantee future results.</p>
+        </div>
+    `;
+}
+
+function generateRefundPage() {
+    return `
+        <div class="refund-page">
+            <h1>Refund Policy</h1>
+            <p>Refunds are handled according to our terms.</p>
+        </div>
+    `;
+}
+
+// ==================== UPLOAD SETUP ====================
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOADS_FOLDER),
     filename: (req, file, cb) => {
@@ -136,628 +483,206 @@ const upload = multer({ storage: storage, limits: { fileSize: 100 * 1024 * 1024 
 
 // ==================== MAIN WEBSITE ====================
 app.get('/', (req, res) => {
-    // Get all settings
     db.all(`SELECT * FROM settings`, [], (err, settingsRows) => {
         const settings = {};
         settingsRows.forEach(s => settings[s.key] = s.value);
         
-        // Get videos
-        db.all(`SELECT * FROM videos ORDER BY featured DESC, created_date DESC`, [], (err, videos) => {
-            
-            // Get blog posts
-            db.all(`SELECT * FROM posts ORDER BY created_date DESC LIMIT 3`, [], (err, posts) => {
-                
-                // Get gallery images
-                db.all(`SELECT * FROM gallery ORDER BY created_date DESC LIMIT 8`, [], (err, gallery) => {
-                    
-                    // Get placeholders
-                    db.all(`SELECT * FROM placeholders WHERE location = 'hero' LIMIT 1`, [], (err, hero) => {
-                        
-                        // Generate video HTML
-                        const videoHTML = videos.map(v => `
-                            <div class="video-card">
-                                <div class="video-thumbnail">
-                                    ${v.thumbnail ? 
-                                        `<img src="/uploads/${v.thumbnail}" alt="${v.title}">` : 
-                                        `<div class="video-placeholder">🎥</div>`
-                                    }
-                                    <span class="video-views">👁️ ${v.views.toLocaleString()}</span>
-                                </div>
-                                <div class="video-info">
-                                    <h3>${v.title}</h3>
-                                    <p>${v.description || ''}</p>
-                                    <button class="play-btn" onclick="playVideo('${v.filename}')">▶ Play</button>
-                                </div>
-                            </div>
-                        `).join('');
-                        
-                        // Generate blog HTML
-                        const blogHTML = posts.map(p => `
-                            <article class="blog-card">
-                                ${p.image ? `<img src="/uploads/${p.image}" alt="${p.title}" class="blog-image">` : ''}
-                                <div class="blog-content">
-                                    <h3>${p.title}</h3>
-                                    <p class="blog-meta">${new Date(p.created_date).toLocaleDateString()} | 👁️ ${p.views} views</p>
-                                    <p>${p.content.substring(0, 150)}...</p>
-                                    <a href="/post/${p.id}" class="read-more">Read More →</a>
-                                </div>
-                            </article>
-                        `).join('');
-                        
-                        // Generate gallery HTML
-                        const galleryHTML = gallery.map(g => `
-                            <div class="gallery-item">
-                                <img src="/uploads/${g.filename}" alt="${g.title || 'Gallery image'}" loading="lazy">
-                                ${g.title ? `<div class="gallery-overlay">${g.title}</div>` : ''}
-                            </div>
-                        `).join('');
-                        
-                        // Hero section HTML
-                        const heroHTML = hero.length > 0 ? 
-                            `<div class="hero" style="background-image: url('/uploads/${hero[0].filename}')">
-                                <div class="hero-content">
-                                    <h1>${settings.hero_title}</h1>
-                                    <p>${settings.hero_subtitle}</p>
-                                    <a href="#videos" class="hero-btn">Watch Videos</a>
-                                </div>
-                            </div>` :
-                            `<div class="hero" style="background: linear-gradient(135deg, ${settings.primary_color}, ${settings.secondary_color})">
-                                <div class="hero-content">
-                                    <h1>${settings.hero_title}</h1>
-                                    <p>${settings.hero_subtitle}</p>
-                                    <a href="#videos" class="hero-btn">Get Started</a>
-                                </div>
-                            </div>`;
-                        
-                        // Send the FULL website
-                        res.send(`
-                            <!DOCTYPE html>
-                            <html lang="en">
-                            <head>
-                                <meta charset="UTF-8">
-                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                                <title>${settings.site_title}</title>
-                                <meta name="description" content="${settings.site_description}">
-                                <style>
-                                    * {
-                                        margin: 0;
-                                        padding: 0;
-                                        box-sizing: border-box;
-                                    }
-                                    
-                                    body {
-                                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-                                        line-height: 1.6;
-                                        color: #333;
-                                    }
-                                    
-                                    /* Header */
-                                    header {
-                                        background: linear-gradient(135deg, ${settings.primary_color}, ${settings.secondary_color});
-                                        color: white;
-                                        padding: 1rem 0;
-                                        position: sticky;
-                                        top: 0;
-                                        z-index: 1000;
-                                        box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-                                    }
-                                    
-                                    .header-container {
-                                        max-width: 1200px;
-                                        margin: 0 auto;
-                                        padding: 0 20px;
-                                        display: flex;
-                                        justify-content: space-between;
-                                        align-items: center;
-                                    }
-                                    
-                                    .logo {
-                                        font-size: 1.8rem;
-                                        font-weight: bold;
-                                        text-decoration: none;
-                                        color: white;
-                                    }
-                                    
-                                    .nav-links {
-                                        display: flex;
-                                        gap: 30px;
-                                    }
-                                    
-                                    .nav-links a {
-                                        color: white;
-                                        text-decoration: none;
-                                        font-weight: 500;
-                                        transition: opacity 0.3s;
-                                    }
-                                    
-                                    .nav-links a:hover {
-                                        opacity: 0.8;
-                                    }
-                                    
-                                    .login-btn {
-                                        background: white;
-                                        color: ${settings.primary_color} !important;
-                                        padding: 8px 20px;
-                                        border-radius: 50px;
-                                        font-weight: 600;
-                                    }
-                                    
-                                    /* Hero Section */
-                                    .hero {
-                                        min-height: 500px;
-                                        background-size: cover;
-                                        background-position: center;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        text-align: center;
-                                        color: white;
-                                        position: relative;
-                                    }
-                                    
-                                    .hero::before {
-                                        content: '';
-                                        position: absolute;
-                                        top: 0;
-                                        left: 0;
-                                        right: 0;
-                                        bottom: 0;
-                                        background: rgba(0,0,0,0.5);
-                                    }
-                                    
-                                    .hero-content {
-                                        position: relative;
-                                        z-index: 1;
-                                        max-width: 800px;
-                                        padding: 0 20px;
-                                    }
-                                    
-                                    .hero h1 {
-                                        font-size: 3.5rem;
-                                        margin-bottom: 1rem;
-                                        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                                    }
-                                    
-                                    .hero p {
-                                        font-size: 1.2rem;
-                                        margin-bottom: 2rem;
-                                        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-                                    }
-                                    
-                                    .hero-btn {
-                                        display: inline-block;
-                                        padding: 15px 40px;
-                                        background: white;
-                                        color: ${settings.primary_color};
-                                        text-decoration: none;
-                                        border-radius: 50px;
-                                        font-weight: 600;
-                                        font-size: 1.1rem;
-                                        transition: transform 0.3s;
-                                    }
-                                    
-                                    .hero-btn:hover {
-                                        transform: translateY(-3px);
-                                        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-                                    }
-                                    
-                                    /* Main Container */
-                                    .container {
-                                        max-width: 1200px;
-                                        margin: 0 auto;
-                                        padding: 40px 20px;
-                                    }
-                                    
-                                    .section-title {
-                                        font-size: 2.5rem;
-                                        margin-bottom: 30px;
-                                        color: #333;
-                                        position: relative;
-                                        padding-bottom: 15px;
-                                    }
-                                    
-                                    .section-title::after {
-                                        content: '';
-                                        position: absolute;
-                                        bottom: 0;
-                                        left: 0;
-                                        width: 80px;
-                                        height: 4px;
-                                        background: linear-gradient(to right, ${settings.primary_color}, ${settings.secondary_color});
-                                        border-radius: 2px;
-                                    }
-                                    
-                                    /* Video Grid */
-                                    .video-grid {
-                                        display: grid;
-                                        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                                        gap: 30px;
-                                        margin: 40px 0;
-                                    }
-                                    
-                                    .video-card {
-                                        background: white;
-                                        border-radius: 15px;
-                                        overflow: hidden;
-                                        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-                                        transition: transform 0.3s, box-shadow 0.3s;
-                                    }
-                                    
-                                    .video-card:hover {
-                                        transform: translateY(-5px);
-                                        box-shadow: 0 15px 30px rgba(0,0,0,0.15);
-                                    }
-                                    
-                                    .video-thumbnail {
-                                        height: 180px;
-                                        background: #2d3748;
-                                        position: relative;
-                                        overflow: hidden;
-                                    }
-                                    
-                                    .video-thumbnail img {
-                                        width: 100%;
-                                        height: 100%;
-                                        object-fit: cover;
-                                    }
-                                    
-                                    .video-placeholder {
-                                        width: 100%;
-                                        height: 100%;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        font-size: 3rem;
-                                        background: linear-gradient(135deg, #667eea, #764ba2);
-                                        color: white;
-                                    }
-                                    
-                                    .video-views {
-                                        position: absolute;
-                                        bottom: 10px;
-                                        right: 10px;
-                                        background: rgba(0,0,0,0.7);
-                                        color: white;
-                                        padding: 4px 8px;
-                                        border-radius: 5px;
-                                        font-size: 0.8rem;
-                                    }
-                                    
-                                    .video-info {
-                                        padding: 20px;
-                                    }
-                                    
-                                    .video-info h3 {
-                                        margin-bottom: 10px;
-                                        color: #333;
-                                    }
-                                    
-                                    .video-info p {
-                                        color: #666;
-                                        margin-bottom: 15px;
-                                        font-size: 0.95rem;
-                                    }
-                                    
-                                    .play-btn {
-                                        padding: 8px 20px;
-                                        background: linear-gradient(135deg, ${settings.primary_color}, ${settings.secondary_color});
-                                        color: white;
-                                        border: none;
-                                        border-radius: 5px;
-                                        cursor: pointer;
-                                        font-weight: 600;
-                                        transition: opacity 0.3s;
-                                    }
-                                    
-                                    .play-btn:hover {
-                                        opacity: 0.9;
-                                    }
-                                    
-                                    /* Blog Section */
-                                    .blog-grid {
-                                        display: grid;
-                                        gap: 30px;
-                                        margin: 40px 0;
-                                    }
-                                    
-                                    .blog-card {
-                                        display: flex;
-                                        background: white;
-                                        border-radius: 15px;
-                                        overflow: hidden;
-                                        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-                                    }
-                                    
-                                    .blog-image {
-                                        width: 300px;
-                                        object-fit: cover;
-                                    }
-                                    
-                                    .blog-content {
-                                        padding: 25px;
-                                        flex: 1;
-                                    }
-                                    
-                                    .blog-content h3 {
-                                        font-size: 1.5rem;
-                                        margin-bottom: 10px;
-                                        color: #333;
-                                    }
-                                    
-                                    .blog-meta {
-                                        color: #666;
-                                        font-size: 0.9rem;
-                                        margin-bottom: 15px;
-                                    }
-                                    
-                                    .read-more {
-                                        display: inline-block;
-                                        margin-top: 15px;
-                                        color: ${settings.primary_color};
-                                        text-decoration: none;
-                                        font-weight: 600;
-                                    }
-                                    
-                                    /* Gallery Section */
-                                    .gallery-grid {
-                                        display: grid;
-                                        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-                                        gap: 20px;
-                                        margin: 40px 0;
-                                    }
-                                    
-                                    .gallery-item {
-                                        position: relative;
-                                        border-radius: 10px;
-                                        overflow: hidden;
-                                        aspect-ratio: 1;
-                                    }
-                                    
-                                    .gallery-item img {
-                                        width: 100%;
-                                        height: 100%;
-                                        object-fit: cover;
-                                        transition: transform 0.5s;
-                                    }
-                                    
-                                    .gallery-item:hover img {
-                                        transform: scale(1.1);
-                                    }
-                                    
-                                    .gallery-overlay {
-                                        position: absolute;
-                                        bottom: 0;
-                                        left: 0;
-                                        right: 0;
-                                        background: linear-gradient(transparent, rgba(0,0,0,0.8));
-                                        color: white;
-                                        padding: 15px;
-                                        transform: translateY(100%);
-                                        transition: transform 0.3s;
-                                    }
-                                    
-                                    .gallery-item:hover .gallery-overlay {
-                                        transform: translateY(0);
-                                    }
-                                    
-                                    /* Footer */
-                                    footer {
-                                        background: #1a202c;
-                                        color: white;
-                                        padding: 60px 0 20px;
-                                        margin-top: 60px;
-                                    }
-                                    
-                                    .footer-container {
-                                        max-width: 1200px;
-                                        margin: 0 auto;
-                                        padding: 0 20px;
-                                    }
-                                    
-                                    .footer-grid {
-                                        display: grid;
-                                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                                        gap: 40px;
-                                        margin-bottom: 40px;
-                                    }
-                                    
-                                    .footer-col h3 {
-                                        margin-bottom: 20px;
-                                        color: white;
-                                    }
-                                    
-                                    .footer-col ul {
-                                        list-style: none;
-                                    }
-                                    
-                                    .footer-col li {
-                                        margin-bottom: 10px;
-                                    }
-                                    
-                                    .footer-col a {
-                                        color: #a0aec0;
-                                        text-decoration: none;
-                                        transition: color 0.3s;
-                                    }
-                                    
-                                    .footer-col a:hover {
-                                        color: white;
-                                    }
-                                    
-                                    .footer-bottom {
-                                        text-align: center;
-                                        padding-top: 20px;
-                                        border-top: 1px solid #2d3748;
-                                        color: #a0aec0;
-                                    }
-                                    
-                                    /* Admin Button */
-                                    .admin-btn {
-                                        position: fixed;
-                                        bottom: 20px;
-                                        right: 20px;
-                                        background: linear-gradient(135deg, ${settings.primary_color}, ${settings.secondary_color});
-                                        color: white;
-                                        padding: 15px 30px;
-                                        border-radius: 50px;
-                                        text-decoration: none;
-                                        font-weight: 600;
-                                        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-                                        z-index: 9999;
-                                        transition: transform 0.3s;
-                                    }
-                                    
-                                    .admin-btn:hover {
-                                        transform: translateY(-3px);
-                                    }
-                                    
-                                    /* Responsive */
-                                    @media (max-width: 768px) {
-                                        .hero h1 {
-                                            font-size: 2.5rem;
-                                        }
+        db.all(`SELECT * FROM videos ORDER BY created_date DESC`, [], (err, videos) => {
+            db.all(`SELECT * FROM posts ORDER BY published_date DESC LIMIT 3`, [], (err, posts) => {
+                db.all(`SELECT * FROM ad_placements WHERE enabled = 1`, [], (err, ads) => {
+                    db.all(`SELECT * FROM conversion_tracking WHERE enabled = 1`, [], (err, conversions) => {
+                        db.all(`SELECT * FROM retargeting_pixels WHERE enabled = 1`, [], (err, pixels) => {
+                            db.all(`SELECT * FROM injections WHERE active = 1`, [], (err, injections) => {
+                                
+                                // Group injections
+                                const headInjection = injections.find(i => i.location === 'head')?.code || '';
+                                const bodyStartInjection = injections.find(i => i.location === 'body_start')?.code || '';
+                                const bodyEndInjection = injections.find(i => i.location === 'body_end')?.code || '';
+                                const customCSS = injections.find(i => i.location === 'custom_css')?.code || '';
+                                const customJS = injections.find(i => i.location === 'custom_js')?.code || '';
+                                
+                                // Group ads by location
+                                const adsByLocation = {};
+                                ads.forEach(ad => adsByLocation[ad.location] = ad.code);
+                                
+                                // Conversion pixels
+                                const conversionPixels = conversions.map(c => c.pixel_code).join('\n');
+                                
+                                // Retargeting pixels
+                                const retargetingPixels = pixels.map(p => p.pixel_code).join('\n');
+                                
+                                // Video HTML
+                                const videoHTML = videos.map(v => `
+                                    <div class="video-card">
+                                        <video src="/uploads/${v.filename}" controls></video>
+                                        <h3>${v.title}</h3>
+                                        <p>👁️ ${v.views} views | 💰 $${v.revenue}</p>
+                                    </div>
+                                `).join('');
+                                
+                                // Blog HTML
+                                const blogHTML = posts.map(p => `
+                                    <article class="blog-card">
+                                        <h3><a href="/post/${p.slug}">${p.title}</a></h3>
+                                        <p>${p.excerpt || p.content.substring(0,150)}...</p>
+                                        <small>👁️ ${p.views} views | 💰 $${p.revenue}</small>
+                                    </article>
+                                `).join('');
+                                
+                                res.send(`
+                                    <!DOCTYPE html>
+                                    <html>
+                                    <head>
+                                        <title>${settings.site_title}</title>
+                                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
                                         
-                                        .blog-card {
-                                            flex-direction: column;
-                                        }
+                                        <!-- HEAD INJECTION -->
+                                        ${headInjection}
                                         
-                                        .blog-image {
-                                            width: 100%;
-                                            height: 200px;
-                                        }
+                                        <!-- CONVERSION PIXELS -->
+                                        ${conversionPixels}
                                         
-                                        .nav-links {
-                                            gap: 15px;
-                                        }
-                                    }
-                                    
-                                    @media (max-width: 480px) {
-                                        .header-container {
-                                            flex-direction: column;
-                                            gap: 15px;
-                                        }
+                                        <!-- RETARGETING PIXELS -->
+                                        ${retargetingPixels}
                                         
-                                        .hero h1 {
-                                            font-size: 2rem;
-                                        }
-                                    }
-                                </style>
-                            </head>
-                            <body>
-                                <header>
-                                    <div class="header-container">
-                                        <a href="/" class="logo">☁️ 3eesher.cloud</a>
-                                        <nav class="nav-links">
-                                            <a href="#videos">Videos</a>
-                                            <a href="#blog">Blog</a>
-                                            <a href="#gallery">Gallery</a>
-                                            <a href="/about">About</a>
-                                            ${req.session.userId ? 
-                                                '<a href="/admin" class="login-btn">Dashboard</a>' : 
-                                                '<a href="/login" class="login-btn">Login</a>'
+                                        <style>
+                                            * { margin:0; padding:0; box-sizing:border-box; }
+                                            body {
+                                                font-family: Arial, sans-serif;
+                                                line-height: 1.6;
+                                                color: #333;
                                             }
-                                        </nav>
-                                    </div>
-                                </header>
-                                
-                                ${heroHTML}
-                                
-                                <div class="container" id="videos">
-                                    <h2 class="section-title">🎥 Featured Videos</h2>
-                                    <div class="video-grid">
-                                        ${videoHTML}
-                                    </div>
-                                </div>
-                                
-                                <div class="container" id="blog">
-                                    <h2 class="section-title">📝 Latest from Blog</h2>
-                                    <div class="blog-grid">
-                                        ${blogHTML}
-                                    </div>
-                                </div>
-                                
-                                ${gallery.length > 0 ? `
-                                    <div class="container" id="gallery">
-                                        <h2 class="section-title">📸 Photo Gallery</h2>
-                                        <div class="gallery-grid">
-                                            ${galleryHTML}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                                
-                                <footer>
-                                    <div class="footer-container">
-                                        <div class="footer-grid">
-                                            <div class="footer-col">
-                                                <h3>About</h3>
-                                                <p style="color: #a0aec0;">${settings.site_description}</p>
-                                            </div>
-                                            <div class="footer-col">
-                                                <h3>Quick Links</h3>
-                                                <ul>
-                                                    <li><a href="#videos">Videos</a></li>
-                                                    <li><a href="#blog">Blog</a></li>
-                                                    <li><a href="#gallery">Gallery</a></li>
-                                                    <li><a href="/about">About</a></li>
-                                                </ul>
-                                            </div>
-                                            <div class="footer-col">
-                                                <h3>Legal</h3>
-                                                <ul>
-                                                    <li><a href="/privacy">Privacy</a></li>
-                                                    <li><a href="/terms">Terms</a></li>
-                                                    <li><a href="/contact">Contact</a></li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                        <div class="footer-bottom">
-                                            <p>${settings.footer_text}</p>
-                                        </div>
-                                    </div>
-                                </footer>
-                                
-                                ${req.session.userId ? 
-                                    '<a href="/admin" class="admin-btn">⚙️ Admin Dashboard</a>' : 
-                                    ''
-                                }
-                                
-                                <script>
-                                    function playVideo(filename) {
-                                        // Create video modal
-                                        const modal = document.createElement('div');
-                                        modal.style.cssText = '
-                                            position:fixed;
-                                            top:0;
-                                            left:0;
-                                            right:0;
-                                            bottom:0;
-                                            background:rgba(0,0,0,0.9);
-                                            display:flex;
-                                            align-items:center;
-                                            justify-content:center;
-                                            z-index:10000;
-                                        ';
-                                        
-                                        const video = document.createElement('video');
-                                        video.src = '/uploads/' + filename;
-                                        video.controls = true;
-                                        video.style.maxWidth = '90%';
-                                        video.style.maxHeight = '90%';
-                                        
-                                        modal.onclick = function(e) {
-                                            if (e.target === modal) {
-                                                document.body.removeChild(modal);
+                                            .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+                                            header {
+                                                background: linear-gradient(135deg, ${settings.primary_color}, ${settings.secondary_color});
+                                                color: white;
+                                                padding: 20px 0;
                                             }
-                                        };
+                                            .ad-header, .ad-footer, .ad-sidebar, .ad-content {
+                                                text-align: center;
+                                                margin: 20px 0;
+                                                padding: 10px;
+                                                background: #f5f5f5;
+                                                border: 1px dashed #ccc;
+                                            }
+                                            .admin-btn {
+                                                position: fixed;
+                                                bottom: 20px;
+                                                right: 20px;
+                                                background: #667eea;
+                                                color: white;
+                                                padding: 15px 30px;
+                                                border-radius: 50px;
+                                                text-decoration: none;
+                                            }
+                                            .video-grid {
+                                                display: grid;
+                                                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                                                gap: 20px;
+                                            }
+                                            .video-card {
+                                                background: white;
+                                                border-radius: 10px;
+                                                overflow: hidden;
+                                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                                            }
+                                            .video-card video {
+                                                width: 100%;
+                                                height: 200px;
+                                                object-fit: cover;
+                                            }
+                                            .video-card h3, .video-card p {
+                                                padding: 10px;
+                                            }
+                                            ${customCSS}
+                                        </style>
+                                    </head>
+                                    <body>
+                                        <!-- BODY START INJECTION -->
+                                        ${bodyStartInjection}
                                         
-                                        modal.appendChild(video);
-                                        document.body.appendChild(modal);
-                                        video.play();
-                                    }
-                                </script>
-                            </body>
-                            </html>
-                        `);
+                                        <header>
+                                            <div class="container">
+                                                <h1>☁️ ${settings.site_name}</h1>
+                                            </div>
+                                        </header>
+                                        
+                                        <!-- HEADER AD -->
+                                        ${adsByLocation['header'] ? `<div class="ad-header">${adsByLocation['header']}</div>` : ''}
+                                        
+                                        <div class="container">
+                                            <div style="display: grid; grid-template-columns: 1fr 300px; gap: 20px;">
+                                                <main>
+                                                    <h2>🎥 Videos</h2>
+                                                    <div class="video-grid">
+                                                        ${videoHTML}
+                                                    </div>
+                                                    
+                                                    <!-- CONTENT MIDDLE AD -->
+                                                    ${adsByLocation['content_middle'] ? `<div class="ad-content">${adsByLocation['content_middle']}</div>` : ''}
+                                                    
+                                                    <h2 style="margin-top:40px;">📝 Latest Posts</h2>
+                                                    ${blogHTML}
+                                                    
+                                                    <!-- CONTENT BOTTOM AD -->
+                                                    ${adsByLocation['content_bottom'] ? `<div class="ad-content">${adsByLocation['content_bottom']}</div>` : ''}
+                                                </main>
+                                                
+                                                <aside>
+                                                    <!-- SIDEBAR TOP AD -->
+                                                    ${adsByLocation['sidebar_top'] ? `<div class="ad-sidebar">${adsByLocation['sidebar_top']}</div>` : ''}
+                                                    
+                                                    <div style="background: #f5f5f5; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                                                        <h3>Quick Links</h3>
+                                                        <ul>
+                                                            <li><a href="/about">About</a></li>
+                                                            <li><a href="/privacy">Privacy</a></li>
+                                                            <li><a href="/terms">Terms</a></li>
+                                                            <li><a href="/contact">Contact</a></li>
+                                                        </ul>
+                                                    </div>
+                                                    
+                                                    <!-- SIDEBAR BOTTOM AD -->
+                                                    ${adsByLocation['sidebar_bottom'] ? `<div class="ad-sidebar">${adsByLocation['sidebar_bottom']}</div>` : ''}
+                                                </aside>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- FOOTER AD -->
+                                        ${adsByLocation['footer'] ? `<div class="ad-footer">${adsByLocation['footer']}</div>` : ''}
+                                        
+                                        <footer style="background: #333; color: white; padding: 40px 0; margin-top: 40px;">
+                                            <div class="container">
+                                                <p>${settings.footer_text}</p>
+                                            </div>
+                                        </footer>
+                                        
+                                        <!-- BODY END INJECTION -->
+                                        ${bodyEndInjection}
+                                        
+                                        ${req.session.userId ? '<a href="/admin" class="admin-btn">⚙️ Admin</a>' : ''}
+                                        
+                                        <!-- POPUP AD -->
+                                        ${adsByLocation['popup'] ? `
+                                            <div id="popup" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:10px; z-index:10000;">
+                                                <button onclick="this.parentElement.style.display='none'" style="float:right;">✖</button>
+                                                ${adsByLocation['popup']}
+                                            </div>
+                                            <script>
+                                                setTimeout(() => {
+                                                    document.getElementById('popup').style.display = 'block';
+                                                }, 5000);
+                                            </script>
+                                        ` : ''}
+                                        
+                                        <script>
+                                            ${customJS}
+                                        </script>
+                                    </body>
+                                    </html>
+                                `);
+                            });
+                        });
                     });
                 });
             });
@@ -765,213 +690,885 @@ app.get('/', (req, res) => {
     });
 });
 
-// ==================== ADMIN PANEL ====================
-app.get('/admin', (req, res) => {
-    if (!req.session.userId) {
-        res.redirect('/login');
-    } else {
+// ==================== PAGE ROUTES ====================
+app.get('/post/:slug', (req, res) => {
+    const slug = req.params.slug;
+    
+    db.get(`SELECT * FROM posts WHERE slug = ?`, [slug], (err, post) => {
+        if (!post) return res.redirect('/');
+        
+        db.run(`UPDATE posts SET views = views + 1 WHERE id = ?`, [post.id]);
+        
         res.send(`
             <!DOCTYPE html>
             <html>
-            <head>
-                <title>Admin Dashboard - 3eesher.cloud</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    * { margin:0; padding:0; box-sizing:border-box; }
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        background: #f7f9fc;
-                        padding: 20px;
-                    }
-                    .container { max-width: 1200px; margin: 0 auto; }
-                    h1 { color: #333; margin-bottom: 30px; }
-                    .header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin-bottom: 30px;
-                    }
-                    .nav a {
-                        display: inline-block;
-                        padding: 10px 20px;
-                        background: #667eea;
-                        color: white;
-                        text-decoration: none;
-                        border-radius: 5px;
-                        margin-left: 10px;
-                    }
-                    .grid {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                        gap: 20px;
-                        margin-bottom: 30px;
-                    }
-                    .card {
-                        background: white;
-                        padding: 25px;
-                        border-radius: 10px;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    }
-                    .card h2 {
-                        color: #667eea;
-                        margin-bottom: 20px;
-                    }
-                    .form-group {
-                        margin-bottom: 15px;
-                    }
-                    label {
-                        display: block;
-                        margin-bottom: 5px;
-                        color: #666;
-                    }
-                    input, textarea, select {
-                        width: 100%;
-                        padding: 10px;
-                        border: 2px solid #e2e8f0;
-                        border-radius: 5px;
-                        font-size: 14px;
-                    }
-                    button {
-                        padding: 10px 20px;
-                        background: #667eea;
-                        color: white;
-                        border: none;
-                        border-radius: 5px;
-                        cursor: pointer;
-                        font-size: 14px;
-                    }
-                    button:hover {
-                        background: #5a67d8;
-                    }
-                    table {
-                        width: 100%;
-                        background: white;
-                        border-radius: 10px;
-                        overflow: hidden;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    }
-                    th, td {
-                        padding: 12px;
-                        text-align: left;
-                        border-bottom: 1px solid #e2e8f0;
-                    }
-                    th {
-                        background: #f7f9fc;
-                        color: #667eea;
-                    }
-                </style>
-            </head>
+            <head><title>${post.title}</title></head>
             <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>⚙️ Admin Dashboard</h1>
-                        <div class="nav">
-                            <a href="/">View Site</a>
-                            <a href="/logout">Logout</a>
-                        </div>
-                    </div>
-                    
-                    <div class="grid">
-                        <div class="card">
-                            <h2>📹 Upload Video</h2>
-                            <form action="/upload-video" method="POST" enctype="multipart/form-data">
-                                <div class="form-group">
-                                    <label>Title</label>
-                                    <input type="text" name="title" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Description</label>
-                                    <textarea name="description" rows="3"></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label>Video File</label>
-                                    <input type="file" name="video" accept="video/*" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Thumbnail (optional)</label>
-                                    <input type="file" name="thumbnail" accept="image/*">
-                                </div>
-                                <button type="submit">Upload Video</button>
-                            </form>
-                        </div>
-                        
-                        <div class="card">
-                            <h2>📝 Create Blog Post</h2>
-                            <form action="/create-post" method="POST" enctype="multipart/form-data">
-                                <div class="form-group">
-                                    <label>Title</label>
-                                    <input type="text" name="title" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Content</label>
-                                    <textarea name="content" rows="5" required></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label>Featured Image (optional)</label>
-                                    <input type="file" name="image" accept="image/*">
-                                </div>
-                                <button type="submit">Publish Post</button>
-                            </form>
-                        </div>
-                        
-                        <div class="card">
-                            <h2>📸 Upload to Gallery</h2>
-                            <form action="/upload-gallery" method="POST" enctype="multipart/form-data">
-                                <div class="form-group">
-                                    <label>Title (optional)</label>
-                                    <input type="text" name="title">
-                                </div>
-                                <div class="form-group">
-                                    <label>Image</label>
-                                    <input type="file" name="image" accept="image/*" required>
-                                </div>
-                                <button type="submit">Upload to Gallery</button>
-                            </form>
-                        </div>
-                        
-                        <div class="card">
-                            <h2>🖼️ Hero Image</h2>
-                            <form action="/upload-hero" method="POST" enctype="multipart/form-data">
-                                <div class="form-group">
-                                    <label>Hero Image</label>
-                                    <input type="file" name="image" accept="image/*" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Link URL (optional)</label>
-                                    <input type="text" name="link">
-                                </div>
-                                <button type="submit">Set Hero Image</button>
-                            </form>
-                        </div>
-                    </div>
-                    
-                    <h2 style="margin: 30px 0 20px;">Recent Videos</h2>
-                    <table>
-                        <tr>
-                            <th>ID</th>
-                            <th>Title</th>
-                            <th>Views</th>
-                            <th>Date</th>
-                        </tr>
-                        ${getVideosTable()}
-                    </table>
-                </div>
+                <h1>${post.title}</h1>
+                <div>${post.content}</div>
+                <a href="/">← Back</a>
             </body>
             </html>
         `);
-    }
+    });
 });
 
-// Helper function for videos table
-function getVideosTable() {
-    let html = '';
-    db.all(`SELECT * FROM videos ORDER BY created_date DESC LIMIT 5`, [], (err, rows) => {
-        rows.forEach(r => {
-            html += `<tr><td>${r.id}</td><td>${r.title}</td><td>${r.views}</td><td>${new Date(r.created_date).toLocaleDateString()}</td></tr>`;
+app.get('/:page', (req, res) => {
+    const slug = req.params.page;
+    
+    db.get(`SELECT * FROM pages WHERE slug = ? AND published = 1`, [slug], (err, page) => {
+        if (!page) return res.redirect('/');
+        
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head><title>${page.title}</title></head>
+            <body>
+                ${page.content}
+                <a href="/">← Back</a>
+            </body>
+            </html>
+        `);
+    });
+});
+
+// ==================== ADMIN PANEL ====================
+app.get('/admin', (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+    
+    db.all(`SELECT * FROM settings`, [], (err, settingsRows) => {
+        const settings = {};
+        settingsRows.forEach(s => settings[s.key] = s.value);
+        
+        db.all(`SELECT * FROM payment_methods ORDER BY display_order`, [], (err, payments) => {
+            db.all(`SELECT * FROM crypto_wallets`, [], (err, wallets) => {
+                db.all(`SELECT * FROM ad_networks`, [], (err, networks) => {
+                    db.all(`SELECT * FROM ad_placements ORDER BY priority`, [], (err, ads) => {
+                        db.all(`SELECT * FROM conversion_tracking`, [], (err, conversions) => {
+                            db.all(`SELECT * FROM retargeting_pixels`, [], (err, pixels) => {
+                                db.all(`SELECT * FROM injections`, [], (err, injections) => {
+                                    db.all(`SELECT * FROM videos`, [], (err, videos) => {
+                                        db.all(`SELECT * FROM posts`, [], (err, posts) => {
+                                            db.all(`SELECT * FROM users`, [], (err, users) => {
+                                                
+                                                res.send(`
+                                                    <!DOCTYPE html>
+                                                    <html>
+                                                    <head>
+                                                        <title>Admin Dashboard</title>
+                                                        <style>
+                                                            * { margin:0; padding:0; box-sizing:border-box; }
+                                                            body { font-family: Arial; background: #f5f5f5; padding: 20px; }
+                                                            .container { max-width: 1400px; margin: 0 auto; }
+                                                            h1 { color: #333; margin-bottom: 20px; }
+                                                            .tabs {
+                                                                display: flex;
+                                                                gap: 10px;
+                                                                flex-wrap: wrap;
+                                                                margin-bottom: 20px;
+                                                                background: white;
+                                                                padding: 20px;
+                                                                border-radius: 10px;
+                                                            }
+                                                            .tab-btn {
+                                                                padding: 10px 20px;
+                                                                background: #f0f0f0;
+                                                                border: none;
+                                                                border-radius: 5px;
+                                                                cursor: pointer;
+                                                            }
+                                                            .tab-btn.active {
+                                                                background: #667eea;
+                                                                color: white;
+                                                            }
+                                                            .tab-content {
+                                                                display: none;
+                                                                background: white;
+                                                                padding: 30px;
+                                                                border-radius: 10px;
+                                                            }
+                                                            .tab-content.active { display: block; }
+                                                            .form-group { margin-bottom: 15px; }
+                                                            label { display: block; margin-bottom: 5px; font-weight: bold; }
+                                                            input, textarea, select {
+                                                                width: 100%;
+                                                                padding: 10px;
+                                                                border: 1px solid #ddd;
+                                                                border-radius: 5px;
+                                                            }
+                                                            textarea { min-height: 100px; font-family: monospace; }
+                                                            button {
+                                                                padding: 10px 20px;
+                                                                background: #667eea;
+                                                                color: white;
+                                                                border: none;
+                                                                border-radius: 5px;
+                                                                cursor: pointer;
+                                                                margin: 5px;
+                                                            }
+                                                            table {
+                                                                width: 100%;
+                                                                border-collapse: collapse;
+                                                                margin: 20px 0;
+                                                            }
+                                                            th, td {
+                                                                padding: 10px;
+                                                                text-align: left;
+                                                                border-bottom: 1px solid #ddd;
+                                                            }
+                                                            th { background: #f5f5f5; }
+                                                            .grid {
+                                                                display: grid;
+                                                                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                                                                gap: 20px;
+                                                            }
+                                                            .card {
+                                                                background: #f9f9f9;
+                                                                padding: 20px;
+                                                                border-radius: 10px;
+                                                                border: 1px solid #eee;
+                                                            }
+                                                        </style>
+                                                    </head>
+                                                    <body>
+                                                        <div class="container">
+                                                            <h1>⚙️ Admin Dashboard - ${settings.site_name}</h1>
+                                                            
+                                                            <div class="tabs">
+                                                                <button class="tab-btn active" onclick="showTab('dashboard')">📊 Dashboard</button>
+                                                                <button class="tab-btn" onclick="showTab('payments')">💰 Payments</button>
+                                                                <button class="tab-btn" onclick="showTab('crypto')">₿ Crypto</button>
+                                                                <button class="tab-btn" onclick="showTab('ads')">📺 Ads</button>
+                                                                <button class="tab-btn" onclick="showTab('conversions')">🎯 Conversions</button>
+                                                                <button class="tab-btn" onclick="showTab('retargeting')">🔄 Retargeting</button>
+                                                                <button class="tab-btn" onclick="showTab('injections')">💉 Injections</button>
+                                                                <button class="tab-btn" onclick="showTab('content')">📹 Content</button>
+                                                                <button class="tab-btn" onclick="showTab('users')">👥 Users</button>
+                                                                <button class="tab-btn" onclick="showTab('settings')">⚙️ Settings</button>
+                                                            </div>
+                                                            
+                                                            <!-- DASHBOARD TAB -->
+                                                            <div id="dashboard-tab" class="tab-content active">
+                                                                <h2>Dashboard</h2>
+                                                                <div class="grid">
+                                                                    <div class="card">
+                                                                        <h3>💰 Total Revenue</h3>
+                                                                        <p style="font-size: 2rem;">${settings.currency_symbol}0.00</p>
+                                                                    </div>
+                                                                    <div class="card">
+                                                                        <h3>📺 Ad Impressions</h3>
+                                                                        <p style="font-size: 2rem;">0</p>
+                                                                    </div>
+                                                                    <div class="card">
+                                                                        <h3>🎯 Conversions</h3>
+                                                                        <p style="font-size: 2rem;">0</p>
+                                                                    </div>
+                                                                    <div class="card">
+                                                                        <h3>👥 Users</h3>
+                                                                        <p style="font-size: 2rem;">${users.length}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <!-- PAYMENTS TAB -->
+                                                            <div id="payments-tab" class="tab-content">
+                                                                <h2>Payment Methods</h2>
+                                                                <table>
+                                                                    <tr>
+                                                                        <th>Name</th>
+                                                                        <th>Type</th>
+                                                                        <th>Fee</th>
+                                                                        <th>Min/Max</th>
+                                                                        <th>Status</th>
+                                                                        <th>Actions</th>
+                                                                    </tr>
+                                                                    ${payments.map(p => `
+                                                                        <tr>
+                                                                            <td>${p.name}</td>
+                                                                            <td>${p.type}</td>
+                                                                            <td>${p.fee_percentage}% + ${settings.currency_symbol}${p.fee_fixed}</td>
+                                                                            <td>${settings.currency_symbol}${p.min_amount} - ${settings.currency_symbol}${p.max_amount}</td>
+                                                                            <td><span style="color:${p.enabled ? 'green' : 'red'}">${p.enabled ? 'Enabled' : 'Disabled'}</span></td>
+                                                                            <td>
+                                                                                <button onclick="editPayment(${p.id})">Edit</button>
+                                                                                <button onclick="togglePayment(${p.id})">Toggle</button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    `).join('')}
+                                                                </table>
+                                                                
+                                                                <h2>Add Payment Method</h2>
+                                                                <form action="/admin/add-payment" method="POST" class="form">
+                                                                    <div class="grid">
+                                                                        <div>
+                                                                            <label>Name</label>
+                                                                            <input type="text" name="name" required>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Type</label>
+                                                                            <select name="type">
+                                                                                <option value="stripe">Stripe</option>
+                                                                                <option value="paypal">PayPal</option>
+                                                                                <option value="credit_card">Credit Card</option>
+                                                                                <option value="crypto">Crypto</option>
+                                                                                <option value="bank">Bank Transfer</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>API Key</label>
+                                                                            <input type="text" name="api_key">
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>API Secret</label>
+                                                                            <input type="text" name="api_secret">
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Fee %</label>
+                                                                            <input type="number" step="0.1" name="fee_percentage" value="2.9">
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Fixed Fee</label>
+                                                                            <input type="number" step="0.01" name="fee_fixed" value="0.30">
+                                                                        </div>
+                                                                    </div>
+                                                                    <button type="submit">Add Payment Method</button>
+                                                                </form>
+                                                            </div>
+                                                            
+                                                            <!-- CRYPTO TAB -->
+                                                            <div id="crypto-tab" class="tab-content">
+                                                                <h2>Crypto Wallets</h2>
+                                                                <table>
+                                                                    <tr>
+                                                                        <th>Currency</th>
+                                                                        <th>Network</th>
+                                                                        <th>Address</th>
+                                                                        <th>Label</th>
+                                                                        <th>Status</th>
+                                                                        <th>Actions</th>
+                                                                    </tr>
+                                                                    ${wallets.map(w => `
+                                                                        <tr>
+                                                                            <td>${w.currency}</td>
+                                                                            <td>${w.network}</td>
+                                                                            <td><small>${w.address.substring(0,20)}...</small></td>
+                                                                            <td>${w.label}</td>
+                                                                            <td><span style="color:${w.enabled ? 'green' : 'red'}">${w.enabled ? 'Active' : 'Inactive'}</span></td>
+                                                                            <td>
+                                                                                <button onclick="toggleWallet(${w.id})">Toggle</button>
+                                                                                <button onclick="editWallet(${w.id})">Edit</button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    `).join('')}
+                                                                </table>
+                                                                
+                                                                <h2>Add Wallet</h2>
+                                                                <form action="/admin/add-wallet" method="POST">
+                                                                    <div class="grid">
+                                                                        <div>
+                                                                            <label>Currency</label>
+                                                                            <select name="currency">
+                                                                                <option value="BTC">Bitcoin (BTC)</option>
+                                                                                <option value="ETH">Ethereum (ETH)</option>
+                                                                                <option value="USDT">Tether (USDT)</option>
+                                                                                <option value="BNB">Binance Coin (BNB)</option>
+                                                                                <option value="SOL">Solana (SOL)</option>
+                                                                                <option value="XRP">Ripple (XRP)</option>
+                                                                                <option value="ADA">Cardano (ADA)</option>
+                                                                                <option value="DOT">Polkadot (DOT)</option>
+                                                                                <option value="MATIC">Polygon (MATIC)</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Network</label>
+                                                                            <select name="network">
+                                                                                <option value="bitcoin">Bitcoin</option>
+                                                                                <option value="ethereum">Ethereum</option>
+                                                                                <option value="bsc">Binance Smart Chain</option>
+                                                                                <option value="polygon">Polygon</option>
+                                                                                <option value="solana">Solana</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Address</label>
+                                                                            <input type="text" name="address" required>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Label</label>
+                                                                            <input type="text" name="label" placeholder="Main Wallet">
+                                                                        </div>
+                                                                    </div>
+                                                                    <button type="submit">Add Wallet</button>
+                                                                </form>
+                                                            </div>
+                                                            
+                                                            <!-- ADS TAB -->
+                                                            <div id="ads-tab" class="tab-content">
+                                                                <h2>Ad Networks</h2>
+                                                                <table>
+                                                                    <tr>
+                                                                        <th>Name</th>
+                                                                        <th>Type</th>
+                                                                        <th>Publisher ID</th>
+                                                                        <th>Status</th>
+                                                                        <th>Actions</th>
+                                                                    </tr>
+                                                                    ${networks.map(n => `
+                                                                        <tr>
+                                                                            <td>${n.name}</td>
+                                                                            <td>${n.type}</td>
+                                                                            <td>${n.publisher_id}</td>
+                                                                            <td><span style="color:${n.enabled ? 'green' : 'red'}">${n.enabled ? 'Enabled' : 'Disabled'}</span></td>
+                                                                            <td>
+                                                                                <button onclick="editNetwork(${n.id})">Edit</button>
+                                                                                <button onclick="toggleNetwork(${n.id})">Toggle</button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    `).join('')}
+                                                                </table>
+                                                                
+                                                                <h2 style="margin-top:40px;">Ad Placements</h2>
+                                                                <table>
+                                                                    <tr>
+                                                                        <th>Name</th>
+                                                                        <th>Location</th>
+                                                                        <th>Devices</th>
+                                                                        <th>Impressions</th>
+                                                                        <th>Clicks</th>
+                                                                        <th>Revenue</th>
+                                                                        <th>Status</th>
+                                                                        <th>Actions</th>
+                                                                    </tr>
+                                                                    ${ads.map(a => `
+                                                                        <tr>
+                                                                            <td>${a.name}</td>
+                                                                            <td>${a.location}</td>
+                                                                            <td>${a.devices}</td>
+                                                                            <td>${a.impressions}</td>
+                                                                            <td>${a.clicks}</td>
+                                                                            <td>${settings.currency_symbol}${a.revenue}</td>
+                                                                            <td><span style="color:${a.enabled ? 'green' : 'red'}">${a.enabled ? 'Active' : 'Inactive'}</span></td>
+                                                                            <td>
+                                                                                <button onclick="editAd(${a.id})">Edit Code</button>
+                                                                                <button onclick="toggleAd(${a.id})">Toggle</button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    `).join('')}
+                                                                </table>
+                                                                
+                                                                <h2 style="margin-top:40px;">Add Ad Placement</h2>
+                                                                <form action="/admin/add-ad" method="POST">
+                                                                    <div class="grid">
+                                                                        <div>
+                                                                            <label>Name</label>
+                                                                            <input type="text" name="name" required>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Location</label>
+                                                                            <select name="location">
+                                                                                <option value="header">Header</option>
+                                                                                <option value="sidebar_top">Sidebar Top</option>
+                                                                                <option value="sidebar_middle">Sidebar Middle</option>
+                                                                                <option value="sidebar_bottom">Sidebar Bottom</option>
+                                                                                <option value="content_top">Content Top</option>
+                                                                                <option value="content_middle">Content Middle</option>
+                                                                                <option value="content_bottom">Content Bottom</option>
+                                                                                <option value="footer">Footer</option>
+                                                                                <option value="popup">Popup</option>
+                                                                                <option value="infeed">In-feed</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Network</label>
+                                                                            <select name="network_id">
+                                                                                ${networks.map(n => `<option value="${n.id}">${n.name}</option>`).join('')}
+                                                                            </select>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Devices</label>
+                                                                            <select name="devices">
+                                                                                <option value="all">All Devices</option>
+                                                                                <option value="desktop">Desktop Only</option>
+                                                                                <option value="mobile">Mobile Only</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="form-group">
+                                                                        <label>Ad Code</label>
+                                                                        <textarea name="code" rows="5" required></textarea>
+                                                                    </div>
+                                                                    <button type="submit">Add Placement</button>
+                                                                </form>
+                                                            </div>
+                                                            
+                                                            <!-- CONVERSIONS TAB -->
+                                                            <div id="conversions-tab" class="tab-content">
+                                                                <h2>Conversion Tracking</h2>
+                                                                <table>
+                                                                    <tr>
+                                                                        <th>Name</th>
+                                                                        <th>Provider</th>
+                                                                        <th>Event</th>
+                                                                        <th>Status</th>
+                                                                        <th>Actions</th>
+                                                                    </tr>
+                                                                    ${conversions.map(c => `
+                                                                        <tr>
+                                                                            <td>${c.name}</td>
+                                                                            <td>${c.provider}</td>
+                                                                            <td>${c.event_name}</td>
+                                                                            <td><span style="color:${c.enabled ? 'green' : 'red'}">${c.enabled ? 'Active' : 'Inactive'}</span></td>
+                                                                            <td>
+                                                                                <button onclick="editConversion(${c.id})">Edit Pixel</button>
+                                                                                <button onclick="toggleConversion(${c.id})">Toggle</button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    `).join('')}
+                                                                </table>
+                                                                
+                                                                <h2 style="margin-top:40px;">Add Conversion Pixel</h2>
+                                                                <form action="/admin/add-conversion" method="POST">
+                                                                    <div class="grid">
+                                                                        <div>
+                                                                            <label>Name</label>
+                                                                            <input type="text" name="name" required>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Provider</label>
+                                                                            <select name="provider">
+                                                                                <option value="google">Google Ads</option>
+                                                                                <option value="facebook">Facebook</option>
+                                                                                <option value="tiktok">TikTok</option>
+                                                                                <option value="twitter">Twitter</option>
+                                                                                <option value="linkedin">LinkedIn</option>
+                                                                                <option value="pinterest">Pinterest</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Event Name</label>
+                                                                            <select name="event_name">
+                                                                                <option value="Purchase">Purchase</option>
+                                                                                <option value="Lead">Lead</option>
+                                                                                <option value="SignUp">Sign Up</option>
+                                                                                <option value="ViewContent">View Content</option>
+                                                                                <option value="AddToCart">Add to Cart</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="form-group">
+                                                                        <label>Pixel Code</label>
+                                                                        <textarea name="pixel_code" rows="3" required></textarea>
+                                                                    </div>
+                                                                    <button type="submit">Add Pixel</button>
+                                                                </form>
+                                                            </div>
+                                                            
+                                                            <!-- RETARGETING TAB -->
+                                                            <div id="retargeting-tab" class="tab-content">
+                                                                <h2>Retargeting Pixels</h2>
+                                                                <table>
+                                                                    <tr>
+                                                                        <th>Name</th>
+                                                                        <th>Provider</th>
+                                                                        <th>Pixel ID</th>
+                                                                        <th>Events</th>
+                                                                        <th>Status</th>
+                                                                        <th>Actions</th>
+                                                                    </tr>
+                                                                    ${pixels.map(p => `
+                                                                        <tr>
+                                                                            <td>${p.name}</td>
+                                                                            <td>${p.provider}</td>
+                                                                            <td>${p.pixel_id}</td>
+                                                                            <td>${p.events}</td>
+                                                                            <td><span style="color:${p.enabled ? 'green' : 'red'}">${p.enabled ? 'Active' : 'Inactive'}</span></td>
+                                                                            <td>
+                                                                                <button onclick="editPixel(${p.id})">Edit</button>
+                                                                                <button onclick="togglePixel(${p.id})">Toggle</button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    `).join('')}
+                                                                </table>
+                                                                
+                                                                <h2 style="margin-top:40px;">Add Retargeting Pixel</h2>
+                                                                <form action="/admin/add-pixel" method="POST">
+                                                                    <div class="grid">
+                                                                        <div>
+                                                                            <label>Name</label>
+                                                                            <input type="text" name="name" required>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Provider</label>
+                                                                            <select name="provider">
+                                                                                <option value="facebook">Facebook</option>
+                                                                                <option value="google">Google</option>
+                                                                                <option value="tiktok">TikTok</option>
+                                                                                <option value="twitter">Twitter</option>
+                                                                                <option value="pinterest">Pinterest</option>
+                                                                                <option value="criteo">Criteo</option>
+                                                                                <option value="adroll">AdRoll</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Pixel ID</label>
+                                                                            <input type="text" name="pixel_id" required>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="form-group">
+                                                                        <label>Pixel Code</label>
+                                                                        <textarea name="pixel_code" rows="5" required></textarea>
+                                                                    </div>
+                                                                    <div class="form-group">
+                                                                        <label>Events (JSON array)</label>
+                                                                        <input type="text" name="events" value='["PageView","Purchase"]'>
+                                                                    </div>
+                                                                    <button type="submit">Add Pixel</button>
+                                                                </form>
+                                                            </div>
+                                                            
+                                                            <!-- INJECTIONS TAB -->
+                                                            <div id="injections-tab" class="tab-content">
+                                                                <h2>Code Injections (Super Admin Only)</h2>
+                                                                <div class="grid">
+                                                                    ${['head', 'body_start', 'body_end', 'custom_css', 'custom_js'].map(loc => {
+                                                                        const inj = injections.find(i => i.location === loc);
+                                                                        return `
+                                                                            <div class="card">
+                                                                                <h3>${loc.toUpperCase()}</h3>
+                                                                                <textarea id="inj-${loc}" rows="8" style="width:100%;">${inj?.code || ''}</textarea>
+                                                                                <button onclick="saveInjection('${loc}')">Save</button>
+                                                                            </div>
+                                                                        `;
+                                                                    }).join('')}
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <!-- CONTENT TAB -->
+                                                            <div id="content-tab" class="tab-content">
+                                                                <h2>Upload Video</h2>
+                                                                <form action="/admin/upload-video" method="POST" enctype="multipart/form-data">
+                                                                    <div class="grid">
+                                                                        <div>
+                                                                            <label>Title</label>
+                                                                            <input type="text" name="title" required>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Video File</label>
+                                                                            <input type="file" name="video" accept="video/*" required>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button type="submit">Upload Video</button>
+                                                                </form>
+                                                                
+                                                                <h2 style="margin-top:40px;">Create Blog Post</h2>
+                                                                <form action="/admin/create-post" method="POST">
+                                                                    <div class="grid">
+                                                                        <div>
+                                                                            <label>Title</label>
+                                                                            <input type="text" name="title" required>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label>Slug</label>
+                                                                            <input type="text" name="slug" placeholder="auto-generate">
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="form-group">
+                                                                        <label>Content</label>
+                                                                        <textarea name="content" rows="10" required></textarea>
+                                                                    </div>
+                                                                    <button type="submit">Create Post</button>
+                                                                </form>
+                                                            </div>
+                                                            
+                                                            <!-- USERS TAB -->
+                                                            <div id="users-tab" class="tab-content">
+                                                                <h2>Users</h2>
+                                                                <table>
+                                                                    <tr>
+                                                                        <th>ID</th>
+                                                                        <th>Username</th>
+                                                                        <th>Email</th>
+                                                                        <th>Role</th>
+                                                                        <th>Earnings</th>
+                                                                        <th>Actions</th>
+                                                                    </tr>
+                                                                    ${users.map(u => `
+                                                                        <tr>
+                                                                            <td>${u.id}</td>
+                                                                            <td>${u.username}</td>
+                                                                            <td>${u.email}</td>
+                                                                            <td>${u.role}</td>
+                                                                            <td>${settings.currency_symbol}${u.earnings}</td>
+                                                                            <td>
+                                                                                <button onclick="editUser(${u.id})">Edit</button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    `).join('')}
+                                                                </table>
+                                                            </div>
+                                                            
+                                                            <!-- SETTINGS TAB -->
+                                                            <div id="settings-tab" class="tab-content">
+                                                                <h2>Site Settings</h2>
+                                                                <form action="/admin/save-settings" method="POST">
+                                                                    <div class="grid">
+                                                                        <div>
+                                                                            <h3>General</h3>
+                                                                            <div class="form-group">
+                                                                                <label>Site Name</label>
+                                                                                <input type="text" name="site_name" value="${settings.site_name}">
+                                                                            </div>
+                                                                            <div class="form-group">
+                                                                                <label>Site Title</label>
+                                                                                <input type="text" name="site_title" value="${settings.site_title}">
+                                                                            </div>
+                                                                            <div class="form-group">
+                                                                                <label>Description</label>
+                                                                                <textarea name="site_description">${settings.site_description}</textarea>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div>
+                                                                            <h3>Colors</h3>
+                                                                            <div class="form-group">
+                                                                                <label>Primary</label>
+                                                                                <input type="color" name="primary_color" value="${settings.primary_color}">
+                                                                            </div>
+                                                                            <div class="form-group">
+                                                                                <label>Secondary</label>
+                                                                                <input type="color" name="secondary_color" value="${settings.secondary_color}">
+                                                                            </div>
+                                                                        </div>
+                                                                        <div>
+                                                                            <h3>Currency</h3>
+                                                                            <div class="form-group">
+                                                                                <label>Currency</label>
+                                                                                <select name="currency">
+                                                                                    <option value="USD" ${settings.currency === 'USD' ? 'selected' : ''}>USD</option>
+                                                                                    <option value="EUR" ${settings.currency === 'EUR' ? 'selected' : ''}>EUR</option>
+                                                                                    <option value="GBP" ${settings.currency === 'GBP' ? 'selected' : ''}>GBP</option>
+                                                                                </select>
+                                                                            </div>
+                                                                            <div class="form-group">
+                                                                                <label>Symbol</label>
+                                                                                <input type="text" name="currency_symbol" value="${settings.currency_symbol}">
+                                                                            </div>
+                                                                        </div>
+                                                                        <div>
+                                                                            <h3>Withdrawals</h3>
+                                                                            <div class="form-group">
+                                                                                <label>Min Withdrawal</label>
+                                                                                <input type="number" name="min_withdrawal" value="${settings.min_withdrawal}">
+                                                                            </div>
+                                                                            <div class="form-group">
+                                                                                <label>Withdrawal Fee</label>
+                                                                                <input type="number" name="withdrawal_fee" value="${settings.withdrawal_fee}">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button type="submit">Save All Settings</button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <script>
+                                                            function showTab(tabName) {
+                                                                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                                                                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+                                                                event.target.classList.add('active');
+                                                                document.getElementById(tabName + '-tab').classList.add('active');
+                                                            }
+                                                            
+                                                            function saveInjection(location) {
+                                                                const code = document.getElementById('inj-' + location).value;
+                                                                fetch('/admin/save-injection', {
+                                                                    method: 'POST',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ location, code })
+                                                                }).then(() => alert('Saved!'));
+                                                            }
+                                                            
+                                                            function togglePayment(id) {
+                                                                fetch('/admin/toggle-payment/' + id, { method: 'POST' })
+                                                                    .then(() => location.reload());
+                                                            }
+                                                            
+                                                            function toggleWallet(id) {
+                                                                fetch('/admin/toggle-wallet/' + id, { method: 'POST' })
+                                                                    .then(() => location.reload());
+                                                            }
+                                                            
+                                                            function toggleNetwork(id) {
+                                                                fetch('/admin/toggle-network/' + id, { method: 'POST' })
+                                                                    .then(() => location.reload());
+                                                            }
+                                                            
+                                                            function toggleAd(id) {
+                                                                fetch('/admin/toggle-ad/' + id, { method: 'POST' })
+                                                                    .then(() => location.reload());
+                                                            }
+                                                            
+                                                            function toggleConversion(id) {
+                                                                fetch('/admin/toggle-conversion/' + id, { method: 'POST' })
+                                                                    .then(() => location.reload());
+                                                            }
+                                                            
+                                                            function togglePixel(id) {
+                                                                fetch('/admin/toggle-pixel/' + id, { method: 'POST' })
+                                                                    .then(() => location.reload());
+                                                            }
+                                                            
+                                                            function editPayment(id) { alert('Edit payment ' + id); }
+                                                            function editWallet(id) { alert('Edit wallet ' + id); }
+                                                            function editNetwork(id) { alert('Edit network ' + id); }
+                                                            function editAd(id) { alert('Edit ad ' + id); }
+                                                            function editConversion(id) { alert('Edit conversion ' + id); }
+                                                            function editPixel(id) { alert('Edit pixel ' + id); }
+                                                            function editUser(id) { alert('Edit user ' + id); }
+                                                        </script>
+                                                    </body>
+                                                    </html>
+                                                `);
+                                            });
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
         });
     });
-    return html || '<tr><td colspan="4">No videos yet</td></tr>';
-}
+});
+
+// ==================== ADMIN API ROUTES ====================
+
+// Add payment method
+app.post('/admin/add-payment', (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+    
+    db.run(`INSERT INTO payment_methods (name, type, api_key, api_secret, fee_percentage, fee_fixed, created_date) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [req.body.name, req.body.type, req.body.api_key, req.body.api_secret, req.body.fee_percentage, req.body.fee_fixed, new Date().toISOString()]);
+    res.redirect('/admin');
+});
+
+// Toggle payment
+app.post('/admin/toggle-payment/:id', (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+    db.run(`UPDATE payment_methods SET enabled = NOT enabled WHERE id = ?`, [req.params.id]);
+    res.json({ success: true });
+});
+
+// Add wallet
+app.post('/admin/add-wallet', (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+    
+    db.run(`INSERT INTO crypto_wallets (currency, network, address, label, created_date) VALUES (?, ?, ?, ?, ?)`,
+        [req.body.currency, req.body.network, req.body.address, req.body.label, new Date().toISOString()]);
+    res.redirect('/admin');
+});
+
+// Toggle wallet
+app.post('/admin/toggle-wallet/:id', (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+    db.run(`UPDATE crypto_wallets SET enabled = NOT enabled WHERE id = ?`, [req.params.id]);
+    res.json({ success: true });
+});
+
+// Toggle network
+app.post('/admin/toggle-network/:id', (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+    db.run(`UPDATE ad_networks SET enabled = NOT enabled WHERE id = ?`, [req.params.id]);
+    res.json({ success: true });
+});
+
+// Add ad placement
+app.post('/admin/add-ad', (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+    
+    db.run(`INSERT INTO ad_placements (name, location, code, network_id, devices, created_date) VALUES (?, ?, ?, ?, ?, ?)`,
+        [req.body.name, req.body.location, req.body.code, req.body.network_id, req.body.devices, new Date().toISOString()]);
+    res.redirect('/admin');
+});
+
+// Toggle ad
+app.post('/admin/toggle-ad/:id', (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+    db.run(`UPDATE ad_placements SET enabled = NOT enabled WHERE id = ?`, [req.params.id]);
+    res.json({ success: true });
+});
+
+// Add conversion
+app.post('/admin/add-conversion', (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+    
+    db.run(`INSERT INTO conversion_tracking (name, provider, pixel_code, event_name, created_date) VALUES (?, ?, ?, ?, ?)`,
+        [req.body.name, req.body.provider, req.body.pixel_code, req.body.event_name, new Date().toISOString()]);
+    res.redirect('/admin');
+});
+
+// Toggle conversion
+app.post('/admin/toggle-conversion/:id', (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+    db.run(`UPDATE conversion_tracking SET enabled = NOT enabled WHERE id = ?`, [req.params.id]);
+    res.json({ success: true });
+});
+
+// Add pixel
+app.post('/admin/add-pixel', (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+    
+    db.run(`INSERT INTO retargeting_pixels (name, provider, pixel_id, pixel_code, events, created_date) VALUES (?, ?, ?, ?, ?, ?)`,
+        [req.body.name, req.body.provider, req.body.pixel_id, req.body.pixel_code, req.body.events, new Date().toISOString()]);
+    res.redirect('/admin');
+});
+
+// Toggle pixel
+app.post('/admin/toggle-pixel/:id', (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+    db.run(`UPDATE retargeting_pixels SET enabled = NOT enabled WHERE id = ?`, [req.params.id]);
+    res.json({ success: true });
+});
+
+// Save injection
+app.post('/admin/save-injection', (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { location, code } = req.body;
+    db.run(`INSERT OR REPLACE INTO injections (location, code, created_date) VALUES (?, ?, ?)`,
+        [location, code, new Date().toISOString()]);
+    res.json({ success: true });
+});
+
+// Upload video
+app.post('/admin/upload-video', upload.single('video'), (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+    
+    db.run(`INSERT INTO videos (title, filename, created_date) VALUES (?, ?, ?)`,
+        [req.body.title, req.file.filename, new Date().toISOString()]);
+    res.redirect('/admin');
+});
+
+// Create post
+app.post('/admin/create-post', (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+    
+    const slug = req.body.slug || req.body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    
+    db.run(`INSERT INTO posts (title, slug, content, published_date, created_date) VALUES (?, ?, ?, ?, ?)`,
+        [req.body.title, slug, req.body.content, new Date().toISOString(), new Date().toISOString()]);
+    res.redirect('/admin');
+});
+
+// Save settings
+app.post('/admin/save-settings', (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+    
+    Object.entries(req.body).forEach(([key, value]) => {
+        db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, [key, value]);
+    });
+    res.redirect('/admin');
+});
 
 // ==================== LOGIN ====================
 app.get('/login', (req, res) => {
@@ -979,10 +1576,10 @@ app.get('/login', (req, res) => {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Login - 3eesher.cloud</title>
+            <title>Login</title>
             <style>
                 body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-family: Arial;
                     background: linear-gradient(135deg, #667eea, #764ba2);
                     height: 100vh;
                     display: flex;
@@ -994,34 +1591,19 @@ app.get('/login', (req, res) => {
                     padding: 40px;
                     border-radius: 10px;
                     width: 350px;
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-                }
-                h2 {
-                    text-align: center;
-                    color: #333;
-                    margin-bottom: 30px;
                 }
                 input {
                     width: 100%;
-                    padding: 12px;
+                    padding: 10px;
                     margin: 10px 0;
-                    border: 2px solid #e2e8f0;
-                    border-radius: 5px;
-                    font-size: 14px;
                 }
                 button {
                     width: 100%;
-                    padding: 12px;
+                    padding: 10px;
                     background: #667eea;
                     color: white;
                     border: none;
-                    border-radius: 5px;
-                    font-size: 16px;
                     cursor: pointer;
-                    margin-top: 20px;
-                }
-                button:hover {
-                    background: #5a67d8;
                 }
             </style>
         </head>
@@ -1043,6 +1625,8 @@ app.post('/login', (req, res) => {
     db.get(`SELECT * FROM users WHERE username = ?`, [req.body.username], (err, user) => {
         if (user && bcrypt.compareSync(req.body.password, user.password)) {
             req.session.userId = user.id;
+            req.session.username = user.username;
+            req.session.role = user.role;
             res.redirect('/admin');
         } else {
             res.send('Invalid login');
@@ -1050,59 +1634,61 @@ app.post('/login', (req, res) => {
     });
 });
 
-// ==================== UPLOAD ROUTES ====================
-app.post('/upload-video', upload.fields([
-    { name: 'video', maxCount: 1 },
-    { name: 'thumbnail', maxCount: 1 }
-]), (req, res) => {
-    if (!req.session.userId) return res.redirect('/login');
-    
-    const videoFile = req.files['video']?.[0];
-    const thumbFile = req.files['thumbnail']?.[0];
-    
-    if (videoFile) {
-        db.run(`INSERT INTO videos (title, filename, thumbnail, description, created_date) VALUES (?, ?, ?, ?, ?)`,
-            [req.body.title, videoFile.filename, thumbFile?.filename, req.body.description, new Date().toISOString()]);
-    }
-    res.redirect('/admin');
-});
-
-app.post('/create-post', upload.single('image'), (req, res) => {
-    if (!req.session.userId) return res.redirect('/login');
-    
-    db.run(`INSERT INTO posts (title, content, image, created_date) VALUES (?, ?, ?, ?)`,
-        [req.body.title, req.body.content, req.file?.filename, new Date().toISOString()]);
-    res.redirect('/admin');
-});
-
-app.post('/upload-gallery', upload.single('image'), (req, res) => {
-    if (!req.session.userId) return res.redirect('/login');
-    
-    db.run(`INSERT INTO gallery (title, filename, type, created_date) VALUES (?, ?, ?, ?)`,
-        [req.body.title || 'Gallery image', req.file.filename, 'image', new Date().toISOString()]);
-    res.redirect('/admin');
-});
-
-app.post('/upload-hero', upload.single('image'), (req, res) => {
-    if (!req.session.userId) return res.redirect('/login');
-    
-    // Delete old hero
-    db.run(`DELETE FROM placeholders WHERE location = 'hero'`);
-    
-    db.run(`INSERT INTO placeholders (title, filename, link, location, created_date) VALUES (?, ?, ?, ?, ?)`,
-        ['Hero Image', req.file.filename, req.body.link, 'hero', new Date().toISOString()]);
-    res.redirect('/admin');
-});
-
 app.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/');
 });
 
-// Start server
+// ==================== AD TRACKING ====================
+app.get('/track/impression/:id', (req, res) => {
+    const placementId = req.params.id;
+    const sessionId = req.session.id;
+    const ip = req.ip;
+    const ua = req.get('User-Agent');
+    
+    db.run(`UPDATE ad_placements SET impressions = impressions + 1 WHERE id = ?`, [placementId]);
+    
+    db.run(`INSERT INTO ad_tracking (placement_id, session_id, ip_address, user_agent, timestamp) VALUES (?, ?, ?, ?, ?)`,
+        [placementId, sessionId, ip, ua, new Date().toISOString()]);
+    
+    res.sendStatus(200);
+});
+
+app.get('/track/click/:id', (req, res) => {
+    const placementId = req.params.id;
+    const sessionId = req.session.id;
+    
+    db.run(`UPDATE ad_placements SET clicks = clicks + 1 WHERE id = ?`, [placementId]);
+    
+    res.redirect(req.query.url || '/');
+});
+
+// ==================== START SERVER ====================
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 3eesher.cloud is LIVE!`);
+    console.log(`🚀 3eesher.cloud MONETIZATION PLATFORM`);
     console.log(`🌐 Website: http://localhost:${PORT}`);
     console.log(`👤 Admin: http://localhost:${PORT}/admin`);
     console.log(`🔑 Login: admin / admin123`);
+    console.log(``);
+    console.log(`✅ PAYMENT METHODS:`);
+    console.log(`   - Stripe, PayPal, Credit Cards (Visa, Mastercard, Amex, Discover)`);
+    console.log(`   - Crypto (BTC, ETH, USDT, BNB, SOL, XRP, ADA, DOT, MATIC)`);
+    console.log(`   - Bank Transfer`);
+    console.log(``);
+    console.log(`✅ AD NETWORKS:`);
+    console.log(`   - Google AdSense, Taboola, Outbrain, Mediavine, Ezoic, AdThrive`);
+    console.log(`   - Direct Ads, Amazon Associates, ShareASale, CJ Affiliate`);
+    console.log(``);
+    console.log(`✅ AD PLACEMENTS:`);
+    console.log(`   - Header, Sidebar (Top, Middle, Bottom), Content (Top, Middle, Bottom)`);
+    console.log(`   - Footer, Popup, In-feed, Interstitial`);
+    console.log(``);
+    console.log(`✅ CONVERSION TRACKING:`);
+    console.log(`   - Google, Facebook, TikTok, Twitter, LinkedIn, Pinterest, Snapchat`);
+    console.log(``);
+    console.log(`✅ RETARGETING:`);
+    console.log(`   - Facebook, Google, TikTok, Twitter, Pinterest, Criteo, AdRoll`);
+    console.log(``);
+    console.log(`✅ CODE INJECTION:`);
+    console.log(`   - Head, Body Start, Body End, Custom CSS, Custom JS`);
 });
