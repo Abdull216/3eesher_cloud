@@ -14,7 +14,9 @@
     "bcrypt": "^5.1.1"
   },
   "engines": {
-    "node": "18.x"
+    "engines": {
+  "node": "20.x"
+}
   },
   "keywords": ["video gallery", "blog", "monetization", "ads", "crypto", "affiliate"],
   "author": "Your Name",
