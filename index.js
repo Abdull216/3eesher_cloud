@@ -1,4 +1,4 @@
-// ==================== COMPLETE 3EESHER.CLOUD WITH AUTO-BLOGGER BOT ====================
+// ==================== COMPLETE 3EESHER.CLOUD - FINAL VERSION ====================
 const express = require('express');
 const session = require('express-session');
 const multer = require('multer');
@@ -21,7 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_FOLDER));
 app.use(session({
-    secret: '3eesher-auto-bot-v1',
+    secret: '3eesher-final-v6',
     resave: false,
     saveUninitialized: true,
     cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }
@@ -133,7 +133,7 @@ db.serialize(() => {
         value TEXT
     )`);
 
-    // BOT LOGS TABLE
+    // BOT LOGS TABLE (hidden from users)
     db.run(`CREATE TABLE IF NOT EXISTS bot_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         post_title TEXT,
@@ -151,24 +151,23 @@ db.serialize(() => {
     // DEFAULT SETTINGS
     const settings = [
         ['site_name', '3eesher.cloud'],
-        ['site_title', '3eesher.cloud - Auto Blog & Video Platform'],
-        ['site_description', 'Auto-posting blog with Hacker News, Tech Trends & Health Research'],
+        ['site_title', '3eesher.cloud - Share Your World'],
+        ['site_description', 'Video sharing platform with daily updates'],
         ['primary_color', '#2563eb'],
         ['secondary_color', '#7c3aed'],
         ['bg_color', '#0f1117'],
         ['text_color', '#e2e8f0'],
         ['hero_title', 'Welcome to 3eesher.cloud'],
-        ['hero_subtitle', 'Auto-updating blog + video platform'],
+        ['hero_subtitle', 'Watch videos, read blogs, earn money'],
         ['footer_text', '© 2024 3eesher.cloud. All rights reserved.'],
         ['contact_email', 'abdullahharuna216@gmail.com'],
         ['contact_phone', '+2348080335353'],
         ['google_analytics', 'G-HD01MF5SL9'],
-        ['about_text', '3eesher.cloud is your auto-updating blog platform with content from Hacker News, Tech Trends, and Health Research. Posts are automatically added 3 times daily.'],
-        ['privacy_text', 'Your privacy is important to us. We only collect necessary information to provide our services. We never sell your personal data.'],
-        ['terms_text', 'By using 3eesher.cloud, you agree to our terms and conditions. Content is automatically sourced from various RSS feeds.'],
-        ['bot_enabled', 'true'],
-        ['bot_posts_per_day', '3'],
-        ['bot_sources', 'hackernews,tech,health']
+        ['google_site_verification', ''],
+        ['bing_site_verification', ''],
+        ['about_text', '3eesher.cloud is your complete platform for videos, blogs, and making money online.'],
+        ['privacy_text', 'Your privacy is important. We only collect necessary information.'],
+        ['terms_text', 'By using 3eesher.cloud, you agree to our terms.']
     ];
 
     settings.forEach(([key, value]) => {
@@ -210,11 +209,11 @@ db.serialize(() => {
     db.get(`SELECT COUNT(*) as count FROM placeholders`, [], (err, row) => {
         if (row.count === 0) {
             const placeholders = [
-                ['Auto Blog Platform', 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1200', '/blog', 1],
-                ['Hacker News Daily', 'https://images.unsplash.com/photo-1579165466741-7f35e4755660?w=1200', '/blog', 2],
-                ['Tech Trends', 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1200', '/blog', 3],
-                ['Health Research', 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1200', '/blog', 4],
-                ['3 Posts Daily', 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1200', '/blog', 5]
+                ['Welcome to 3eesher.cloud', 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1200', '/videos', 1],
+                ['Watch Amazing Videos', 'https://images.unsplash.com/photo-1579165466741-7f35e4755660?w=1200', '/videos', 2],
+                ['Read Our Blog', 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1200', '/blog', 3],
+                ['Join Community', 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1200', '/blog', 4],
+                ['Start Earning', 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1200', '/money-links', 5]
             ];
 
             placeholders.forEach(([title, filename, link, order]) => {
@@ -224,16 +223,16 @@ db.serialize(() => {
         }
     });
 
-    // LONGER VIDEOS - Extended cartoon videos
+    // LONGER VIDEOS
     db.get(`SELECT COUNT(*) as count FROM videos`, [], (err, row) => {
         if (row.count === 0) {
             const videos = [
-                ['Bunny Cartoon - Full Episode', 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', 'https://images.unsplash.com/photo-1579165466741-7f35e4755660?w=400', 'Watch the classic Big Buck Bunny - 10 minute cartoon'],
-                ['Elephant Dream - Animated Short', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400', 'Beautiful animated short film - 15 minutes'],
-                ['Sintel - Fantasy Animation', 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4', 'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400', 'Epic fantasy animation - 14 minutes'],
-                ['Tears of Steel - Sci-Fi', 'https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4', 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400', 'Sci-fi action short film - 12 minutes'],
-                ['For Bigger Blazes', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400', 'Action-packed animation - 8 minutes'],
-                ['For Bigger Joyrides', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4', 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400', 'Fun adventure cartoon - 9 minutes']
+                ['Big Buck Bunny - Full Cartoon', 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', 'https://images.unsplash.com/photo-1579165466741-7f35e4755660?w=400', 'Watch the classic 10-minute cartoon'],
+                ['Elephant Dream - Animated Short', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400', 'Beautiful 15-minute animation'],
+                ['Sintel - Fantasy Animation', 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4', 'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400', 'Epic 14-minute fantasy film'],
+                ['Tears of Steel - Sci-Fi', 'https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4', 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400', 'Action-packed 12-minute short'],
+                ['For Bigger Blazes', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400', '8-minute action animation'],
+                ['For Bigger Joyrides', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4', 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400', '9-minute adventure cartoon']
             ];
 
             videos.forEach(([title, filename, thumb, desc]) => {
@@ -247,10 +246,14 @@ db.serialize(() => {
     db.get(`SELECT COUNT(*) as count FROM gallery`, [], (err, row) => {
         if (row.count === 0) {
             const images = [
-                ['Tech Conference', 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400'],
-                ['Health Research', 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400'],
-                ['Innovation', 'https://images.unsplash.com/photo-1517245386807-9b4d0a6e4b9c?w=400'],
-                ['Medical Lab', 'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400']
+                ['Team Meeting', 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400'],
+                ['Office Space', 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400'],
+                ['Creative Work', 'https://images.unsplash.com/photo-1517245386807-9b4d0a6e4b9c?w=400'],
+                ['Video Shoot', 'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400'],
+                ['Studio Setup', 'https://images.unsplash.com/photo-1579165466741-7f35e4755660?w=400'],
+                ['Team Lunch', 'https://images.unsplash.com/photo-1517245386807-9b4d0a6e4b9c?w=400'],
+                ['Workshop', 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400'],
+                ['Conference', 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400']
             ];
 
             images.forEach(([title, filename]) => {
@@ -320,40 +323,22 @@ db.serialize(() => {
             });
         }
     });
-
-    // ==================== ADD SAMPLE AUTO POSTS ====================
-    db.get(`SELECT COUNT(*) as count FROM posts`, [], (err, row) => {
-        if (row.count === 0) {
-            const samplePosts = [
-                ['Welcome to Auto Blog Platform', '<h1>Welcome!</h1><p>This blog automatically updates 3 times daily with content from Hacker News, Tech Trends, and Health Research.</p>', 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400', 'Manual', 'Welcome'],
-                ['Latest Tech Innovations', '<h1>Tech News</h1><p>Stay tuned for daily tech updates from around the world.</p>', 'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400', 'Manual', 'Tech'],
-                ['Health Research Breakthroughs', '<h1>Health Updates</h1><p>Daily health research news will appear here automatically.</p>', 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400', 'Manual', 'Health']
-            ];
-
-            samplePosts.forEach(([title, content, image, source, category]) => {
-                db.run(`INSERT INTO posts (title, content, image, source, category, created_date) VALUES (?, ?, ?, ?, ?, ?)`,
-                    [title, content, image, source, category, new Date().toISOString()]);
-            });
-        }
-    });
 });
 
 // ==================== RSS PARSER SETUP ====================
 const parser = new Parser();
 
-// ==================== AUTO-BLOGGER BOT FUNCTIONS ====================
+// ==================== AUTO-BLOGGER FUNCTIONS (Hidden) ====================
 
 // Fetch from Hacker News
 async function fetchHackerNews() {
     try {
-        const response = await axios.get('https://hnrss.org/frontpage?count=5');
-        // Parse RSS feed
-        const feed = await parser.parseURL('https://hnrss.org/frontpage?count=5');
+        const feed = await parser.parseURL('https://hnrss.org/frontpage?count=3');
         return feed.items.map(item => ({
             title: item.title,
-            content: `<h1>${item.title}</h1><p>${item.contentSnippet || item.content || 'Read more at Hacker News'}</p><p><a href="${item.link}" target="_blank">Original Source</a></p>`,
+            content: `<h1>${item.title}</h1><p>${item.contentSnippet || item.content || 'Read more at Hacker News'}</p>`,
             link: item.link,
-            category: 'Tech'
+            category: 'Technology'
         }));
     } catch (error) {
         console.error('Error fetching Hacker News:', error);
@@ -361,15 +346,15 @@ async function fetchHackerNews() {
     }
 }
 
-// Fetch from TechCrunch (Tech Trends)
+// Fetch from TechCrunch
 async function fetchTechTrends() {
     try {
         const feed = await parser.parseURL('https://techcrunch.com/feed/');
         return feed.items.slice(0, 3).map(item => ({
             title: item.title,
-            content: `<h1>${item.title}</h1><p>${item.contentSnippet || 'Latest tech trends and innovations'}</p><p><a href="${item.link}" target="_blank">Read Full Article</a></p>`,
+            content: `<h1>${item.title}</h1><p>${item.contentSnippet || 'Latest tech trends'}</p>`,
             link: item.link,
-            category: 'Tech Trends'
+            category: 'Tech'
         }));
     } catch (error) {
         console.error('Error fetching Tech Trends:', error);
@@ -383,7 +368,7 @@ async function fetchHealthNews() {
         const feed = await parser.parseURL('https://www.medicalnewstoday.com/feeds/headlines.xml');
         return feed.items.slice(0, 3).map(item => ({
             title: item.title,
-            content: `<h1>${item.title}</h1><p>${item.contentSnippet || 'Latest health research and medical breakthroughs'}</p><p><a href="${item.link}" target="_blank">Read Full Article</a></p>`,
+            content: `<h1>${item.title}</h1><p>${item.contentSnippet || 'Latest health research'}</p>`,
             link: item.link,
             category: 'Health'
         }));
@@ -412,23 +397,18 @@ async function fetchAllSources() {
 // Post to database
 async function saveAutoPost(post) {
     return new Promise((resolve, reject) => {
-        // Check if already exists (avoid duplicates)
-        db.get(`SELECT id FROM posts WHERE title = ? AND source = ?`, [post.title, post.link || 'RSS'], (err, existing) => {
+        db.get(`SELECT id FROM posts WHERE title = ?`, [post.title], (err, existing) => {
             if (existing) {
-                console.log('Post already exists:', post.title);
                 resolve(false);
             } else {
                 db.run(`INSERT INTO posts (title, content, image, source, category, created_date) VALUES (?, ?, ?, ?, ?, ?)`,
-                    [post.title, post.content, 'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400', post.link || 'RSS', post.category || 'General', new Date().toISOString()],
+                    [post.title, post.content, 'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400', post.link, post.category || 'General', new Date().toISOString()],
                     function(err) {
                         if (err) {
-                            console.error('Error saving post:', err);
                             reject(err);
                         } else {
-                            console.log('Auto-post saved:', post.title);
-                            // Log the post
                             db.run(`INSERT INTO bot_logs (post_title, post_category, post_source, created_date) VALUES (?, ?, ?, ?)`,
-                                [post.title, post.category || 'General', post.link || 'RSS', new Date().toISOString()]);
+                                [post.title, post.category || 'General', post.link, new Date().toISOString()]);
                             resolve(true);
                         }
                     });
@@ -437,61 +417,31 @@ async function saveAutoPost(post) {
     });
 }
 
-// Auto-blogger main function
+// Auto-blogger main function (runs silently)
 async function runAutoBlogger() {
-    console.log('🤖 Auto-blogger running at', new Date().toISOString());
-    
-    // Check if bot is enabled
-    db.get(`SELECT value FROM settings WHERE key = 'bot_enabled'`, [], (err, row) => {
-        if (row && row.value === 'false') {
-            console.log('Auto-blogger is disabled');
-            return;
-        }
-    });
+    console.log('Auto-blogger running at', new Date().toISOString());
     
     const posts = await fetchAllSources();
-    console.log(`Fetched ${posts.length} posts from sources`);
-    
-    // Shuffle to get random posts
     const shuffled = posts.sort(() => 0.5 - Math.random());
-    
-    // Take first 3
     const selectedPosts = shuffled.slice(0, 3);
     
     for (const post of selectedPosts) {
         await saveAutoPost(post);
-        // Wait 1 second between posts
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
-    console.log('✅ Auto-blogger completed');
+    console.log('Auto-blogger completed');
 }
 
-// ==================== CRON JOBS FOR AUTO-POSTING ====================
+// ==================== CRON JOBS - 3x Daily (Hidden) ====================
+cron.schedule('0 9 * * *', () => { runAutoBlogger(); });
+cron.schedule('0 14 * * *', () => { runAutoBlogger(); });
+cron.schedule('0 20 * * *', () => { runAutoBlogger(); });
 
-// Run at 9 AM, 2 PM, and 8 PM daily (3 times)
-cron.schedule('0 9 * * *', () => {
-    console.log('Running 9 AM auto-post');
+// Run once on startup
+setTimeout(() => {
     runAutoBlogger();
-});
-
-cron.schedule('0 14 * * *', () => {
-    console.log('Running 2 PM auto-post');
-    runAutoBlogger();
-});
-
-cron.schedule('0 20 * * *', () => {
-    console.log('Running 8 PM auto-post');
-    runAutoBlogger();
-});
-
-// Also run once on startup (if there are few posts)
-db.get(`SELECT COUNT(*) as count FROM posts WHERE source != 'Manual'`, [], (err, row) => {
-    if (row && row.count < 10) {
-        console.log('Few auto-posts found, running initial bot');
-        runAutoBlogger();
-    }
-});
+}, 60000); // Wait 1 minute after startup
 
 // ==================== UPLOAD SETUP ====================
 const storage = multer.diskStorage({
@@ -502,6 +452,46 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({ storage: storage, limits: { fileSize: 500 * 1024 * 1024 } });
+
+// ==================== SITEMAP GENERATOR (For Google SEO) ====================
+app.get('/sitemap.xml', (req, res) => {
+    res.header('Content-Type', 'application/xml');
+    
+    db.all(`SELECT id, created_date FROM posts ORDER BY created_date DESC`, [], (err, posts) => {
+        db.all(`SELECT id, created_date FROM videos ORDER BY created_date DESC`, [], (err, videos) => {
+            
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const today = new Date().toISOString().split('T')[0];
+            
+            let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+            xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+            
+            // Homepage
+            xml += `  <url>\n    <loc>${baseUrl}/</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
+            
+            // Blog posts
+            posts.forEach(post => {
+                xml += `  <url>\n    <loc>${baseUrl}/post/${post.id}</loc>\n    <lastmod>${post.created_date.split('T')[0]}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+            });
+            
+            // Videos
+            videos.forEach(video => {
+                xml += `  <url>\n    <loc>${baseUrl}/video/${video.id}</loc>\n    <lastmod>${video.created_date.split('T')[0]}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+            });
+            
+            xml += '</urlset>';
+            res.send(xml);
+        });
+    });
+});
+
+// ==================== ROBOTS.TXT (For Google Crawl) ====================
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.send(`User-agent: *
+Allow: /
+Sitemap: ${req.protocol}://${req.get('host')}/sitemap.xml`);
+});
 
 // ==================== MAIN PAGE ====================
 app.get('/', (req, res) => {
@@ -518,18 +508,15 @@ app.get('/', (req, res) => {
                                 db.all(`SELECT * FROM ad_placements WHERE enabled = 1`, [], (err, ads) => {
                                     db.all(`SELECT * FROM injections WHERE active = 1`, [], (err, injections) => {
 
-                                        // Group injections
                                         const headInjection = injections.find(i => i.location === 'head')?.code || '';
                                         const bodyStartInjection = injections.find(i => i.location === 'body_start')?.code || '';
                                         const bodyEndInjection = injections.find(i => i.location === 'body_end')?.code || '';
                                         const customCSS = injections.find(i => i.location === 'custom_css')?.code || '';
                                         const customJS = injections.find(i => i.location === 'custom_js')?.code || '';
 
-                                        // Group ads
                                         const adsByLocation = {};
                                         ads.forEach(ad => adsByLocation[ad.location] = ad.code);
 
-                                        // Placeholder carousel
                                         const placeholderHTML = placeholders.map((p, index) => `
                                             <div class="hero-slide ${index === 0 ? 'active' : ''}" style="background-image: url('${p.filename}');">
                                                 <div class="hero-overlay"></div>
@@ -540,7 +527,6 @@ app.get('/', (req, res) => {
                                             </div>
                                         `).join('');
 
-                                        // Affiliate stores HTML
                                         const storesHTML = stores.map(s => `
                                             <div class="store-card">
                                                 <img src="${s.image}" alt="${s.name}" class="store-image">
@@ -550,7 +536,6 @@ app.get('/', (req, res) => {
                                             </div>
                                         `).join('');
 
-                                        // 30 Money Links HTML
                                         const moneyLinksHTML = moneyLinks.map(l => `
                                             <div class="money-link-card">
                                                 <img src="${l.image}" alt="${l.title}" class="money-link-image">
@@ -558,12 +543,11 @@ app.get('/', (req, res) => {
                                                     <h3><a href="${l.url}" target="_blank">${l.title}</a></h3>
                                                     <p class="money-link-desc">${l.description}</p>
                                                     <span class="money-link-category">${l.category}</span>
-                                                    <a href="${l.url}" target="_blank" class="money-link-btn">Visit Site →</a>
+                                                    <a href="${l.url}" target="_blank" class="money-link-btn">Visit →</a>
                                                 </div>
                                             </div>
                                         `).join('');
 
-                                        // Video HTML - LONGER CARTOON VIDEOS
                                         const videoHTML = videos.map(v => `
                                             <div class="video-card">
                                                 <video class="video-player" src="${v.filename}" controls preload="metadata" poster="${v.thumbnail}"></video>
@@ -578,13 +562,10 @@ app.get('/', (req, res) => {
                                             </div>
                                         `).join('');
 
-                                        // Blog HTML - AUTO AND MANUAL POSTS
                                         const blogHTML = posts.map(p => `
                                             <article class="blog-card">
                                                 <img src="${p.image}" alt="${p.title}" class="blog-image">
                                                 <div class="blog-content">
-                                                    <span class="blog-source ${p.source === 'Manual' ? 'manual' : 'auto'}">${p.source === 'Manual' ? '📝 Manual' : '🤖 Auto'}</span>
-                                                    <span class="blog-category">${p.category || 'General'}</span>
                                                     <h3><a href="/post/${p.id}">${p.title}</a></h3>
                                                     <p class="blog-meta">${new Date(p.created_date).toLocaleDateString()} • 👁️ ${p.views}</p>
                                                     <p>${p.content.replace(/<[^>]*>/g, '').substring(0, 150)}...</p>
@@ -593,792 +574,722 @@ app.get('/', (req, res) => {
                                             </article>
                                         `).join('');
 
-                                        // Gallery HTML
                                         const galleryHTML = gallery.map(g => `
                                             <div class="gallery-item" onclick="openImage('${g.filename}')">
                                                 <img src="${g.filename}" alt="${g.title}">
                                             </div>
                                         `).join('');
 
-                                        // Bot stats for display
-                                        db.get(`SELECT COUNT(*) as count FROM posts WHERE source != 'Manual'`, [], (err, autoCount) => {
-                                            db.get(`SELECT COUNT(*) as count FROM posts WHERE source = 'Manual'`, [], (err, manualCount) => {
-
-                                                res.send(`
-                                                    <!DOCTYPE html>
-                                                    <html lang="en">
-                                                    <head>
-                                                        <meta charset="UTF-8">
-                                                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                                                        <title>${settings.site_title}</title>
-
-                                                        <!-- Google Analytics -->
-                                                        <script async src="https://www.googletagmanager.com/gtag/js?id=${settings.google_analytics}"></script>
-                                                        <script>
-                                                            window.dataLayer = window.dataLayer || [];
-                                                            function gtag(){dataLayer.push(arguments);}
-                                                            gtag('js', new Date());
-                                                            gtag('config', '${settings.google_analytics}');
-                                                        </script>
-
-                                                        <!-- HEAD INJECTION -->
-                                                        ${headInjection}
-
-                                                        <style>
-                                                            * { margin: 0; padding: 0; box-sizing: border-box; }
-
-                                                            :root {
-                                                                --primary: ${settings.primary_color};
-                                                                --secondary: ${settings.secondary_color};
-                                                                --bg: ${settings.bg_color};
-                                                                --text: ${settings.text_color};
-                                                                --card-bg: #1a1e2b;
-                                                                --border: #2d3748;
-                                                            }
-
-                                                            body {
-                                                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                                                                background: var(--bg);
-                                                                color: var(--text);
-                                                                line-height: 1.6;
-                                                            }
-
-                                                            a {
-                                                                color: var(--primary);
-                                                                text-decoration: none;
-                                                            }
-
-                                                            /* Header */
-                                                            header {
-                                                                background: linear-gradient(135deg, var(--primary), var(--secondary));
-                                                                color: white;
-                                                                padding: 1rem 0;
-                                                                position: sticky;
-                                                                top: 0;
-                                                                z-index: 100;
-                                                                box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-                                                            }
-
-                                                            .header-container {
-                                                                max-width: 1200px;
-                                                                margin: 0 auto;
-                                                                padding: 0 20px;
-                                                                display: flex;
-                                                                justify-content: space-between;
-                                                                align-items: center;
-                                                            }
-
-                                                            .logo {
-                                                                font-size: 2rem;
-                                                                font-weight: 700;
-                                                                color: white;
-                                                            }
-
-                                                            .nav-menu {
-                                                                display: flex;
-                                                                gap: 20px;
-                                                            }
-
-                                                            .nav-menu a {
-                                                                color: white;
-                                                                padding: 8px 12px;
-                                                            }
-
-                                                            .login-btn {
-                                                                background: white;
-                                                                color: var(--primary) !important;
-                                                                border-radius: 5px;
-                                                            }
-
-                                                            /* Bot Status Bar */
-                                                            .bot-status {
-                                                                background: var(--card-bg);
-                                                                padding: 10px;
-                                                                text-align: center;
-                                                                border-bottom: 1px solid var(--border);
-                                                                font-size: 14px;
-                                                            }
-
-                                                            .bot-status span {
-                                                                margin: 0 15px;
-                                                            }
-
-                                                            .auto-badge {
-                                                                background: var(--primary);
-                                                                color: white;
-                                                                padding: 2px 8px;
-                                                                border-radius: 3px;
-                                                                font-size: 12px;
-                                                            }
-
-                                                            /* Hero Carousel */
-                                                            .hero-carousel {
-                                                                position: relative;
-                                                                height: 400px;
-                                                                overflow: hidden;
-                                                            }
-
-                                                            .hero-slide {
-                                                                position: absolute;
-                                                                top: 0;
-                                                                left: 0;
-                                                                width: 100%;
-                                                                height: 100%;
-                                                                background-size: cover;
-                                                                background-position: center;
-                                                                opacity: 0;
-                                                                transition: opacity 0.5s;
-                                                                display: flex;
-                                                                align-items: center;
-                                                                justify-content: center;
-                                                            }
-
-                                                            .hero-slide.active {
-                                                                opacity: 1;
-                                                            }
-
-                                                            .hero-overlay {
-                                                                position: absolute;
-                                                                top: 0;
-                                                                left: 0;
-                                                                right: 0;
-                                                                bottom: 0;
-                                                                background: rgba(0,0,0,0.6);
-                                                            }
-
-                                                            .hero-content {
-                                                                position: relative;
-                                                                z-index: 2;
-                                                                text-align: center;
-                                                                color: white;
-                                                                max-width: 800px;
-                                                                padding: 0 20px;
-                                                            }
-
-                                                            .hero-content h1 {
-                                                                font-size: 3rem;
-                                                                margin-bottom: 1rem;
-                                                            }
-
-                                                            .hero-btn {
-                                                                display: inline-block;
-                                                                padding: 12px 30px;
-                                                                background: white;
-                                                                color: var(--primary);
-                                                                border-radius: 5px;
-                                                            }
-
-                                                            .carousel-nav {
-                                                                position: absolute;
-                                                                top: 50%;
-                                                                transform: translateY(-50%);
-                                                                width: 100%;
-                                                                display: flex;
-                                                                justify-content: space-between;
-                                                                padding: 0 20px;
-                                                                z-index: 10;
-                                                            }
-
-                                                            .carousel-nav button {
-                                                                background: rgba(255,255,255,0.3);
-                                                                border: none;
-                                                                color: white;
-                                                                font-size: 24px;
-                                                                padding: 10px 15px;
-                                                                cursor: pointer;
-                                                                border-radius: 50%;
-                                                            }
-
-                                                            .carousel-dots {
-                                                                position: absolute;
-                                                                bottom: 20px;
-                                                                left: 50%;
-                                                                transform: translateX(-50%);
-                                                                display: flex;
-                                                                gap: 10px;
-                                                                z-index: 10;
-                                                            }
-
-                                                            .dot {
-                                                                width: 12px;
-                                                                height: 12px;
-                                                                background: rgba(255,255,255,0.5);
-                                                                border-radius: 50%;
-                                                                cursor: pointer;
-                                                            }
-
-                                                            .dot.active {
-                                                                background: white;
-                                                            }
-
-                                                            /* Container */
-                                                            .container {
-                                                                max-width: 1200px;
-                                                                margin: 0 auto;
-                                                                padding: 40px 20px;
-                                                            }
-
-                                                            .section-title {
-                                                                font-size: 2rem;
-                                                                margin: 40px 0 20px;
-                                                                color: var(--primary);
-                                                            }
-
-                                                            /* Money Links Grid */
-                                                            .money-links-grid {
-                                                                display: grid;
-                                                                grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-                                                                gap: 20px;
-                                                                margin: 30px 0;
-                                                            }
-
-                                                            .money-link-card {
-                                                                background: var(--card-bg);
-                                                                border-radius: 8px;
-                                                                overflow: hidden;
-                                                                display: flex;
-                                                                border: 1px solid var(--border);
-                                                            }
-
-                                                            .money-link-image {
-                                                                width: 100px;
-                                                                height: 100px;
-                                                                object-fit: cover;
-                                                            }
-
-                                                            .money-link-content {
-                                                                padding: 15px;
-                                                                flex: 1;
-                                                            }
-
-                                                            .money-link-content h3 {
-                                                                font-size: 16px;
-                                                                margin-bottom: 5px;
-                                                            }
-
-                                                            .money-link-content h3 a {
-                                                                color: var(--primary);
-                                                            }
-
-                                                            .money-link-desc {
-                                                                font-size: 13px;
-                                                                color: #a0aec0;
-                                                                margin-bottom: 8px;
-                                                            }
-
-                                                            .money-link-category {
-                                                                display: inline-block;
-                                                                background: var(--secondary);
-                                                                color: white;
-                                                                padding: 2px 8px;
-                                                                border-radius: 3px;
-                                                                font-size: 11px;
-                                                                margin-bottom: 8px;
-                                                            }
-
-                                                            .money-link-btn {
-                                                                display: inline-block;
-                                                                color: var(--primary);
-                                                                font-size: 13px;
-                                                                font-weight: 500;
-                                                            }
-
-                                                            /* Stores Grid */
-                                                            .stores-grid {
-                                                                display: grid;
-                                                                grid-template-columns: repeat(5, 1fr);
-                                                                gap: 20px;
-                                                                margin: 30px 0;
-                                                            }
-
-                                                            .store-card {
-                                                                background: var(--card-bg);
-                                                                border-radius: 8px;
-                                                                overflow: hidden;
-                                                                text-align: center;
-                                                                border: 1px solid var(--border);
-                                                            }
-
-                                                            .store-image {
-                                                                width: 100%;
-                                                                height: 120px;
-                                                                object-fit: cover;
-                                                            }
-
-                                                            .store-name {
-                                                                font-size: 16px;
-                                                                margin: 12px 0 4px;
-                                                            }
-
-                                                            .store-description {
-                                                                font-size: 13px;
-                                                                color: #a0aec0;
-                                                                padding: 0 8px;
-                                                                margin-bottom: 12px;
-                                                            }
-
-                                                            .store-btn {
-                                                                display: inline-block;
-                                                                background: var(--primary);
-                                                                color: white;
-                                                                padding: 6px 12px;
-                                                                border-radius: 4px;
-                                                                font-size: 13px;
-                                                                margin-bottom: 12px;
-                                                            }
-
-                                                            /* Video Grid - LONGER VIDEOS */
-                                                            .video-grid {
-                                                                display: grid;
-                                                                grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-                                                                gap: 30px;
-                                                                margin: 30px 0;
-                                                            }
-
-                                                            .video-card {
-                                                                background: var(--card-bg);
-                                                                border-radius: 12px;
-                                                                overflow: hidden;
-                                                                border: 1px solid var(--border);
-                                                            }
-
-                                                            .video-player {
-                                                                width: 100%;
-                                                                height: 250px;
-                                                                background: #000;
-                                                            }
-
-                                                            .video-info {
-                                                                padding: 15px;
-                                                            }
-
-                                                            .video-info h3 {
-                                                                font-size: 18px;
-                                                                margin-bottom: 8px;
-                                                            }
-
-                                                            .video-stats {
-                                                                display: flex;
-                                                                justify-content: space-between;
-                                                                align-items: center;
-                                                                margin-top: 10px;
-                                                                color: #a0aec0;
-                                                            }
-
-                                                            .download-link {
-                                                                color: var(--primary);
-                                                                font-weight: 500;
-                                                            }
-
-                                                            /* Blog Grid */
-                                                            .blog-grid {
-                                                                display: grid;
-                                                                grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-                                                                gap: 30px;
-                                                                margin: 30px 0;
-                                                            }
-
-                                                            .blog-card {
-                                                                background: var(--card-bg);
-                                                                border-radius: 8px;
-                                                                overflow: hidden;
-                                                                border: 1px solid var(--border);
-                                                                position: relative;
-                                                            }
-
-                                                            .blog-image {
-                                                                width: 100%;
-                                                                height: 200px;
-                                                                object-fit: cover;
-                                                            }
-
-                                                            .blog-content {
-                                                                padding: 20px;
-                                                            }
-
-                                                            .blog-source {
-                                                                position: absolute;
-                                                                top: 10px;
-                                                                right: 10px;
-                                                                padding: 4px 8px;
-                                                                border-radius: 3px;
-                                                                font-size: 11px;
-                                                                font-weight: bold;
-                                                            }
-
-                                                            .blog-source.manual {
-                                                                background: var(--primary);
-                                                                color: white;
-                                                            }
-
-                                                            .blog-source.auto {
-                                                                background: #10b981;
-                                                                color: white;
-                                                            }
-
-                                                            .blog-category {
-                                                                display: inline-block;
-                                                                background: var(--secondary);
-                                                                color: white;
-                                                                padding: 2px 8px;
-                                                                border-radius: 3px;
-                                                                font-size: 11px;
-                                                                margin-bottom: 8px;
-                                                            }
-
-                                                            .blog-content h3 {
-                                                                font-size: 18px;
-                                                                margin-bottom: 8px;
-                                                            }
-
-                                                            .blog-content h3 a {
-                                                                color: var(--text);
-                                                            }
-
-                                                            .blog-meta {
-                                                                color: #a0aec0;
-                                                                font-size: 13px;
-                                                                margin-bottom: 10px;
-                                                            }
-
-                                                            .read-more {
-                                                                display: inline-block;
-                                                                margin-top: 10px;
-                                                                color: var(--primary);
-                                                            }
-
-                                                            /* Gallery Grid */
-                                                            .gallery-grid {
-                                                                display: grid;
-                                                                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-                                                                gap: 15px;
-                                                                margin: 30px 0;
-                                                            }
-
-                                                            .gallery-item {
-                                                                position: relative;
-                                                                aspect-ratio: 1;
-                                                                cursor: pointer;
-                                                                overflow: hidden;
-                                                                border-radius: 8px;
-                                                                border: 1px solid var(--border);
-                                                            }
-
-                                                            .gallery-item img {
-                                                                width: 100%;
-                                                                height: 100%;
-                                                                object-fit: cover;
-                                                                transition: transform 0.3s;
-                                                            }
-
-                                                            .gallery-item:hover img {
-                                                                transform: scale(1.1);
-                                                            }
-
-                                                            /* Footer */
-                                                            footer {
-                                                                background: #0a0c12;
-                                                                color: white;
-                                                                padding: 60px 0 20px;
-                                                                margin-top: 60px;
-                                                                border-top: 1px solid var(--border);
-                                                            }
-
-                                                            .footer-grid {
-                                                                max-width: 1200px;
-                                                                margin: 0 auto;
-                                                                padding: 0 20px;
-                                                                display: grid;
-                                                                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                                                                gap: 40px;
-                                                            }
-
-                                                            .footer-col h3 {
-                                                                color: var(--primary);
-                                                                margin-bottom: 15px;
-                                                            }
-
-                                                            .footer-col p {
-                                                                color: #a0aec0;
-                                                                line-height: 1.8;
-                                                                margin-bottom: 15px;
-                                                            }
-
-                                                            .footer-bottom {
-                                                                text-align: center;
-                                                                padding-top: 20px;
-                                                                margin-top: 20px;
-                                                                border-top: 1px solid #2d3748;
-                                                                color: #a0aec0;
-                                                            }
-
-                                                            /* WhatsApp Button */
-                                                            .whatsapp-btn {
-                                                                position: fixed;
-                                                                bottom: 80px;
-                                                                right: 20px;
-                                                                background: #25D366;
-                                                                color: white;
-                                                                width: 56px;
-                                                                height: 56px;
-                                                                border-radius: 50%;
-                                                                display: flex;
-                                                                align-items: center;
-                                                                justify-content: center;
-                                                                font-size: 28px;
-                                                                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                                                                z-index: 99;
-                                                            }
-
-                                                            /* Admin Button */
-                                                            .admin-btn {
-                                                                position: fixed;
-                                                                bottom: 20px;
-                                                                right: 20px;
-                                                                background: var(--primary);
-                                                                color: white;
-                                                                padding: 12px 24px;
-                                                                border-radius: 50px;
-                                                                z-index: 99;
-                                                            }
-
-                                                            /* Image Modal */
-                                                            .image-modal {
-                                                                position: fixed;
-                                                                top: 0;
-                                                                left: 0;
-                                                                right: 0;
-                                                                bottom: 0;
-                                                                background: rgba(0,0,0,0.95);
-                                                                display: flex;
-                                                                align-items: center;
-                                                                justify-content: center;
-                                                                z-index: 1000;
-                                                            }
-
-                                                            .image-modal img {
-                                                                max-width: 90%;
-                                                                max-height: 90%;
-                                                                border-radius: 8px;
-                                                            }
-
-                                                            .close-modal {
-                                                                position: absolute;
-                                                                top: 20px;
-                                                                right: 30px;
-                                                                color: white;
-                                                                font-size: 40px;
-                                                                cursor: pointer;
-                                                            }
-
-                                                            /* Responsive */
-                                                            @media (max-width: 768px) {
-                                                                .stores-grid { grid-template-columns: repeat(2, 1fr); }
-                                                                .money-links-grid { grid-template-columns: 1fr; }
-                                                                .video-grid { grid-template-columns: 1fr; }
-                                                                .blog-grid { grid-template-columns: 1fr; }
-                                                                .hero-content h1 { font-size: 2rem; }
-                                                            }
-
-                                                            @media (max-width: 480px) {
-                                                                .stores-grid { grid-template-columns: 1fr; }
-                                                            }
-
-                                                            /* Custom CSS Injection */
-                                                            ${customCSS}
-                                                        </style>
-                                                    </head>
-                                                    <body>
-                                                        ${bodyStartInjection}
-
-                                                        <!-- Bot Status Bar -->
-                                                        <div class="bot-status">
-                                                            <span>🤖 Auto-Blogger: <span class="auto-badge">ACTIVE</span></span>
-                                                            <span>📊 Auto Posts: ${autoCount.count || 0}</span>
-                                                            <span>📝 Manual Posts: ${manualCount.count || 0}</span>
-                                                            <span>⏰ Posts daily: 3 (9AM, 2PM, 8PM)</span>
+                                        res.send(`
+                                            <!DOCTYPE html>
+                                            <html lang="en">
+                                            <head>
+                                                <meta charset="UTF-8">
+                                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                                <title>${settings.site_title}</title>
+                                                <meta name="description" content="${settings.site_description}">
+                                                
+                                                <!-- Google Site Verification -->
+                                                ${settings.google_site_verification ? `<meta name="google-site-verification" content="${settings.google_site_verification}">` : ''}
+                                                ${settings.bing_site_verification ? `<meta name="msvalidate.01" content="${settings.bing_site_verification}">` : ''}
+                                                
+                                                <!-- Google Analytics -->
+                                                <script async src="https://www.googletagmanager.com/gtag/js?id=${settings.google_analytics}"></script>
+                                                <script>
+                                                    window.dataLayer = window.dataLayer || [];
+                                                    function gtag(){dataLayer.push(arguments);}
+                                                    gtag('js', new Date());
+                                                    gtag('config', '${settings.google_analytics}');
+                                                </script>
+
+                                                <!-- HEAD INJECTION -->
+                                                ${headInjection}
+
+                                                <style>
+                                                    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+                                                    :root {
+                                                        --primary: ${settings.primary_color};
+                                                        --secondary: ${settings.secondary_color};
+                                                        --bg: ${settings.bg_color};
+                                                        --text: ${settings.text_color};
+                                                        --card-bg: #1a1e2b;
+                                                        --border: #2d3748;
+                                                    }
+
+                                                    body {
+                                                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                                                        background: var(--bg);
+                                                        color: var(--text);
+                                                        line-height: 1.6;
+                                                    }
+
+                                                    a {
+                                                        color: var(--primary);
+                                                        text-decoration: none;
+                                                    }
+
+                                                    /* Header */
+                                                    header {
+                                                        background: linear-gradient(135deg, var(--primary), var(--secondary));
+                                                        color: white;
+                                                        padding: 1rem 0;
+                                                        position: sticky;
+                                                        top: 0;
+                                                        z-index: 100;
+                                                        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                                                    }
+
+                                                    .header-container {
+                                                        max-width: 1200px;
+                                                        margin: 0 auto;
+                                                        padding: 0 20px;
+                                                        display: flex;
+                                                        justify-content: space-between;
+                                                        align-items: center;
+                                                    }
+
+                                                    .logo {
+                                                        font-size: 2rem;
+                                                        font-weight: 700;
+                                                        color: white;
+                                                    }
+
+                                                    .nav-menu {
+                                                        display: flex;
+                                                        gap: 20px;
+                                                    }
+
+                                                    .nav-menu a {
+                                                        color: white;
+                                                        padding: 8px 12px;
+                                                    }
+
+                                                    .login-btn {
+                                                        background: white;
+                                                        color: var(--primary) !important;
+                                                        border-radius: 5px;
+                                                    }
+
+                                                    /* Hero Carousel */
+                                                    .hero-carousel {
+                                                        position: relative;
+                                                        height: 400px;
+                                                        overflow: hidden;
+                                                    }
+
+                                                    .hero-slide {
+                                                        position: absolute;
+                                                        top: 0;
+                                                        left: 0;
+                                                        width: 100%;
+                                                        height: 100%;
+                                                        background-size: cover;
+                                                        background-position: center;
+                                                        opacity: 0;
+                                                        transition: opacity 0.5s;
+                                                        display: flex;
+                                                        align-items: center;
+                                                        justify-content: center;
+                                                    }
+
+                                                    .hero-slide.active {
+                                                        opacity: 1;
+                                                    }
+
+                                                    .hero-overlay {
+                                                        position: absolute;
+                                                        top: 0;
+                                                        left: 0;
+                                                        right: 0;
+                                                        bottom: 0;
+                                                        background: rgba(0,0,0,0.6);
+                                                    }
+
+                                                    .hero-content {
+                                                        position: relative;
+                                                        z-index: 2;
+                                                        text-align: center;
+                                                        color: white;
+                                                        max-width: 800px;
+                                                        padding: 0 20px;
+                                                    }
+
+                                                    .hero-content h1 {
+                                                        font-size: 3rem;
+                                                        margin-bottom: 1rem;
+                                                    }
+
+                                                    .hero-btn {
+                                                        display: inline-block;
+                                                        padding: 12px 30px;
+                                                        background: white;
+                                                        color: var(--primary);
+                                                        border-radius: 5px;
+                                                    }
+
+                                                    .carousel-nav {
+                                                        position: absolute;
+                                                        top: 50%;
+                                                        transform: translateY(-50%);
+                                                        width: 100%;
+                                                        display: flex;
+                                                        justify-content: space-between;
+                                                        padding: 0 20px;
+                                                        z-index: 10;
+                                                    }
+
+                                                    .carousel-nav button {
+                                                        background: rgba(255,255,255,0.3);
+                                                        border: none;
+                                                        color: white;
+                                                        font-size: 24px;
+                                                        padding: 10px 15px;
+                                                        cursor: pointer;
+                                                        border-radius: 50%;
+                                                    }
+
+                                                    .carousel-dots {
+                                                        position: absolute;
+                                                        bottom: 20px;
+                                                        left: 50%;
+                                                        transform: translateX(-50%);
+                                                        display: flex;
+                                                        gap: 10px;
+                                                        z-index: 10;
+                                                    }
+
+                                                    .dot {
+                                                        width: 12px;
+                                                        height: 12px;
+                                                        background: rgba(255,255,255,0.5);
+                                                        border-radius: 50%;
+                                                        cursor: pointer;
+                                                    }
+
+                                                    .dot.active {
+                                                        background: white;
+                                                    }
+
+                                                    /* Container */
+                                                    .container {
+                                                        max-width: 1200px;
+                                                        margin: 0 auto;
+                                                        padding: 40px 20px;
+                                                    }
+
+                                                    .section-title {
+                                                        font-size: 2rem;
+                                                        margin: 40px 0 20px;
+                                                        color: var(--primary);
+                                                    }
+
+                                                    /* Money Links Grid */
+                                                    .money-links-grid {
+                                                        display: grid;
+                                                        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+                                                        gap: 20px;
+                                                        margin: 30px 0;
+                                                    }
+
+                                                    .money-link-card {
+                                                        background: var(--card-bg);
+                                                        border-radius: 8px;
+                                                        overflow: hidden;
+                                                        display: flex;
+                                                        border: 1px solid var(--border);
+                                                    }
+
+                                                    .money-link-image {
+                                                        width: 100px;
+                                                        height: 100px;
+                                                        object-fit: cover;
+                                                    }
+
+                                                    .money-link-content {
+                                                        padding: 15px;
+                                                        flex: 1;
+                                                    }
+
+                                                    .money-link-content h3 {
+                                                        font-size: 16px;
+                                                        margin-bottom: 5px;
+                                                    }
+
+                                                    .money-link-content h3 a {
+                                                        color: var(--primary);
+                                                    }
+
+                                                    .money-link-desc {
+                                                        font-size: 13px;
+                                                        color: #a0aec0;
+                                                        margin-bottom: 8px;
+                                                    }
+
+                                                    .money-link-category {
+                                                        display: inline-block;
+                                                        background: var(--secondary);
+                                                        color: white;
+                                                        padding: 2px 8px;
+                                                        border-radius: 3px;
+                                                        font-size: 11px;
+                                                        margin-bottom: 8px;
+                                                    }
+
+                                                    .money-link-btn {
+                                                        display: inline-block;
+                                                        color: var(--primary);
+                                                        font-size: 13px;
+                                                        font-weight: 500;
+                                                    }
+
+                                                    /* Stores Grid */
+                                                    .stores-grid {
+                                                        display: grid;
+                                                        grid-template-columns: repeat(5, 1fr);
+                                                        gap: 20px;
+                                                        margin: 30px 0;
+                                                    }
+
+                                                    .store-card {
+                                                        background: var(--card-bg);
+                                                        border-radius: 8px;
+                                                        overflow: hidden;
+                                                        text-align: center;
+                                                        border: 1px solid var(--border);
+                                                    }
+
+                                                    .store-image {
+                                                        width: 100%;
+                                                        height: 120px;
+                                                        object-fit: cover;
+                                                    }
+
+                                                    .store-name {
+                                                        font-size: 16px;
+                                                        margin: 12px 0 4px;
+                                                    }
+
+                                                    .store-description {
+                                                        font-size: 13px;
+                                                        color: #a0aec0;
+                                                        padding: 0 8px;
+                                                        margin-bottom: 12px;
+                                                    }
+
+                                                    .store-btn {
+                                                        display: inline-block;
+                                                        background: var(--primary);
+                                                        color: white;
+                                                        padding: 6px 12px;
+                                                        border-radius: 4px;
+                                                        font-size: 13px;
+                                                        margin-bottom: 12px;
+                                                    }
+
+                                                    /* Video Grid */
+                                                    .video-grid {
+                                                        display: grid;
+                                                        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+                                                        gap: 30px;
+                                                        margin: 30px 0;
+                                                    }
+
+                                                    .video-card {
+                                                        background: var(--card-bg);
+                                                        border-radius: 12px;
+                                                        overflow: hidden;
+                                                        border: 1px solid var(--border);
+                                                    }
+
+                                                    .video-player {
+                                                        width: 100%;
+                                                        height: 250px;
+                                                        background: #000;
+                                                    }
+
+                                                    .video-info {
+                                                        padding: 15px;
+                                                    }
+
+                                                    .video-info h3 {
+                                                        font-size: 18px;
+                                                        margin-bottom: 8px;
+                                                    }
+
+                                                    .video-stats {
+                                                        display: flex;
+                                                        justify-content: space-between;
+                                                        align-items: center;
+                                                        margin-top: 10px;
+                                                        color: #a0aec0;
+                                                    }
+
+                                                    .download-link {
+                                                        color: var(--primary);
+                                                        font-weight: 500;
+                                                    }
+
+                                                    /* Blog Grid */
+                                                    .blog-grid {
+                                                        display: grid;
+                                                        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+                                                        gap: 30px;
+                                                        margin: 30px 0;
+                                                    }
+
+                                                    .blog-card {
+                                                        background: var(--card-bg);
+                                                        border-radius: 8px;
+                                                        overflow: hidden;
+                                                        border: 1px solid var(--border);
+                                                    }
+
+                                                    .blog-image {
+                                                        width: 100%;
+                                                        height: 200px;
+                                                        object-fit: cover;
+                                                    }
+
+                                                    .blog-content {
+                                                        padding: 20px;
+                                                    }
+
+                                                    .blog-content h3 {
+                                                        font-size: 18px;
+                                                        margin-bottom: 8px;
+                                                    }
+
+                                                    .blog-content h3 a {
+                                                        color: var(--text);
+                                                    }
+
+                                                    .blog-meta {
+                                                        color: #a0aec0;
+                                                        font-size: 13px;
+                                                        margin-bottom: 10px;
+                                                    }
+
+                                                    .read-more {
+                                                        display: inline-block;
+                                                        margin-top: 10px;
+                                                        color: var(--primary);
+                                                    }
+
+                                                    /* Gallery Grid */
+                                                    .gallery-grid {
+                                                        display: grid;
+                                                        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                                                        gap: 15px;
+                                                        margin: 30px 0;
+                                                    }
+
+                                                    .gallery-item {
+                                                        position: relative;
+                                                        aspect-ratio: 1;
+                                                        cursor: pointer;
+                                                        overflow: hidden;
+                                                        border-radius: 8px;
+                                                        border: 1px solid var(--border);
+                                                    }
+
+                                                    .gallery-item img {
+                                                        width: 100%;
+                                                        height: 100%;
+                                                        object-fit: cover;
+                                                        transition: transform 0.3s;
+                                                    }
+
+                                                    .gallery-item:hover img {
+                                                        transform: scale(1.1);
+                                                    }
+
+                                                    /* Footer */
+                                                    footer {
+                                                        background: #0a0c12;
+                                                        color: white;
+                                                        padding: 60px 0 20px;
+                                                        margin-top: 60px;
+                                                        border-top: 1px solid var(--border);
+                                                    }
+
+                                                    .footer-grid {
+                                                        max-width: 1200px;
+                                                        margin: 0 auto;
+                                                        padding: 0 20px;
+                                                        display: grid;
+                                                        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                                                        gap: 40px;
+                                                    }
+
+                                                    .footer-col h3 {
+                                                        color: var(--primary);
+                                                        margin-bottom: 15px;
+                                                    }
+
+                                                    .footer-col p {
+                                                        color: #a0aec0;
+                                                        line-height: 1.8;
+                                                        margin-bottom: 15px;
+                                                    }
+
+                                                    .footer-bottom {
+                                                        text-align: center;
+                                                        padding-top: 20px;
+                                                        margin-top: 20px;
+                                                        border-top: 1px solid #2d3748;
+                                                        color: #a0aec0;
+                                                    }
+
+                                                    /* WhatsApp Button */
+                                                    .whatsapp-btn {
+                                                        position: fixed;
+                                                        bottom: 80px;
+                                                        right: 20px;
+                                                        background: #25D366;
+                                                        color: white;
+                                                        width: 56px;
+                                                        height: 56px;
+                                                        border-radius: 50%;
+                                                        display: flex;
+                                                        align-items: center;
+                                                        justify-content: center;
+                                                        font-size: 28px;
+                                                        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                                                        z-index: 99;
+                                                    }
+
+                                                    /* Admin Button */
+                                                    .admin-btn {
+                                                        position: fixed;
+                                                        bottom: 20px;
+                                                        right: 20px;
+                                                        background: var(--primary);
+                                                        color: white;
+                                                        padding: 12px 24px;
+                                                        border-radius: 50px;
+                                                        z-index: 99;
+                                                    }
+
+                                                    /* Image Modal */
+                                                    .image-modal {
+                                                        position: fixed;
+                                                        top: 0;
+                                                        left: 0;
+                                                        right: 0;
+                                                        bottom: 0;
+                                                        background: rgba(0,0,0,0.95);
+                                                        display: flex;
+                                                        align-items: center;
+                                                        justify-content: center;
+                                                        z-index: 1000;
+                                                    }
+
+                                                    .image-modal img {
+                                                        max-width: 90%;
+                                                        max-height: 90%;
+                                                        border-radius: 8px;
+                                                    }
+
+                                                    .close-modal {
+                                                        position: absolute;
+                                                        top: 20px;
+                                                        right: 30px;
+                                                        color: white;
+                                                        font-size: 40px;
+                                                        cursor: pointer;
+                                                    }
+
+                                                    /* Responsive */
+                                                    @media (max-width: 768px) {
+                                                        .stores-grid { grid-template-columns: repeat(2, 1fr); }
+                                                        .money-links-grid { grid-template-columns: 1fr; }
+                                                        .video-grid { grid-template-columns: 1fr; }
+                                                        .blog-grid { grid-template-columns: 1fr; }
+                                                        .hero-content h1 { font-size: 2rem; }
+                                                    }
+
+                                                    @media (max-width: 480px) {
+                                                        .stores-grid { grid-template-columns: 1fr; }
+                                                    }
+
+                                                    ${customCSS}
+                                                </style>
+                                            </head>
+                                            <body>
+                                                ${bodyStartInjection}
+
+                                                ${adsByLocation['header'] ? `<div class="ad-header">${adsByLocation['header']}</div>` : ''}
+
+                                                <header>
+                                                    <div class="header-container">
+                                                        <a href="/" class="logo">☁️ 3eesher.cloud</a>
+                                                        <nav class="nav-menu">
+                                                            <a href="#money-links">Money Sites</a>
+                                                            <a href="#stores">Stores</a>
+                                                            <a href="#videos">Videos</a>
+                                                            <a href="#blog">Blog</a>
+                                                            ${req.session.userId ? 
+                                                                '<a href="/admin" class="login-btn">Admin</a>' : 
+                                                                '<a href="/login" class="login-btn">Login</a>'
+                                                            }
+                                                        </nav>
+                                                    </div>
+                                                </header>
+
+                                                <div class="hero-carousel">
+                                                    ${placeholderHTML}
+                                                    <div class="carousel-nav">
+                                                        <button class="carousel-prev">❮</button>
+                                                        <button class="carousel-next">❯</button>
+                                                    </div>
+                                                    <div class="carousel-dots">
+                                                        ${placeholders.map((_, i) => `<span class="dot ${i === 0 ? 'active' : ''}" data-index="${i}"></span>`).join('')}
+                                                    </div>
+                                                </div>
+
+                                                <div class="container" id="money-links">
+                                                    <h2 class="section-title">💰 30 Money-Making Websites</h2>
+                                                    ${adsByLocation['content_top'] ? `<div class="ad-content">${adsByLocation['content_top']}</div>` : ''}
+                                                    <div class="money-links-grid">
+                                                        ${moneyLinksHTML}
+                                                    </div>
+                                                </div>
+
+                                                <div class="container" id="stores">
+                                                    <h2 class="section-title">🏪 Affiliate Stores</h2>
+                                                    <div class="stores-grid">
+                                                        ${storesHTML}
+                                                    </div>
+                                                </div>
+
+                                                <div class="container" id="blog">
+                                                    <h2 class="section-title">📝 Latest Blog Posts</h2>
+                                                    <div class="blog-grid">
+                                                        ${blogHTML}
+                                                    </div>
+                                                    ${adsByLocation['content_middle'] ? `<div class="ad-content">${adsByLocation['content_middle']}</div>` : ''}
+                                                </div>
+
+                                                <div class="container" id="videos">
+                                                    <h2 class="section-title">🎥 Featured Videos</h2>
+                                                    <div class="video-grid">
+                                                        ${videoHTML}
+                                                    </div>
+                                                </div>
+
+                                                <div class="container" id="gallery">
+                                                    <h2 class="section-title">📸 Gallery</h2>
+                                                    <div class="gallery-grid">
+                                                        ${galleryHTML}
+                                                    </div>
+                                                </div>
+
+                                                ${adsByLocation['content_bottom'] ? `<div class="ad-content">${adsByLocation['content_bottom']}</div>` : ''}
+                                                ${adsByLocation['footer'] ? `<div class="ad-footer">${adsByLocation['footer']}</div>` : ''}
+
+                                                <footer>
+                                                    <div class="footer-grid">
+                                                        <div class="footer-col">
+                                                            <h3>About 3eesher.cloud</h3>
+                                                            <p>${settings.about_text}</p>
                                                         </div>
-
-                                                        ${adsByLocation['header'] ? `<div class="ad-header">${adsByLocation['header']}</div>` : ''}
-
-                                                        <header>
-                                                            <div class="header-container">
-                                                                <a href="/" class="logo">☁️ 3eesher.cloud</a>
-                                                                <nav class="nav-menu">
-                                                                    <a href="#money-links">30 Money Sites</a>
-                                                                    <a href="#stores">Stores</a>
-                                                                    <a href="#videos">Videos</a>
-                                                                    <a href="#blog">Blog</a>
-                                                                    ${req.session.userId ? 
-                                                                        '<a href="/admin" class="login-btn">Admin</a>' : 
-                                                                        '<a href="/login" class="login-btn">Login</a>'
-                                                                    }
-                                                                </nav>
-                                                            </div>
-                                                        </header>
-
-                                                        <div class="hero-carousel">
-                                                            ${placeholderHTML}
-                                                            <div class="carousel-nav">
-                                                                <button class="carousel-prev">❮</button>
-                                                                <button class="carousel-next">❯</button>
-                                                            </div>
-                                                            <div class="carousel-dots">
-                                                                ${placeholders.map((_, i) => `<span class="dot ${i === 0 ? 'active' : ''}" data-index="${i}"></span>`).join('')}
-                                                            </div>
+                                                        <div class="footer-col">
+                                                            <h3>Privacy Policy</h3>
+                                                            <p>${settings.privacy_text}</p>
                                                         </div>
-
-                                                        <div class="container" id="money-links">
-                                                            <h2 class="section-title">💰 30 Verified Money-Making Websites</h2>
-                                                            ${adsByLocation['content_top'] ? `<div class="ad-content">${adsByLocation['content_top']}</div>` : ''}
-                                                            <div class="money-links-grid">
-                                                                ${moneyLinksHTML}
-                                                            </div>
+                                                        <div class="footer-col">
+                                                            <h3>Terms of Service</h3>
+                                                            <p>${settings.terms_text}</p>
                                                         </div>
-
-                                                        <div class="container" id="stores">
-                                                            <h2 class="section-title">🏪 Featured Affiliate Stores</h2>
-                                                            <div class="stores-grid">
-                                                                ${storesHTML}
-                                                            </div>
+                                                        <div class="footer-col">
+                                                            <h3>Contact</h3>
+                                                            <p>📧 ${settings.contact_email}</p>
+                                                            <p>📞 ${settings.contact_phone}</p>
                                                         </div>
+                                                    </div>
+                                                    <div class="footer-bottom">
+                                                        <p>${settings.footer_text}</p>
+                                                    </div>
+                                                </footer>
 
-                                                        <div class="container" id="videos">
-                                                            <h2 class="section-title">🎥 Long Cartoon Videos</h2>
-                                                            <div class="video-grid">
-                                                                ${videoHTML}
-                                                            </div>
-                                                            ${adsByLocation['content_middle'] ? `<div class="ad-content">${adsByLocation['content_middle']}</div>` : ''}
-                                                        </div>
+                                                ${bodyEndInjection}
 
-                                                        <div class="container" id="blog">
-                                                            <h2 class="section-title">📝 Auto Blog (3x Daily)</h2>
-                                                            <div class="blog-grid">
-                                                                ${blogHTML}
-                                                            </div>
-                                                        </div>
+                                                <a href="https://wa.me/${settings.contact_phone.replace('+', '')}" class="whatsapp-btn" target="_blank">💬</a>
 
-                                                        <div class="container" id="gallery">
-                                                            <h2 class="section-title">📸 Gallery</h2>
-                                                            <div class="gallery-grid">
-                                                                ${galleryHTML}
-                                                            </div>
-                                                        </div>
+                                                ${req.session.userId ? '<a href="/admin" class="admin-btn">⚙️ Admin</a>' : ''}
 
-                                                        ${adsByLocation['content_bottom'] ? `<div class="ad-content">${adsByLocation['content_bottom']}</div>` : ''}
-                                                        ${adsByLocation['footer'] ? `<div class="ad-footer">${adsByLocation['footer']}</div>` : ''}
+                                                ${adsByLocation['popup'] ? `
+                                                    <div id="popupAd" class="popup-ad">
+                                                        <span class="popup-close" onclick="this.parentElement.style.display='none'">✖</span>
+                                                        ${adsByLocation['popup']}
+                                                    </div>
+                                                    <script>
+                                                        setTimeout(() => {
+                                                            document.getElementById('popupAd').style.display = 'block';
+                                                        }, 5000);
+                                                    </script>
+                                                ` : ''}
 
-                                                        <footer>
-                                                            <div class="footer-grid">
-                                                                <div class="footer-col">
-                                                                    <h3>About 3eesher.cloud</h3>
-                                                                    <p>${settings.about_text}</p>
-                                                                    <p>Auto-posts 3x daily from Hacker News, Tech Trends, and Health Research.</p>
-                                                                </div>
-                                                                <div class="footer-col">
-                                                                    <h3>Privacy Policy</h3>
-                                                                    <p>${settings.privacy_text}</p>
-                                                                    <p>We only collect necessary information. Your data is never sold.</p>
-                                                                </div>
-                                                                <div class="footer-col">
-                                                                    <h3>Terms of Service</h3>
-                                                                    <p>${settings.terms_text}</p>
-                                                                    <p>Content is auto-sourced from public RSS feeds.</p>
-                                                                </div>
-                                                                <div class="footer-col">
-                                                                    <h3>Contact</h3>
-                                                                    <p>📧 ${settings.contact_email}</p>
-                                                                    <p>📞 ${settings.contact_phone}</p>
-                                                                    <p>💬 WhatsApp: ${settings.contact_phone}</p>
-                                                                </div>
-                                                            </div>
-                                                            <div class="footer-bottom">
-                                                                <p>${settings.footer_text}</p>
-                                                            </div>
-                                                        </footer>
+                                                <script>
+                                                    document.addEventListener('DOMContentLoaded', function() {
+                                                        const slides = document.querySelectorAll('.hero-slide');
+                                                        const dots = document.querySelectorAll('.dot');
+                                                        const prev = document.querySelector('.carousel-prev');
+                                                        const next = document.querySelector('.carousel-next');
+                                                        let current = 0;
 
-                                                        ${bodyEndInjection}
+                                                        function showSlide(index) {
+                                                            slides.forEach(s => s.classList.remove('active'));
+                                                            dots.forEach(d => d.classList.remove('active'));
+                                                            slides[index].classList.add('active');
+                                                            dots[index].classList.add('active');
+                                                            current = index;
+                                                        }
 
-                                                        <a href="https://wa.me/${settings.contact_phone.replace('+', '')}" class="whatsapp-btn" target="_blank">💬</a>
-
-                                                        ${req.session.userId ? '<a href="/admin" class="admin-btn">⚙️ Admin</a>' : ''}
-
-                                                        ${adsByLocation['popup'] ? `
-                                                            <div id="popupAd" class="popup-ad">
-                                                                <span class="popup-close" onclick="this.parentElement.style.display='none'">✖</span>
-                                                                ${adsByLocation['popup']}
-                                                            </div>
-                                                            <script>
-                                                                setTimeout(() => {
-                                                                    document.getElementById('popupAd').style.display = 'block';
-                                                                }, 5000);
-                                                            </script>
-                                                        ` : ''}
-
-                                                        <script>
-                                                            // Carousel
-                                                            document.addEventListener('DOMContentLoaded', function() {
-                                                                const slides = document.querySelectorAll('.hero-slide');
-                                                                const dots = document.querySelectorAll('.dot');
-                                                                const prev = document.querySelector('.carousel-prev');
-                                                                const next = document.querySelector('.carousel-next');
-                                                                let current = 0;
-
-                                                                function showSlide(index) {
-                                                                    slides.forEach(s => s.classList.remove('active'));
-                                                                    dots.forEach(d => d.classList.remove('active'));
-                                                                    slides[index].classList.add('active');
-                                                                    dots[index].classList.add('active');
-                                                                    current = index;
-                                                                }
-
-                                                                if (prev && next) {
-                                                                    prev.addEventListener('click', () => {
-                                                                        current = (current - 1 + slides.length) % slides.length;
-                                                                        showSlide(current);
-                                                                    });
-
-                                                                    next.addEventListener('click', () => {
-                                                                        current = (current + 1) % slides.length;
-                                                                        showSlide(current);
-                                                                    });
-
-                                                                    dots.forEach((dot, i) => {
-                                                                        dot.addEventListener('click', () => showSlide(i));
-                                                                    });
-
-                                                                    setInterval(() => {
-                                                                        current = (current + 1) % slides.length;
-                                                                        showSlide(current);
-                                                                    }, 5000);
-                                                                }
+                                                        if (prev && next) {
+                                                            prev.addEventListener('click', () => {
+                                                                current = (current - 1 + slides.length) % slides.length;
+                                                                showSlide(current);
                                                             });
 
-                                                            // Open image
-                                                            function openImage(src) {
-                                                                const modal = document.createElement('div');
-                                                                modal.className = 'image-modal';
-                                                                modal.innerHTML = '<span class="close-modal" onclick="this.parentElement.remove()">✖</span><img src="' + src + '">';
-                                                                document.body.appendChild(modal);
-                                                            }
-
-                                                            // Track video views
-                                                            document.querySelectorAll('video').forEach(video => {
-                                                                video.addEventListener('play', function() {
-                                                                    const videoId = this.closest('.video-card')?.dataset.id;
-                                                                    if (videoId) {
-                                                                        fetch('/api/view/video/' + videoId, { method: 'POST' });
-                                                                    }
-                                                                });
+                                                            next.addEventListener('click', () => {
+                                                                current = (current + 1) % slides.length;
+                                                                showSlide(current);
                                                             });
 
-                                                            ${customJS}
-                                                        </script>
-                                                    </body>
-                                                    </html>
-                                                `);
-                                            });
-                                        });
+                                                            dots.forEach((dot, i) => {
+                                                                dot.addEventListener('click', () => showSlide(i));
+                                                            });
+
+                                                            setInterval(() => {
+                                                                current = (current + 1) % slides.length;
+                                                                showSlide(current);
+                                                            }, 5000);
+                                                        }
+                                                    });
+
+                                                    function openImage(src) {
+                                                        const modal = document.createElement('div');
+                                                        modal.className = 'image-modal';
+                                                        modal.innerHTML = '<span class="close-modal" onclick="this.parentElement.remove()">✖</span><img src="' + src + '">';
+                                                        document.body.appendChild(modal);
+                                                    }
+
+                                                    document.querySelectorAll('video').forEach(video => {
+                                                        video.addEventListener('play', function() {
+                                                            const videoId = this.closest('.video-card')?.dataset.id;
+                                                            if (videoId) {
+                                                                fetch('/api/view/video/' + videoId, { method: 'POST' });
+                                                            }
+                                                        });
+                                                    });
+
+                                                    ${customJS}
+                                                </script>
+                                            </body>
+                                            </html>
+                                        `);
                                     });
                                 });
                             });
@@ -1413,7 +1324,6 @@ app.get('/post/:id', (req, res) => {
                         :root { --bg: ${settings.bg_color}; --text: ${settings.text_color}; --primary: ${settings.primary_color}; }
                         h1 { color: var(--primary); }
                         .meta { color: #a0aec0; margin:20px 0; }
-                        .source { background: var(--primary); color: white; padding:2px 8px; border-radius:3px; font-size:12px; }
                         img { max-width:100%; border-radius:8px; }
                         .back { display:inline-block; margin-top:30px; color: var(--primary); text-decoration:none; }
                     </style>
@@ -1421,12 +1331,49 @@ app.get('/post/:id', (req, res) => {
                 <body>
                     <a href="/" class="back">← Back</a>
                     <h1>${post.title}</h1>
-                    <div class="meta">
-                        <span class="source">${post.source === 'Manual' ? '📝 Manual Post' : '🤖 Auto Bot'}</span>
-                        <span>${new Date(post.created_date).toLocaleDateString()} • 👁️ ${post.views}</span>
-                    </div>
+                    <div class="meta">${new Date(post.created_date).toLocaleDateString()} • 👁️ ${post.views}</div>
                     ${post.image ? `<img src="${post.image}" alt="${post.title}">` : ''}
                     <div>${post.content}</div>
+                </body>
+                </html>
+            `);
+        });
+    });
+});
+
+// ==================== VIDEO PAGE (For SEO) ====================
+app.get('/video/:id', (req, res) => {
+    const id = req.params.id;
+
+    db.get(`SELECT * FROM videos WHERE id = ?`, [id], (err, video) => {
+        if (!video) return res.redirect('/');
+
+        db.run(`UPDATE videos SET views = views + 1 WHERE id = ?`, [id]);
+
+        db.all(`SELECT * FROM settings`, [], (err, settingsRows) => {
+            const settings = {};
+            settingsRows.forEach(s => settings[s.key] = s.value);
+
+            res.send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${video.title} - ${settings.site_name}</title>
+                    <style>
+                        body { font-family: Arial; line-height:1.8; max-width:800px; margin:0 auto; padding:20px; background: var(--bg); color: var(--text); }
+                        :root { --bg: ${settings.bg_color}; --text: ${settings.text_color}; --primary: ${settings.primary_color}; }
+                        h1 { color: var(--primary); }
+                        .meta { color: #a0aec0; margin:20px 0; }
+                        video { width:100%; border-radius:8px; }
+                        .back { display:inline-block; margin-top:30px; color: var(--primary); text-decoration:none; }
+                    </style>
+                </head>
+                <body>
+                    <a href="/" class="back">← Back</a>
+                    <h1>${video.title}</h1>
+                    <div class="meta">👁️ ${video.views} views • ⬇️ ${video.downloads} downloads</div>
+                    <video src="${video.filename}" controls poster="${video.thumbnail}" style="width:100%;"></video>
+                    <p>${video.description || ''}</p>
                 </body>
                 </html>
             `);
@@ -1462,6 +1409,13 @@ app.get('/download/video/:id', (req, res) => {
 app.post('/api/view/video/:id', (req, res) => {
     db.run(`UPDATE videos SET views = views + 1 WHERE id = ?`, [req.params.id]);
     res.json({ success: true });
+});
+
+// ==================== RUN BOT MANUALLY (Admin only) ====================
+app.post('/api/run-bot-now', (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+    runAutoBlogger();
+    res.json({ success: true, message: 'Bot started' });
 });
 
 // ==================== LOGIN - ONLY ADMIN ====================
@@ -1667,46 +1621,35 @@ app.get('/admin', (req, res) => {
                                                                 color: #2563eb;
                                                                 margin-bottom: 15px;
                                                             }
-                                                            .bot-status {
-                                                                background: #10b981;
-                                                                color: white;
-                                                                padding: 10px;
-                                                                border-radius: 5px;
-                                                                margin-bottom: 20px;
-                                                            }
                                                         </style>
                                                     </head>
                                                     <body>
                                                         <div class="container">
                                                             <div class="header">
-                                                                <h1>⚙️ Admin Dashboard - Auto Blogger Active</h1>
+                                                                <h1>⚙️ Admin Dashboard</h1>
                                                                 <div>
                                                                     <a href="/">View Site</a>
                                                                     <a href="/logout">Logout</a>
                                                                 </div>
                                                             </div>
                                                             
-                                                            <div class="bot-status">
-                                                                🤖 Auto-Blogger: Posts 3x daily (9AM, 2PM, 8PM) from Hacker News, Tech Trends, Health Research
-                                                            </div>
-                                                            
                                                             <div class="tabs">
                                                                 <button class="tab-btn active" onclick="showTab('videos')">🎥 Videos</button>
                                                                 <button class="tab-btn" onclick="showTab('placeholders')">🖼️ Placeholders</button>
-                                                                <button class="tab-btn" onclick="showTab('blog')">📝 Blog (Manual)</button>
-                                                                <button class="tab-btn" onclick="showTab('botlogs')">🤖 Bot Logs</button>
+                                                                <button class="tab-btn" onclick="showTab('blog')">📝 Blog</button>
                                                                 <button class="tab-btn" onclick="showTab('gallery')">📸 Gallery</button>
                                                                 <button class="tab-btn" onclick="showTab('stores')">🏪 Stores</button>
                                                                 <button class="tab-btn" onclick="showTab('money')">💰 Money Links</button>
                                                                 <button class="tab-btn" onclick="showTab('ads')">📺 Ads</button>
                                                                 <button class="tab-btn" onclick="showTab('injections')">💉 Injections</button>
+                                                                <button class="tab-btn" onclick="showTab('seo')">🔍 SEO</button>
                                                                 <button class="tab-btn" onclick="showTab('settings')">⚙️ Settings</button>
                                                                 <button class="tab-btn" onclick="showTab('password')">🔐 Password</button>
                                                             </div>
                                                             
                                                             <!-- VIDEOS TAB -->
                                                             <div id="videos-tab" class="tab-content active">
-                                                                <h2>Upload Video (Long Cartoons)</h2>
+                                                                <h2>Upload Video</h2>
                                                                 <form action="/admin/upload-video" method="POST" enctype="multipart/form-data">
                                                                     <div class="grid">
                                                                         <div>
@@ -1786,7 +1729,7 @@ app.get('/admin', (req, res) => {
                                                                 </form>
                                                             </div>
                                                             
-                                                            <!-- BLOG TAB (MANUAL POSTS) -->
+                                                            <!-- BLOG TAB -->
                                                             <div id="blog-tab" class="tab-content">
                                                                 <h2>Create Manual Blog Post</h2>
                                                                 <form action="/admin/create-post" method="POST" enctype="multipart/form-data">
@@ -1800,22 +1743,20 @@ app.get('/admin', (req, res) => {
                                                                     </div>
                                                                     <div class="form-group">
                                                                         <label>Category</label>
-                                                                        <input type="text" name="category" placeholder="Tech, Health, Business, etc.">
+                                                                        <input type="text" name="category">
                                                                     </div>
                                                                     <div class="form-group">
                                                                         <label>Image</label>
                                                                         <input type="file" name="image" accept="image/*">
                                                                     </div>
-                                                                    <button type="submit">Publish Manual Post</button>
+                                                                    <button type="submit">Publish Post</button>
                                                                 </form>
                                                                 
-                                                                <h2 style="margin-top:40px;">Recent Posts (All)</h2>
+                                                                <h2 style="margin-top:40px;">Recent Posts</h2>
                                                                 <table>
                                                                     <tr>
                                                                         <th>ID</th>
                                                                         <th>Title</th>
-                                                                        <th>Source</th>
-                                                                        <th>Category</th>
                                                                         <th>Views</th>
                                                                         <th>Date</th>
                                                                         <th>Actions</th>
@@ -1824,35 +1765,11 @@ app.get('/admin', (req, res) => {
                                                                         <tr>
                                                                             <td>${p.id}</td>
                                                                             <td>${p.title}</td>
-                                                                            <td>${p.source === 'Manual' ? '📝 Manual' : '🤖 Auto'}</td>
-                                                                            <td>${p.category || 'General'}</td>
                                                                             <td>${p.views}</td>
                                                                             <td>${new Date(p.created_date).toLocaleDateString()}</td>
                                                                             <td>
                                                                                 <button onclick="deletePost(${p.id})">Delete</button>
                                                                             </td>
-                                                                        </tr>
-                                                                    `).join('')}
-                                                                </table>
-                                                            </div>
-                                                            
-                                                            <!-- BOT LOGS TAB -->
-                                                            <div id="botlogs-tab" class="tab-content">
-                                                                <h2>🤖 Auto-Blogger Logs</h2>
-                                                                <button onclick="runBotNow()">▶ Run Bot Now</button>
-                                                                <table>
-                                                                    <tr>
-                                                                        <th>Post Title</th>
-                                                                        <th>Category</th>
-                                                                        <th>Source</th>
-                                                                        <th>Date</th>
-                                                                    </tr>
-                                                                    ${botLogs.map(log => `
-                                                                        <tr>
-                                                                            <td>${log.post_title}</td>
-                                                                            <td>${log.post_category}</td>
-                                                                            <td><a href="${log.post_source}" target="_blank">Link</a></td>
-                                                                            <td>${new Date(log.created_date).toLocaleString()}</td>
                                                                         </tr>
                                                                     `).join('')}
                                                                 </table>
@@ -1989,6 +1906,28 @@ app.get('/admin', (req, res) => {
                                                                 </div>
                                                             </div>
                                                             
+                                                            <!-- SEO TAB -->
+                                                            <div id="seo-tab" class="tab-content">
+                                                                <h2>SEO Settings</h2>
+                                                                <form action="/admin/save-settings" method="POST">
+                                                                    <div class="grid">
+                                                                        <div>
+                                                                            <div class="form-group">
+                                                                                <label>Google Site Verification</label>
+                                                                                <input type="text" name="google_site_verification" value="${settings.google_site_verification || ''}" placeholder="google-site-verification code">
+                                                                            </div>
+                                                                            <div class="form-group">
+                                                                                <label>Bing Site Verification</label>
+                                                                                <input type="text" name="bing_site_verification" value="${settings.bing_site_verification || ''}" placeholder="msvalidate.01 code">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <p>Your sitemap is available at: <a href="/sitemap.xml" target="_blank">/sitemap.xml</a></p>
+                                                                    <p>Your robots.txt is available at: <a href="/robots.txt" target="_blank">/robots.txt</a></p>
+                                                                    <button type="submit">Save SEO Settings</button>
+                                                                </form>
+                                                            </div>
+                                                            
                                                             <!-- SETTINGS TAB -->
                                                             <div id="settings-tab" class="tab-content">
                                                                 <h2>Settings</h2>
@@ -2044,24 +1983,15 @@ app.get('/admin', (req, res) => {
                                                                                 <textarea name="terms_text">${settings.terms_text}</textarea>
                                                                             </div>
                                                                             <div class="form-group">
-                                                                                <label>Bot Enabled</label>
-                                                                                <select name="bot_enabled">
-                                                                                    <option value="true" ${settings.bot_enabled === 'true' ? 'selected' : ''}>Yes</option>
-                                                                                    <option value="false" ${settings.bot_enabled === 'false' ? 'selected' : ''}>No</option>
-                                                                                </select>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div>
-                                                                            <div class="form-group">
                                                                                 <label>Contact Email</label>
                                                                                 <input type="email" name="contact_email" value="${settings.contact_email}">
                                                                             </div>
+                                                                        </div>
+                                                                        <div>
                                                                             <div class="form-group">
                                                                                 <label>Contact Phone</label>
                                                                                 <input type="text" name="contact_phone" value="${settings.contact_phone}">
                                                                             </div>
-                                                                        </div>
-                                                                        <div>
                                                                             <div class="form-group">
                                                                                 <label>Google Analytics</label>
                                                                                 <input type="text" name="google_analytics" value="${settings.google_analytics}">
@@ -2156,8 +2086,7 @@ app.get('/admin', (req, res) => {
                                                             
                                                             function runBotNow() {
                                                                 fetch('/api/run-bot-now', {method:'POST'})
-                                                                    .then(() => alert('Bot started! Check logs in a minute.'))
-                                                                    .then(() => location.reload());
+                                                                    .then(() => alert('Bot started!'));
                                                             }
                                                         </script>
                                                     </body>
@@ -2234,8 +2163,8 @@ app.post('/admin/upload-placeholder', upload.single('image'), (req, res) => {
 app.post('/admin/create-post', upload.single('image'), (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
 
-    db.run(`INSERT INTO posts (title, content, image, source, category, created_date) VALUES (?, ?, ?, ?, ?, ?)`,
-        [req.body.title, req.body.content, req.file?.filename || 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400', 'Manual', req.body.category || 'General', new Date().toISOString()]);
+    db.run(`INSERT INTO posts (title, content, image, category, created_date) VALUES (?, ?, ?, ?, ?)`,
+        [req.body.title, req.body.content, req.file?.filename || 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400', req.body.category || 'General', new Date().toISOString()]);
     res.redirect('/admin');
 });
 
@@ -2321,12 +2250,6 @@ app.post('/admin/save-settings', (req, res) => {
     res.redirect('/admin');
 });
 
-// ==================== RUN BOT MANUALLY ====================
-app.post('/api/run-bot-now', (req, res) => {
-    runAutoBlogger();
-    res.json({ success: true, message: 'Bot started' });
-});
-
 // ==================== LOGOUT ====================
 app.get('/logout', (req, res) => {
     req.session.destroy();
@@ -2335,23 +2258,20 @@ app.get('/logout', (req, res) => {
 
 // ==================== START SERVER ====================
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 3EESHER.CLOUD WITH AUTO-BLOGGER IS LIVE!`);
+    console.log(`🚀 3EESHER.CLOUD IS LIVE!`);
     console.log(`🌐 Website: http://localhost:${PORT}`);
     console.log(`👤 Admin: http://localhost:${PORT}/admin`);
     console.log(`🔑 Login: admin / admin123`);
     console.log(``);
-    console.log(`✅ NEW AUTO-BLOGGER FEATURES:`);
-    console.log(`   - Posts 3x daily (9AM, 2PM, 8PM)`);
-    console.log(`   - Sources: Hacker News, Tech Trends, Health Research`);
+    console.log(`✅ AUTO-BLOGGER ACTIVE:`);
+    console.log(`   - Posts 3x daily (hidden from users)`);
+    console.log(`   - Sources: Hacker News, Tech, Health`);
     console.log(`   - Different content every day`);
-    console.log(`   - Manual posts still work in admin`);
-    console.log(`   - Bot logs to track all auto-posts`);
-    console.log(`   - Run bot manually from admin`);
+    console.log(`   - Manual posts still work`);
     console.log(``);
-    console.log(`✅ LONGER CARTOON VIDEOS:`);
-    console.log(`   - Big Buck Bunny (10 min)`);
-    console.log(`   - Elephant Dream (15 min)`);
-    console.log(`   - Sintel (14 min)`);
-    console.log(`   - Tears of Steel (12 min)`);
-    console.log(`   - All videos play with controls`);
+    console.log(`✅ SEO READY:`);
+    console.log(`   - Sitemap: /sitemap.xml`);
+    console.log(`   - Robots.txt: /robots.txt`);
+    console.log(`   - Google Analytics: ${process.env.GOOGLE_ANALYTICS || 'G-HD01MF5SL9'}`);
+    console.log(`   - Ready for Google Search Console`);
 });
