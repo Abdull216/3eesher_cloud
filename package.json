@@ -1,7 +1,7 @@
 {
   "name": "3eesher-cloud",
-  "version": "3.0.0",
-  "description": "Autonomous Money Making Bot",
+  "version": "1.0.0",
+  "description": "Autonomous Money Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
