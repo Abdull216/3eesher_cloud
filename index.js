@@ -288,14 +288,23 @@ app.post('/login', (req, res) => {
 app.post('/api/admin/change-password', (req, res) => {
     if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
     
-    const { currentPassword, newPassword } = req.body;
-    const data = getData();
+    const { currentPassword, newPassword, confirmPassword } = req.body;
     
+    // Check if new password matches confirm password
+    if (newPassword !== confirmPassword) {
+        return res.status(400).json({ error: 'New password and confirm password do not match' });
+    }
+    
+    // Check if current password is correct
     if (!bcrypt.compareSync(currentPassword, ADMIN_HASH)) {
         return res.status(400).json({ error: 'Current password is incorrect' });
     }
     
+    // Update password
     ADMIN_HASH = bcrypt.hashSync(newPassword, 10);
+    
+    // Also save to data file for persistence
+    const data = getData();
     data.settings.adminPassword = newPassword;
     saveData(data);
     
@@ -512,6 +521,24 @@ app.delete('/api/video/:id', (req, res) => {
     }
     
     res.json({ success: true });
+});
+
+// ==================== IMAGE UPLOAD ====================
+app.post('/api/upload/image', upload.single('image'), (req, res) => {
+    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    
+    const data = getData();
+    const imageUrl = `/uploads/${req.file.filename}`;
+    
+    data.images.push({
+        filename: req.file.filename,
+        url: imageUrl,
+        uploadedAt: new Date().toISOString()
+    });
+    
+    saveData(data);
+    res.json({ success: true, url: imageUrl });
 });
 
 // ==================== SOCIAL MEDIA PIXELS (ALL PLATFORMS) ====================
@@ -1262,22 +1289,31 @@ app.get('/admin', (req, res) => {
 <body>
     <div class="login-box">
         <h2>🔐 3EESHER Admin</h2>
-        <input type="text" id="username" placeholder="Username" value="admin216">
-        <input type="password" id="password" placeholder="Password" value="admin1234">
+        <input type="text" id="username" placeholder="Enter Username">
+        <input type="password" id="password" placeholder="Enter Password">
         <button onclick="login()">Login</button>
     </div>
     <script>
         async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                alert('Please enter username and password');
+                return;
+            }
+            
             const res = await fetch('/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    username: document.getElementById('username').value,
-                    password: document.getElementById('password').value
-                })
+                body: JSON.stringify({ username, password })
             });
-            if (res.ok) location.reload();
-            else alert('Login failed');
+            
+            if (res.ok) {
+                location.reload();
+            } else {
+                alert('Invalid username or password');
+            }
         }
     </script>
 </body>
@@ -1692,19 +1728,41 @@ app.get('/admin', (req, res) => {
             const newPass = document.getElementById('newPass').value;
             const confirm = document.getElementById('confirmPass').value;
             
+            if (!current || !newPass || !confirm) {
+                alert('Please fill all password fields');
+                return;
+            }
+            
             if (newPass !== confirm) {
-                alert('New passwords do not match');
+                alert('❌ New password and confirm password do not match');
+                return;
+            }
+            
+            if (newPass.length < 6) {
+                alert('Password must be at least 6 characters');
                 return;
             }
             
             const res = await fetch('/api/admin/change-password', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ currentPassword: current, newPassword: newPass })
+                body: JSON.stringify({ 
+                    currentPassword: current, 
+                    newPassword: newPass,
+                    confirmPassword: confirm
+                })
             });
             
             const data = await res.json();
-            alert(data.message || 'Password changed!');
+            
+            if (data.success) {
+                alert('✅ Password changed successfully!');
+                document.getElementById('currentPass').value = '';
+                document.getElementById('newPass').value = '';
+                document.getElementById('confirmPass').value = '';
+            } else {
+                alert('❌ ' + (data.error || 'Password change failed'));
+            }
         }
         
         async function saveSettings() {
@@ -1794,7 +1852,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 ========================================`);
     console.log(`📍 Main Page: http://localhost:${PORT}`);
     console.log(`🔐 Admin: http://localhost:${PORT}/admin`);
-    console.log(`👤 Login: admin216 / admin1234`);
+    console.log(`👤 Login: admin216 / admin1234 (hidden fields - you type them)`);
     console.log(`📧 Gmail: ${GMAIL_USER}`);
     console.log(`📊 Analytics: G-HD01MF5SL9`);
     console.log(`🚀 ========================================`);
@@ -1812,6 +1870,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Contact Info - Gmail & WhatsApp`);
     console.log(`✅ Picture Layout - 3-3-2 split`);
     console.log(`✅ Unlimited Commands - Fully fixed`);
-    console.log(`✅ Password Change - Working in admin`);
+    console.log(`✅ Password Change - WORKING (checks confirm password)`);
+    console.log(`✅ Login Fields - Hidden, you type username/password`);
     console.log(`🚀 ========================================\n`);
 });
