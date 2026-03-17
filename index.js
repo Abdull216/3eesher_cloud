@@ -1250,9 +1250,9 @@ app.get('/library', (req, res) => {
         document.getElementById('lTit').textContent=les.title;
         document.getElementById('lSub').textContent=crs.title+' — Lesson '+les.id+' of '+crs.lessons.length;
         let cnt=les.content;
-        cnt=cnt.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-        cnt=cnt.replace(/```([\s\S]*?)```/g,'<code style="background:#0a0f1e;padding:10px;border-radius:6px;display:block;font-family:monospace;font-size:12px;overflow-x:auto;white-space:pre;margin:10px 0;">$1</code>');
-        document.getElementById('lBody').innerHTML=cnt.replace(/\n/g,'<br>');
+        cnt = cnt.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        cnt = cnt.replace(/```([\s\S]*?)```/g, '<code style="background:#0a0f1e; padding:10px; border-radius:6px; display:block; font-family:monospace; font-size:12px; overflow-x:auto; white-space:pre; margin:10px 0;">$1</code>');
+        document.getElementById('lBody').innerHTML = cnt.replace(/\n/g, '<br>');
         const ve=document.getElementById('lVid');const if2=document.getElementById('lIframe');
         if(les.video){if2.src=les.video;ve.style.display='block';}else{if2.src='';ve.style.display='none';}
         const p=prog[crs.id]||[];const done=p.includes(les.id);
@@ -1444,7 +1444,7 @@ app.get('/', (req, res) => {
         .hero h1 .grad{background:linear-gradient(135deg,var(--green) 0%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
         .hero p{font-size:17px;color:#94a3b8;max-width:580px;margin:0 auto 36px;line-height:1.7;animation:fadeUp 0.7s 0.2s ease both;}
         .hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;animation:fadeUp 0.7s 0.3s ease both;}
-        .btn-primary{background:var(--green);color:#0a0f1e;padding:14px 28px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;transition:0.25s;display:inline-flex;align-items:center;gap:6px;}
+        .btn-primary{background:var(--green);color:#0a0f1e;padding:14px 28px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
         .btn-primary:hover{background:#059669;transform:translateY(-2px);box-shadow:0 12px 28px rgba(16,185,129,0.38);}
         .btn-secondary{background:var(--card);color:var(--text);padding:14px 28px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;border:1px solid var(--border);transition:0.25s;display:inline-flex;align-items:center;gap:6px;}
         .btn-secondary:hover{border-color:var(--green);color:var(--green);}
@@ -2267,7 +2267,7 @@ app.get('/', (req, res) => {
 </html>`);
 });
 
-// ==================== ADMIN PAGE (ORIGINAL + NEW ADS TAB) ====================
+// ==================== ADMIN PAGE ====================
 app.get('/admin', (req, res) => {
     if (!req.session.isAdmin) {
         return res.send(`<!DOCTYPE html><html><head><title>Admin Login</title>
@@ -2365,7 +2365,7 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         </div>
     </div>
 
-    <!-- ADS ENGINE (NEW) -->
+    <!-- ADS ENGINE -->
     <div id="ads" class="section">
         <h2 style="color:#fbbf24;margin-bottom:20px;">🎯 Ad Engine</h2>
         <div class="stats-grid">
@@ -2533,13 +2533,6 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <button onclick="injectCode()">Inject Code</button>
     </div>
 
-    <!-- REVIEWS -->
-    <div id="reviews" class="sec">
-        <h2>⭐ Member Reviews</h2>
-        <p style="color:#64748b;font-size:13px;margin-bottom:16px;">Approve reviews before they show on the website. Unapproved = hidden from visitors.</p>
-        <div id="reviewsList" style="max-height:500px;overflow-y:auto;">Loading...</div>
-    </div>
-
     <!-- SETTINGS -->
     <div id="settings" class="section">
         <h3>Change Password</h3>
@@ -2619,7 +2612,6 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
 </body>
 </html>`);
 });
-
 
 // ==================== BLOG PAGE ====================
 app.get('/blog/:id', (req, res) => {
