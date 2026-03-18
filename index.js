@@ -42,7 +42,32 @@ const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user:
 const DATA_FILE = './data.json';
 
 function getData() {
-    try { if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE)); } catch (e) {}
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const saved = JSON.parse(fs.readFileSync(DATA_FILE));
+            const defaults = getDefaultData();
+            // Deep merge: saved data wins, but missing fields get filled from defaults
+            const merged = Object.assign({}, defaults, saved);
+            // Ensure nested objects also get defaults
+            merged.earnings   = Object.assign({}, defaults.earnings,   saved.earnings   || {});
+            merged.settings   = Object.assign({}, defaults.settings,   saved.settings   || {});
+            merged.targeting  = Object.assign({}, defaults.targeting,  saved.targeting  || {});
+            merged.injections = Object.assign({}, defaults.injections, saved.injections || {});
+            merged.socialPixels = Object.assign({}, defaults.socialPixels, saved.socialPixels || {});
+            merged.adStats    = Object.assign({}, defaults.adStats,    saved.adStats    || {});
+            merged.visitors   = Object.assign({}, defaults.visitors,   saved.visitors   || {});
+            // Ensure arrays exist
+            if (!Array.isArray(merged.ads))            merged.ads = [];
+            if (!Array.isArray(merged.blogPosts))      merged.blogPosts = [];
+            if (!Array.isArray(merged.subscribers))    merged.subscribers = [];
+            if (!Array.isArray(merged.images))         merged.images = [];
+            if (!Array.isArray(merged.emailCampaigns)) merged.emailCampaigns = [];
+            if (!Array.isArray(merged.testimonials))   merged.testimonials = [];
+            if (!Array.isArray(merged.libraryUsers))   merged.libraryUsers = [];
+            if (!Array.isArray(merged.customLinks))    merged.customLinks = [];
+            return merged;
+        }
+    } catch (e) { console.error('getData error:', e.message); }
     return getDefaultData();
 }
 
