@@ -226,17 +226,44 @@ app.use((req, res, next) => {
 const ADMIN_USER = 'admin216';
 let ADMIN_HASH = bcrypt.hashSync('admin1234', 10);
 
+function getCookie(req, name) {
+    const cookies = req.headers.cookie || '';
+    const match = cookies.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
+    return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
+function checkAdmin(req) {
+    if (req.session.isAdmin) return true;
+    // Restore session from persistent cookie (survives Render restarts)
+    const token = getCookie(req, 'adminToken');
+    if (token) {
+        const data = getData();
+        if (data.adminToken && data.adminToken === token) {
+            req.session.isAdmin = true;
+            return true;
+        }
+    }
+    return false;
+}
+
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     if (username === ADMIN_USER && bcrypt.compareSync(password, ADMIN_HASH)) {
         req.session.isAdmin = true;
+        // Persistent token so session survives Render restarts
+        const crypto = require('crypto');
+        const token = crypto.randomBytes(32).toString('hex');
+        const data = getData();
+        data.adminToken = token;
+        saveData(data);
+        res.setHeader('Set-Cookie', `adminToken=${token}; HttpOnly; Path=/; Max-Age=${30*24*60*60}`);
         res.json({ success: true });
     } else res.status(401).json({ error: 'Invalid credentials' });
 });
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
 
 app.post('/api/admin/change-password', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { currentPassword, newPassword, confirmPassword } = req.body;
     if (newPassword !== confirmPassword) return res.status(400).json({ error: 'Passwords do not match' });
     if (!bcrypt.compareSync(currentPassword, ADMIN_HASH)) return res.status(400).json({ error: 'Current password incorrect' });
@@ -386,12 +413,12 @@ app.post('/api/subscribe', async (req, res) => {
 });
 
 app.get('/api/earnings', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     res.json(getData().earnings);
 });
 
 app.post('/api/earnings/add', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { amount, source, link } = req.body;
     const data = getData();
     const num = parseFloat(amount);
@@ -403,7 +430,7 @@ app.post('/api/earnings/add', (req, res) => {
 });
 
 app.post('/api/withdraw', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { amount, method } = req.body;
     const data = getData();
     const num = parseFloat(amount);
@@ -437,7 +464,7 @@ app.post('/api/track-click', (req, res) => {
 });
 
 app.post('/api/add-store-id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { store, id } = req.body;
     const data = getData();
     const link = data.storeLinks.find(l => l.name.toLowerCase().includes(store.toLowerCase()));
@@ -446,7 +473,7 @@ app.post('/api/add-store-id', (req, res) => {
 });
 
 app.post('/api/add-money-link', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { name, url, category } = req.body;
     const data = getData();
     data.moneyLinks.push({ name, url, category, active: true, clicks: 0, earnings: 0, icon: '🔗' });
@@ -454,7 +481,7 @@ app.post('/api/add-money-link', (req, res) => {
 });
 
 app.post('/api/create-blog', upload.single('image'), (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { title, content } = req.body;
     const data = getData();
     data.blogPosts.unshift({ id: Date.now(), title, content, image: req.file ? `/uploads/${req.file.filename}` : 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800', date: new Date().toISOString(), views: 0, author: 'Admin' });
@@ -462,12 +489,12 @@ app.post('/api/create-blog', upload.single('image'), (req, res) => {
 });
 
 app.delete('/api/blog/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData(); data.blogPosts = data.blogPosts.filter(p => p.id != req.params.id); saveData(data); res.json({ success: true });
 });
 
 app.post('/api/upload/video', upload.single('video'), (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     if (!req.file) return res.status(400).json({ error: 'No video' });
     const data = getData();
     const videoUrl = `/videos/${req.file.filename}`;
@@ -476,7 +503,7 @@ app.post('/api/upload/video', upload.single('video'), (req, res) => {
 });
 
 app.delete('/api/video/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
     const i = data.videos.findIndex(v => v.id == req.params.id);
     if (i !== -1) { const v = data.videos[i]; if (v.type === 'local' && v.filename) { try { fs.unlinkSync(path.join(__dirname, 'videos', v.filename)); } catch(e){} } data.videos.splice(i, 1); saveData(data); }
@@ -484,7 +511,7 @@ app.delete('/api/video/:id', (req, res) => {
 });
 
 app.post('/api/upload/image', upload.single('image'), (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     if (!req.file) return res.status(400).json({ error: 'No file' });
     const data = getData();
     const url = `/uploads/${req.file.filename}`;
@@ -493,7 +520,7 @@ app.post('/api/upload/image', upload.single('image'), (req, res) => {
 });
 
 app.post('/api/social/update', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { platform, value } = req.body;
     const data = getData();
     if (!data.socialPixels) data.socialPixels = {};
@@ -502,14 +529,14 @@ app.post('/api/social/update', (req, res) => {
 app.get('/api/social/pixels', (req, res) => { res.json(getData().socialPixels || {}); });
 
 app.post('/api/target-phones', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { phones } = req.body; const data = getData();
     data.targeting.phones = [...new Set([...data.targeting.phones, ...phones])]; saveData(data);
     res.json({ success: true, count: data.targeting.phones.length });
 });
 
 app.post('/api/target-imeis', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { imeis } = req.body; const data = getData();
     data.targeting.imeis = [...new Set([...data.targeting.imeis, ...imeis])]; saveData(data);
     res.json({ success: true, count: data.targeting.imeis.length });
@@ -517,7 +544,7 @@ app.post('/api/target-imeis', (req, res) => {
 
 // ── Universal Injector — saves to both data.json AND injections.json ──
 app.post('/api/inject', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { location, code } = req.body;
     const data = getData();
     if (!data.injections) data.injections = {};
@@ -582,14 +609,14 @@ app.post('/api/testimonials/add', (req, res) => {
 
 // Testimonials — list all (admin)
 app.get('/api/testimonials/all', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
     res.json({ testimonials: data.testimonials || [] });
 });
 
 // Testimonials — approve
 app.post('/api/testimonials/approve/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
     const t = (data.testimonials || []).find(t => t.id == req.params.id);
     if (t) { t.approved = true; saveData(data); res.json({ success: true }); }
@@ -598,7 +625,7 @@ app.post('/api/testimonials/approve/:id', (req, res) => {
 
 // Testimonials — delete
 app.delete('/api/testimonials/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
     data.testimonials = (data.testimonials || []).filter(t => t.id != req.params.id);
     saveData(data);
@@ -607,7 +634,7 @@ app.delete('/api/testimonials/:id', (req, res) => {
 
 // Save admin settings (auto tasks)
 app.post('/api/admin/settings', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { autoMoneyMaker, autoBlogger, autoTargeting } = req.body;
     const data = getData();
     if (!data.settings) data.settings = {};
@@ -650,25 +677,25 @@ app.post('/api/ads/submit', (req, res) => {
 });
 
 app.post('/api/ads/approve/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData(); const ad = (data.ads || []).find(a => a.id == req.params.id);
     if (ad) { ad.active = true; ad.paid = true; if (!data.adStats) data.adStats = {}; data.adStats.totalRevenue = (data.adStats.totalRevenue || 0) + (ad.price || 0); data.earnings.total += (ad.price || 0); data.earnings.month += (ad.price || 0); data.earnings.transactions.push({ amount: ad.price, source: 'Ad Revenue', link: 'Ad Engine', timestamp: new Date().toISOString() }); saveData(data); res.json({ success: true }); }
     else res.status(404).json({ error: 'Not found' });
 });
 
 app.delete('/api/ads/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData(); data.ads = (data.ads || []).filter(a => a.id != req.params.id); saveData(data); res.json({ success: true });
 });
 
 app.get('/api/ads/all', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData(); res.json({ ads: data.ads || [], stats: data.adStats || {}, packages: data.adPackages || [] });
 });
 
 // ── Manual email blast from admin ──
 app.post('/api/admin/email-blast', async (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { subject, html, campaignIndex } = req.body;
     const data = getData(); const subscribers = data.subscribers || [];
     if (!subscribers.length) return res.json({ success: false, message: 'No subscribers yet' });
@@ -686,13 +713,13 @@ app.post('/api/admin/email-blast', async (req, res) => {
 });
 
 app.get('/api/admin/email-campaigns', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData(); res.json({ campaigns: data.emailCampaigns || [], subscribers: (data.subscribers || []).length });
 });
 
 // ── Smart natural-language command handler ──
 app.post('/api/command', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { command } = req.body;
     if (!command || !command.trim()) return res.json({ response: '❌ Type a command. Try: "status", "how much did I make", "show ads", "help"' });
     const data = getData();
@@ -880,14 +907,14 @@ app.post('/api/testimonials/add', (req, res) => {
     res.json({ success: true, message: 'Review submitted! Will appear after approval.' });
 });
 app.post('/api/testimonials/approve/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
     const t = (data.testimonials || []).find(t => t.id == req.params.id);
     if (t) { t.approved = true; saveData(data); res.json({ success: true }); }
     else res.status(404).json({ error: 'Not found' });
 });
 app.delete('/api/testimonials/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
     data.testimonials = (data.testimonials || []).filter(t => t.id != req.params.id);
     saveData(data);
@@ -2345,7 +2372,7 @@ app.get('/', (req, res) => {
 
 // ==================== ADMIN PAGE ====================
 app.get('/admin', (req, res) => {
-    if (!req.session.isAdmin) {
+    if (!checkAdmin(req)) {
         return res.send(`<!DOCTYPE html><html><head><title>Admin Login</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Space Grotesk',sans-serif;background:#0a0f1e;color:white;display:flex;justify-content:center;align-items:center;height:100vh;}
@@ -2408,21 +2435,21 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
     </div>
 
     <div class="tabs">
-        <button class="tab-btn active" onclick="showTab('dashboard')">📊 Dashboard</button>
-        <button class="tab-btn" onclick="showTab('ads')">🎯 Ads Engine</button>
-        <button class="tab-btn" onclick="showTab('earnings')">💰 Earnings</button>
-        <button class="tab-btn" onclick="showTab('email')">📧 Email Blast</button>
-        <button class="tab-btn" onclick="showTab('moneylinks')">🔗 Money Links</button>
-        <button class="tab-btn" onclick="showTab('stores')">🏪 Stores</button>
-        <button class="tab-btn" onclick="showTab('blogs')">📝 Blogs</button>
-        <button class="tab-btn" onclick="showTab('videos')">🎬 Videos</button>
-        <button class="tab-btn" onclick="showTab('upload')">📁 Upload</button>
-        <button class="tab-btn" onclick="showTab('social')">📱 Social</button>
-        <button class="tab-btn" onclick="showTab('target')">🎯 Target</button>
-        <button class="tab-btn" onclick="showTab('inject')">🔌 Inject</button>
-        <button class="tab-btn" onclick="showTab('testimonials')">⭐ Reviews</button>
-        <button class="tab-btn" onclick="showTab('settings')">⚙️ Settings</button>
-        <button class="tab-btn" onclick="showTab('command')">🤖 Command</button>
+        <button class="tab-btn active" onclick="showTab('dashboard', this)">📊 Dashboard</button>
+        <button class="tab-btn" onclick="showTab('ads', this)">🎯 Ads Engine</button>
+        <button class="tab-btn" onclick="showTab('earnings', this)">💰 Earnings</button>
+        <button class="tab-btn" onclick="showTab('email', this)">📧 Email Blast</button>
+        <button class="tab-btn" onclick="showTab('moneylinks', this)">🔗 Money Links</button>
+        <button class="tab-btn" onclick="showTab('stores', this)">🏪 Stores</button>
+        <button class="tab-btn" onclick="showTab('blogs', this)">📝 Blogs</button>
+        <button class="tab-btn" onclick="showTab('videos', this)">🎬 Videos</button>
+        <button class="tab-btn" onclick="showTab('upload', this)">📁 Upload</button>
+        <button class="tab-btn" onclick="showTab('social', this)">📱 Social</button>
+        <button class="tab-btn" onclick="showTab('target', this)">🎯 Target</button>
+        <button class="tab-btn" onclick="showTab('inject', this)">🔌 Inject</button>
+        <button class="tab-btn" onclick="showTab('testimonials', this)">⭐ Reviews</button>
+        <button class="tab-btn" onclick="showTab('settings', this)">⚙️ Settings</button>
+        <button class="tab-btn" onclick="showTab('command', this)">🤖 Command</button>
     </div>
 
     <!-- DASHBOARD -->
@@ -2527,12 +2554,12 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
             <option value="3">📚 Free Library Access</option>
             <option value="4">🚀 5 Platforms to Start Today</option>
         </select>
-        <button onclick="sendQuickBlast()">🚀 Send This Campaign to All Subscribers</button>
+        <button onclick="sendQuickBlast(this)">🚀 Send This Campaign to All Subscribers</button>
         <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
         <h3 style="margin-bottom:10px;">Custom Email Blast</h3>
         <input type="text" id="blastSubject" placeholder="Email Subject Line">
         <textarea id="blastHtml" rows="6" placeholder="HTML email body (leave empty to use default template)"></textarea>
-        <button onclick="sendCustomBlast()">📨 Send Custom Blast to All Subscribers</button>
+        <button onclick="sendCustomBlast(this)">📨 Send Custom Blast to All Subscribers</button>
         <div id="blastResult" style="margin-top:12px;font-size:14px;padding:10px;border-radius:6px;display:none;"></div>
         <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
         <h3 style="margin-bottom:10px;">Recent Campaigns</h3>
@@ -2690,96 +2717,245 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
 </div>
 
 <script>
-    function showTab(tab){
-        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-        document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-        event.target.classList.add('active');
-        document.getElementById(tab).classList.add('active');
+    // ── Tab switching (pass btn element directly, no implicit event) ──
+    function showTab(tab, btn) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        const el = document.getElementById(tab);
+        if (el) el.classList.add('active');
     }
 
-    async function approveAd(id){
-        await fetch('/api/ads/approve/'+id,{method:'POST'});
-        alert('✅ Ad approved and activated!');location.reload();
+    // ── Central API caller — shows errors, detects session expiry ──
+    async function api(url, opts = {}) {
+        try {
+            const r = await fetch(url, opts);
+            if (r.status === 403) {
+                alert('⚠️ Session expired. Please log in again.');
+                location.href = '/admin';
+                return null;
+            }
+            const d = await r.json();
+            return d;
+        } catch (e) {
+            alert('❌ Network error: ' + e.message);
+            return null;
+        }
     }
-    async function deleteAd(id){
-        if(confirm('Delete this ad?')){await fetch('/api/ads/'+id,{method:'DELETE'});location.reload();}
+
+    // ── Session check on page load ──
+    window.addEventListener('load', async () => {
+        const r = await fetch('/api/earnings');
+        if (r.status === 403) { location.href = '/admin'; }
+    });
+
+    function logout() { window.location.href = '/logout'; }
+
+    async function approveAd(id) {
+        const d = await api('/api/ads/approve/' + id, { method: 'POST' });
+        if (d && d.success) { alert('✅ Ad approved and activated!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
     }
-    async function createAdDirectly(){
-        const title=document.getElementById('adTitle').value;
-        const url=document.getElementById('adUrl').value;
-        if(!title||!url){alert('Need at least title and URL');return;}
-        const res=await fetch('/api/ads/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-            advertiserName:document.getElementById('adAdvertiser').value||'Admin',
-            advertiserEmail:'${GMAIL_USER}',
-            title,url,
-            description:document.getElementById('adDesc').value,
-            image:document.getElementById('adImage').value,
-            cta:document.getElementById('adCta').value||'Learn More',
-            package:'enterprise',
-            targetIps:document.getElementById('adTargetIps').value,
-            targetPhones:document.getElementById('adTargetPhones').value,
-            targetImeis:document.getElementById('adTargetImeis').value
-        })});
-        const d=await res.json();
-        if(d.success){await fetch('/api/ads/approve/'+d.adId,{method:'POST'});alert('✅ Ad created and activated!');location.reload();}
+    async function deleteAd(id) {
+        if (!confirm('Delete this ad?')) return;
+        const d = await api('/api/ads/' + id, { method: 'DELETE' });
+        if (d) location.reload();
     }
-    async function addEarning(){const r=await fetch('/api/earnings/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:document.getElementById('amount').value,source:document.getElementById('source').value,link:document.getElementById('link').value})});alert('Earning added!');location.reload();}
-    async function withdraw(){await fetch('/api/withdraw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:document.getElementById('withdrawAmount').value,method:document.getElementById('withdrawMethod').value})});alert('Withdrawn!');location.reload();}
-    async function addMoneyLink(){await fetch('/api/add-money-link',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('moneyName').value,url:document.getElementById('moneyUrl').value,category:document.getElementById('moneyCategory').value})});alert('Link added!');location.reload();}
-    async function addStoreId(){const r=await fetch('/api/add-store-id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({store:document.getElementById('storeName').value,id:document.getElementById('storeId').value})});const d=await r.json();alert(d.message||'ID added!');location.reload();}
-    async function createBlog(){const f=new FormData();f.append('title',document.getElementById('blogTitle').value);f.append('content',document.getElementById('blogContent').value);const img=document.getElementById('blogImage').files[0];if(img)f.append('image',img);await fetch('/api/create-blog',{method:'POST',body:f});alert('Published!');location.reload();}
-    async function deleteBlog(id){if(confirm('Delete?')){await fetch('/api/blog/'+id,{method:'DELETE'});location.reload();}}
-    async function uploadVideo(){const f=new FormData();f.append('title',document.getElementById('videoTitle').value);f.append('video',document.getElementById('videoFile').files[0]);await fetch('/api/upload/video',{method:'POST',body:f});alert('Uploaded!');location.reload();}
-    async function uploadImage(){const f=new FormData();f.append('image',document.getElementById('imageFile').files[0]);await fetch('/api/upload/image',{method:'POST',body:f});alert('Uploaded!');location.reload();}
-    async function deleteVideo(id){if(confirm('Delete?')){await fetch('/api/video/'+id,{method:'DELETE'});location.reload();}}
-    async function saveSocial(p){let v='';if(p==='facebook')v=document.getElementById('fbPixel').value;if(p==='tiktok')v=document.getElementById('ttPixel').value;if(p==='whatsapp')v=document.getElementById('waPixel').value;if(p==='telegram')v=document.getElementById('tgPixel').value;await fetch('/api/social/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({platform:p,value:v})});alert('Saved!');}
-    async function addPhones(){const phones=document.getElementById('phones').value.split('\n').filter(p=>p.trim());await fetch('/api/target-phones',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phones})});alert(phones.length+' phones added');location.reload();}
-    async function addIMEIs(){const imeis=document.getElementById('imeis').value.split('\n').filter(i=>i.trim());await fetch('/api/target-imeis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({imeis})});alert(imeis.length+' IMEIs added');location.reload();}
-    async function injectCode(){await fetch('/api/inject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:document.getElementById('injectLocation').value,code:document.getElementById('injectCode').value})});alert('Injected!');}
-    async function changePassword(){const c=document.getElementById('currentPass').value,n=document.getElementById('newPass').value,cf=document.getElementById('confirmPass').value;if(!c||!n||!cf){alert('Fill all fields');return;}if(n!==cf){alert('Passwords do not match');return;}if(n.length<6){alert('Min 6 characters');return;}const r=await fetch('/api/admin/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:c,newPassword:n,confirmPassword:cf})});const d=await r.json();if(d.success)alert('✅ Password changed!');else alert('❌ '+d.error);}
-    async function saveSettings(){
-        const autoMoneyMaker=document.getElementById('autoMoney').checked;
-        const autoBlogger=document.getElementById('autoBlog').checked;
-        const autoTargeting=document.getElementById('autoTarget').checked;
-        const r=await fetch('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({autoMoneyMaker,autoBlogger,autoTargeting})});
-        const d=await r.json();
-        if(d.success)alert('✅ Settings saved!');else alert('❌ Failed to save settings');
+    async function createAdDirectly() {
+        const title = document.getElementById('adTitle').value.trim();
+        const url = document.getElementById('adUrl').value.trim();
+        if (!title || !url) { alert('❌ Title and URL are required'); return; }
+        const body = {
+            advertiserName: document.getElementById('adAdvertiser').value || 'Admin',
+            advertiserEmail: '${GMAIL_USER}',
+            title, url,
+            description: document.getElementById('adDesc').value,
+            image: document.getElementById('adImage').value,
+            cta: document.getElementById('adCta').value || 'Learn More',
+            package: 'enterprise',
+            targetIps: document.getElementById('adTargetIps').value,
+            targetPhones: document.getElementById('adTargetPhones').value,
+            targetImeis: document.getElementById('adTargetImeis').value
+        };
+        const d = await api('/api/ads/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!d || !d.success) { alert('❌ ' + (d ? d.error : 'Failed')); return; }
+        const d2 = await api('/api/ads/approve/' + d.adId, { method: 'POST' });
+        if (d2) { alert('✅ Ad created and activated!'); location.reload(); }
     }
-    async function sendQuickBlast(){
-        const idx=document.getElementById('campaignIndex').value;
-        if(!confirm('Send campaign to all subscribers?'))return;
-        const btn=event.target;btn.textContent='⏳ Sending...';btn.disabled=true;
-        const r=await fetch('/api/admin/email-blast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campaignIndex:idx})});
-        const d=await r.json();
-        const el=document.getElementById('blastResult');
-        el.style.display='block';
-        if(d.success){el.style.background='rgba(16,185,129,0.1)';el.style.color='#10b981';el.textContent='✅ Sent '+d.sent+'/'+d.total+' emails!';}
-        else{el.style.background='rgba(239,68,68,0.1)';el.style.color='#ef4444';el.textContent='❌ '+(d.message||'Failed');}
-        btn.textContent='🚀 Send This Campaign to All Subscribers';btn.disabled=false;
+    async function addEarning() {
+        const amount = document.getElementById('amount').value;
+        const source = document.getElementById('source').value;
+        const link = document.getElementById('link').value;
+        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) { alert('❌ Enter a valid amount'); return; }
+        const d = await api('/api/earnings/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, source, link }) });
+        if (d && d.success) { alert('✅ Earning of $' + amount + ' added!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
     }
-    async function sendCustomBlast(){
-        const subject=document.getElementById('blastSubject').value;
-        const html=document.getElementById('blastHtml').value;
-        if(!subject){alert('Enter a subject line');return;}
-        if(!confirm('Send custom email to all subscribers?'))return;
-        const btn=event.target;btn.textContent='⏳ Sending...';btn.disabled=true;
-        const r=await fetch('/api/admin/email-blast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,html:html||undefined,campaignIndex:0})});
-        const d=await r.json();
-        const el=document.getElementById('blastResult');
-        el.style.display='block';
-        if(d.success){el.style.background='rgba(16,185,129,0.1)';el.style.color='#10b981';el.textContent='✅ Custom email sent to '+d.sent+'/'+d.total+' subscribers!';}
-        else{el.style.background='rgba(239,68,68,0.1)';el.style.color='#ef4444';el.textContent='❌ '+(d.message||'Failed');}
-        btn.textContent='📨 Send Custom Blast to All Subscribers';btn.disabled=false;
+    async function withdraw() {
+        const amount = document.getElementById('withdrawAmount').value;
+        const method = document.getElementById('withdrawMethod').value;
+        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) { alert('❌ Enter a valid amount'); return; }
+        if (!confirm('Withdraw $' + amount + ' via ' + method + '?')) return;
+        const d = await api('/api/withdraw', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, method }) });
+        if (d && d.success) { alert('✅ Withdrawal of $' + amount + ' recorded!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
     }
-    async function approveTestimonial(id){
-        await fetch('/api/testimonials/approve/'+id,{method:'POST'});
-        alert('✅ Review approved!');location.reload();
+    async function addMoneyLink() {
+        const name = document.getElementById('moneyName').value.trim();
+        const url = document.getElementById('moneyUrl').value.trim();
+        const category = document.getElementById('moneyCategory').value;
+        if (!name || !url) { alert('❌ Name and URL required'); return; }
+        const d = await api('/api/add-money-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, url, category }) });
+        if (d && d.success) { alert('✅ Link added!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
     }
-    async function deleteTestimonial(id){
-        if(confirm('Delete this review?')){await fetch('/api/testimonials/'+id,{method:'DELETE'});location.reload();}
+    async function addStoreId() {
+        const store = document.getElementById('storeName').value.trim();
+        const id = document.getElementById('storeId').value.trim();
+        if (!store || !id) { alert('❌ Store name and affiliate ID required'); return; }
+        const d = await api('/api/add-store-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ store, id }) });
+        if (d && d.success) { alert('✅ ' + (d.message || 'ID added!')); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Store not found — check the name'));
     }
-    async function sendCommand(){const cmd=document.getElementById('commandInput').value;const r=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});const d=await r.json();document.getElementById('response').textContent=d.response;}
-    function logout(){window.location.href='/logout';}
+    async function createBlog() {
+        const title = document.getElementById('blogTitle').value.trim();
+        const content = document.getElementById('blogContent').value.trim();
+        if (!title || !content) { alert('❌ Title and content required'); return; }
+        const f = new FormData();
+        f.append('title', title);
+        f.append('content', content);
+        const img = document.getElementById('blogImage').files[0];
+        if (img) f.append('image', img);
+        const d = await api('/api/create-blog', { method: 'POST', body: f });
+        if (d && d.success) { alert('✅ Blog published!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed to publish'));
+    }
+    async function deleteBlog(id) {
+        if (!confirm('Delete this blog post?')) return;
+        const d = await api('/api/blog/' + id, { method: 'DELETE' });
+        if (d) location.reload();
+    }
+    async function uploadVideo() {
+        const title = document.getElementById('videoTitle').value.trim();
+        const file = document.getElementById('videoFile').files[0];
+        if (!file) { alert('❌ Select a video file first'); return; }
+        if (!title) { alert('❌ Enter a video title'); return; }
+        const btn = document.querySelector('#upload button');
+        btn.textContent = '⏳ Uploading...'; btn.disabled = true;
+        const f = new FormData();
+        f.append('title', title);
+        f.append('video', file);
+        const d = await api('/api/upload/video', { method: 'POST', body: f });
+        btn.textContent = 'Upload Video'; btn.disabled = false;
+        if (d && d.success) { alert('✅ Video uploaded!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Upload failed'));
+    }
+    async function uploadImage() {
+        const file = document.getElementById('imageFile').files[0];
+        if (!file) { alert('❌ Select an image file first'); return; }
+        const f = new FormData();
+        f.append('image', file);
+        const d = await api('/api/upload/image', { method: 'POST', body: f });
+        if (d && d.success) { alert('✅ Image uploaded! URL: ' + d.url); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Upload failed'));
+    }
+    async function deleteVideo(id) {
+        if (!confirm('Delete this video?')) return;
+        const d = await api('/api/video/' + id, { method: 'DELETE' });
+        if (d) location.reload();
+    }
+    async function saveSocial(p) {
+        const map = { facebook: 'fbPixel', tiktok: 'ttPixel', whatsapp: 'waPixel', telegram: 'tgPixel' };
+        const v = document.getElementById(map[p]).value;
+        const d = await api('/api/social/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: p, value: v }) });
+        if (d && d.success) alert('✅ ' + p + ' saved!');
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function addPhones() {
+        const phones = document.getElementById('phones').value.split('\n').map(p => p.trim()).filter(Boolean);
+        if (!phones.length) { alert('❌ Enter at least one phone number'); return; }
+        const d = await api('/api/target-phones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phones }) });
+        if (d && d.success) { alert('✅ ' + phones.length + ' phone(s) added! Total: ' + d.count); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function addIMEIs() {
+        const imeis = document.getElementById('imeis').value.split('\n').map(i => i.trim()).filter(Boolean);
+        if (!imeis.length) { alert('❌ Enter at least one IMEI'); return; }
+        const d = await api('/api/target-imeis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imeis }) });
+        if (d && d.success) { alert('✅ ' + imeis.length + ' IMEI(s) added! Total: ' + d.count); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function injectCode() {
+        const location_val = document.getElementById('injectLocation').value;
+        const code = document.getElementById('injectCode').value;
+        if (!code.trim()) { alert('❌ Paste some code first'); return; }
+        const d = await api('/api/inject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: location_val, code }) });
+        if (d && d.success) alert('✅ ' + d.message);
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function changePassword() {
+        const c = document.getElementById('currentPass').value;
+        const n = document.getElementById('newPass').value;
+        const cf = document.getElementById('confirmPass').value;
+        if (!c || !n || !cf) { alert('❌ Fill all three fields'); return; }
+        if (n !== cf) { alert('❌ New passwords do not match'); return; }
+        if (n.length < 6) { alert('❌ New password must be at least 6 characters'); return; }
+        const d = await api('/api/admin/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: c, newPassword: n, confirmPassword: cf }) });
+        if (d && d.success) { alert('✅ Password changed successfully!'); document.getElementById('currentPass').value = ''; document.getElementById('newPass').value = ''; document.getElementById('confirmPass').value = ''; }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function saveSettings() {
+        const autoMoneyMaker = document.getElementById('autoMoney').checked;
+        const autoBlogger = document.getElementById('autoBlog').checked;
+        const autoTargeting = document.getElementById('autoTarget').checked;
+        const d = await api('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoMoneyMaker, autoBlogger, autoTargeting }) });
+        if (d && d.success) alert('✅ Settings saved!');
+        else if (d) alert('❌ ' + (d.error || 'Failed to save'));
+    }
+    async function sendQuickBlast(btn) {
+        const idx = document.getElementById('campaignIndex').value;
+        if (!confirm('Send this campaign to all subscribers now?')) return;
+        btn.textContent = '⏳ Sending...'; btn.disabled = true;
+        const d = await api('/api/admin/email-blast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campaignIndex: idx }) });
+        btn.textContent = '🚀 Send This Campaign to All Subscribers'; btn.disabled = false;
+        const el = document.getElementById('blastResult');
+        el.style.display = 'block';
+        if (d && d.success) { el.style.background = 'rgba(16,185,129,0.1)'; el.style.color = '#10b981'; el.textContent = '✅ Sent ' + d.sent + '/' + d.total + ' emails!'; }
+        else if (d) { el.style.background = 'rgba(239,68,68,0.1)'; el.style.color = '#ef4444'; el.textContent = '❌ ' + (d.message || d.error || 'Failed'); }
+    }
+    async function sendCustomBlast(btn) {
+        const subject = document.getElementById('blastSubject').value.trim();
+        const html = document.getElementById('blastHtml').value.trim();
+        if (!subject) { alert('❌ Enter a subject line'); return; }
+        if (!confirm('Send custom email to all subscribers now?')) return;
+        btn.textContent = '⏳ Sending...'; btn.disabled = true;
+        const body = { subject, campaignIndex: 0 };
+        if (html) body.html = html;
+        const d = await api('/api/admin/email-blast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        btn.textContent = '📨 Send Custom Blast to All Subscribers'; btn.disabled = false;
+        const el = document.getElementById('blastResult');
+        el.style.display = 'block';
+        if (d && d.success) { el.style.background = 'rgba(16,185,129,0.1)'; el.style.color = '#10b981'; el.textContent = '✅ Sent ' + d.sent + '/' + d.total + ' emails!'; }
+        else if (d) { el.style.background = 'rgba(239,68,68,0.1)'; el.style.color = '#ef4444'; el.textContent = '❌ ' + (d.message || d.error || 'Failed'); }
+    }
+    async function approveTestimonial(id) {
+        const d = await api('/api/testimonials/approve/' + id, { method: 'POST' });
+        if (d && d.success) { alert('✅ Review approved!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function deleteTestimonial(id) {
+        if (!confirm('Delete this review?')) return;
+        const d = await api('/api/testimonials/' + id, { method: 'DELETE' });
+        if (d) location.reload();
+    }
+    async function sendCommand() {
+        const cmd = document.getElementById('commandInput').value.trim();
+        if (!cmd) { alert('❌ Type a command first'); return; }
+        const el = document.getElementById('response');
+        el.textContent = '⏳ Processing...';
+        const d = await api('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
+        if (d) el.textContent = d.response || '✅ Done';
+    }
 </script>
 </body>
 </html>`);
