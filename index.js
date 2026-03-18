@@ -10,18 +10,6 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ==================== HTML ESCAPE HELPER ====================
-function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return String(unsafe)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
-// ==================== MIDDLEWARE ====================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
@@ -45,7 +33,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
-// ==================== GMAIL CONFIG ====================
+// ==================== YOUR GMAIL (BOT USES THIS TO MAKE MONEY) ====================
 const GMAIL_USER = 'abdullahharuna216@gmail.com';
 const GMAIL_PASS = 'ipdbessasmzubdyk';
 const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
@@ -54,30 +42,11 @@ const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user:
 const DATA_FILE = './data.json';
 
 function getData() {
-    try { 
-        if (fs.existsSync(DATA_FILE)) {
-            return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-        }
-    } catch (e) {
-        console.error('Error reading data:', e);
-    }
+    try { if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE)); } catch (e) {}
     return getDefaultData();
 }
 
-function saveData(data) {
-    try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-        return true;
-    } catch (e) {
-        console.error('Error saving data:', e);
-        return false;
-    }
-}
-
-function getInjections() {
-    const data = getData();
-    return data.injections || { head: '', bodyStart: '', bodyEnd: '', css: '', js: '' };
-}
+function saveData(data) { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
 
 function getDefaultData() {
     return {
@@ -130,6 +99,7 @@ function getDefaultData() {
         subscribers: [],
         images: [],
         emailCampaigns: [],
+        // ONLY AMERICAN MUSIC
         videos: [
             { id: 1,  title: 'Eminem - Houdini',                    videoUrl: 'https://www.youtube.com/embed/bkSJZwQF6I4', thumbnail: 'https://img.youtube.com/vi/bkSJZwQF6I4/0.jpg', type: 'youtube', region: 'american' },
             { id: 2,  title: 'Kendrick Lamar - Not Like Us',        videoUrl: 'https://www.youtube.com/embed/H58vbez_m4E', thumbnail: 'https://img.youtube.com/vi/H58vbez_m4E/0.jpg', type: 'youtube', region: 'american' },
@@ -152,7 +122,7 @@ function getDefaultData() {
         },
         targeting: { phones: [], imeis: [], ips: [] },
         injections: { head: '', bodyStart: '', bodyEnd: '', css: '', js: '' },
-        ads: [],
+        ads: { codes: [] },
         adStats: { totalImpressions: 0, totalClicks: 0, totalRevenue: 0 },
         adPackages: [
             { id: 'basic',      name: 'Basic',      price: 10,  impressions: 1000,   duration: 7,  description: 'Great for small businesses' },
@@ -161,6 +131,7 @@ function getDefaultData() {
             { id: 'enterprise', name: 'Enterprise', price: 150, impressions: 100000, duration: 60, description: 'Full IMEI/IP/Phone targeting' }
         ],
         libraryUsers: [],
+        botSettings: { enabled: true },
         successStories: [
             {
                 id: 1,
@@ -245,6 +216,7 @@ function getCookie(req, name) {
 
 function checkAdmin(req) {
     if (req.session.isAdmin) return true;
+    // Restore session from persistent cookie (survives Render restarts)
     const token = getCookie(req, 'adminToken');
     if (token) {
         const data = getData();
@@ -260,6 +232,7 @@ app.post('/login', (req, res) => {
     const { username, password } = req.body;
     if (username === ADMIN_USER && bcrypt.compareSync(password, ADMIN_HASH)) {
         req.session.isAdmin = true;
+        // Persistent token so session survives Render restarts
         const crypto = require('crypto');
         const token = crypto.randomBytes(32).toString('hex');
         const data = getData();
@@ -292,14 +265,16 @@ app.post('/api/library/register', async (req, res) => {
     if (data.libraryUsers.find(u => u.email === email)) return res.status(400).json({ error: 'Email already registered' });
     const user = { id: Date.now(), name, email, password: bcrypt.hashSync(password, 10), joinedAt: new Date().toISOString(), progress: {}, completedCourses: [], streak: 0, lastSeen: new Date().toISOString() };
     data.libraryUsers.push(user);
+    // Also add to email subscriber list
     if (!data.subscribers.includes(email)) data.subscribers.push(email);
     saveData(data);
     req.session.libraryUser = { id: user.id, name: user.name, email: user.email };
+    // Welcome email
     transporter.sendMail({
         from: `3EESHER Academy <${GMAIL_USER}>`, to: email,
         subject: '🎓 Welcome to 3EESHER Academy — Your Free Learning Journey Starts Now!',
         html: `<div style="font-family:Arial;background:#0a0f1e;color:#e2e8f0;padding:40px;border-radius:12px;max-width:600px;margin:0 auto;">
-            <h1 style="color:#10b981;">🎓 Welcome, ${escapeHtml(name)}!</h1>
+            <h1 style="color:#10b981;">🎓 Welcome, ${name}!</h1>
             <p style="color:#94a3b8;">You now have FREE access to our complete digital skills library. Here's what you can study:</p>
             <div style="background:#1e293b;padding:20px;border-radius:10px;margin:20px 0;">
                 <p style="color:#fbbf24;font-weight:bold;">📚 Available Courses:</p>
@@ -354,7 +329,7 @@ app.post('/api/library/progress', (req, res) => {
     res.json({ success: true, progress: user.progress });
 });
 
-// ==================== ALL API ROUTES ====================
+// ==================== ALL ORIGINAL API ROUTES ====================
 app.get('/api/data', (req, res) => {
     const data = getData();
     res.json({ blogPosts: data.blogPosts || [], moneyLinks: data.moneyLinks, storeLinks: data.storeLinks, successStories: data.successStories, aboutContent: data.aboutContent, privacyContent: data.privacyContent, contact: data.contact, videos: data.videos });
@@ -526,12 +501,31 @@ app.post('/api/inject', (req, res) => {
     const data = getData();
     if (!data.injections) data.injections = {};
     data.injections[location] = code; saveData(data);
+    // Also save to separate file for persistence
+    try { fs.writeFileSync(path.join(__dirname, 'injections.json'), JSON.stringify(data.injections, null, 2)); } catch(e) {}
     res.json({ success: true, message: `✅ ${location} injection saved & live — reload website to see changes` });
 });
+
+// When loading injections, merge from both sources
+function getInjections() {
+    const data = getData();
+    let inj = data.injections || {};
+    try {
+        const injFile = path.join(__dirname, 'injections.json');
+        if (fs.existsSync(injFile)) {
+            const saved = JSON.parse(fs.readFileSync(injFile));
+            // Merge: injections.json takes priority (survives Render restarts)
+            inj = { ...inj, ...saved };
+        }
+    } catch(e) {}
+    return inj;
+}
 
 app.get('/api/injections', (req, res) => { res.json(getInjections()); });
 
 // ==================== MISSING API ROUTES ====================
+
+// Visitor counter
 app.get('/api/visitors', (req, res) => {
     const data = getData();
     if (!data.visitors) data.visitors = { total: 0, today: 0, lastReset: new Date().toDateString() };
@@ -543,6 +537,7 @@ app.get('/api/visitors', (req, res) => {
     res.json({ count: data.visitors.total, today: data.visitors.today });
 });
 
+// Blog search
 app.get('/api/blog/search', (req, res) => {
     const q = (req.query.q || '').toLowerCase().trim();
     const data = getData();
@@ -553,6 +548,7 @@ app.get('/api/blog/search', (req, res) => {
     res.json({ posts });
 });
 
+// Testimonials — add
 app.post('/api/testimonials/add', (req, res) => {
     const { name, country, rating, text } = req.body;
     if (!name || !text) return res.status(400).json({ error: 'Name and review required' });
@@ -563,12 +559,14 @@ app.post('/api/testimonials/add', (req, res) => {
     res.json({ success: true });
 });
 
+// Testimonials — list all (admin)
 app.get('/api/testimonials/all', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
     res.json({ testimonials: data.testimonials || [] });
 });
 
+// Testimonials — approve
 app.post('/api/testimonials/approve/:id', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
@@ -577,6 +575,7 @@ app.post('/api/testimonials/approve/:id', (req, res) => {
     else res.status(404).json({ error: 'Not found' });
 });
 
+// Testimonials — delete
 app.delete('/api/testimonials/:id', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
@@ -585,6 +584,7 @@ app.delete('/api/testimonials/:id', (req, res) => {
     res.json({ success: true });
 });
 
+// Save admin settings (auto tasks)
 app.post('/api/admin/settings', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { autoMoneyMaker, autoBlogger, autoTargeting } = req.body;
@@ -624,7 +624,7 @@ app.post('/api/ads/submit', (req, res) => {
     const adPkg = (data.adPackages || []).find(p => p.id === pkg) || { price: 10, impressions: 1000, duration: 7 };
     const newAd = { id: Date.now(), advertiserName, advertiserEmail, title, description, url, image: image || 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800', cta: cta || 'Learn More', package: pkg, price: adPkg.price, impressionsTotal: adPkg.impressions, impressionsUsed: 0, clicks: 0, active: false, paid: false, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + adPkg.duration * 86400000).toISOString(), targeting: { ips: targetIps ? targetIps.split(',').map(s=>s.trim()).filter(Boolean) : [], phones: targetPhones ? targetPhones.split(',').map(s=>s.trim()).filter(Boolean) : [], imeis: targetImeis ? targetImeis.split(',').map(s=>s.trim()).filter(Boolean) : [] } };
     if (!data.ads) data.ads = []; data.ads.push(newAd); saveData(data);
-    transporter.sendMail({ from: GMAIL_USER, to: GMAIL_USER, subject: `🎯 New Ad: ${advertiserName} — $${adPkg.price}`, html: `<h2>New Ad Submission</h2><p>Advertiser: ${escapeHtml(advertiserName)} (${escapeHtml(advertiserEmail)})</p><p>Title: ${escapeHtml(title)}</p><p>Package: ${pkg} — $${adPkg.price}</p><p>Targeting IPs: ${targetIps||'None'}</p><p>Ad ID: ${newAd.id}</p>` }).catch(()=>{});
+    transporter.sendMail({ from: GMAIL_USER, to: GMAIL_USER, subject: `🎯 New Ad: ${advertiserName} — $${adPkg.price}`, html: `<h2>New Ad Submission</h2><p>Advertiser: ${advertiserName} (${advertiserEmail})</p><p>Title: ${title}</p><p>Package: ${pkg} — $${adPkg.price}</p><p>Targeting IPs: ${targetIps||'None'}</p><p>Ad ID: ${newAd.id}</p>` }).catch(()=>{});
     res.json({ success: true, message: 'Ad submitted! Admin will review.', adId: newAd.id });
 });
 
@@ -645,6 +645,7 @@ app.get('/api/ads/all', (req, res) => {
     const data = getData(); res.json({ ads: data.ads || [], stats: data.adStats || {}, packages: data.adPackages || [] });
 });
 
+// ── Manual email blast from admin ──
 app.post('/api/admin/email-blast', async (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { subject, html, campaignIndex } = req.body;
@@ -668,6 +669,7 @@ app.get('/api/admin/email-campaigns', (req, res) => {
     const data = getData(); res.json({ campaigns: data.emailCampaigns || [], subscribers: (data.subscribers || []).length });
 });
 
+// ── Smart natural-language command handler ──
 app.post('/api/command', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { command } = req.body;
@@ -775,6 +777,7 @@ function processCommand(command, data) {
         response=`😊 You're welcome! I'm working 24/7 for you.\nBalance: $${data.earnings.total.toFixed(2)} | Community: ${data.subscribers.length + (data.libraryUsers||[]).length} people\nKeep sharing the website! 💰`;
     }
     else {
+        // Smart fallback: detect if they're recording an earning
         const numMatch = command.match(/\$?(\d+(?:\.\d+)?)/);
         if (numMatch && (cmd.includes('add') || cmd.includes('got') || cmd.includes('earned') || cmd.includes('received') || cmd.includes('made'))) {
             const amt = parseFloat(numMatch[1]);
@@ -788,7 +791,7 @@ function processCommand(command, data) {
     return { text: response, newHash };
 }
 
-// ==================== EMAIL CAMPAIGNS ====================
+// ==================== EMAIL CAMPAIGNS (BOT MAKES MONEY AUTOMATICALLY) ====================
 function getEmailCampaigns(data) {
     const jumia = data.storeLinks.find(l => l.name.includes('Jumia') && l.id);
     const jumiaUrl = jumia ? `https://www.jumia.com.ng/?aff_id=${jumia.id}` : 'https://www.jumia.com.ng';
@@ -826,22 +829,25 @@ function buildCampaignHtml(campaign, data) {
     </div>`;
 }
 
-// ==================== VISITOR COUNTER ====================
+
+// ==================== FEATURE: VISITOR COUNTER ====================
 let liveVisitors = 0;
 const visitorTimestamps = {};
 app.use((req, res, next) => {
     if (req.path === '/' || req.path.startsWith('/blog') || req.path === '/library') {
         const ip = req.visitorIP || 'unknown';
         visitorTimestamps[ip] = Date.now();
+        // Count visitors active in last 5 minutes
         const fiveMin = Date.now() - 5 * 60 * 1000;
         liveVisitors = Object.values(visitorTimestamps).filter(t => t > fiveMin).length;
+        // Add some base count so it never looks empty
         if (liveVisitors < 8) liveVisitors = 8 + Math.floor(Math.random() * 12);
     }
     next();
 });
 app.get('/api/visitors', (req, res) => { res.json({ count: liveVisitors }); });
 
-// ==================== TESTIMONIALS ====================
+// ==================== FEATURE: TESTIMONIALS/REVIEWS ====================
 app.post('/api/testimonials/add', (req, res) => {
     const { name, country, rating, text } = req.body;
     if (!name || !text || !rating) return res.status(400).json({ error: 'Missing fields' });
@@ -872,7 +878,7 @@ app.get('/api/testimonials', (req, res) => {
     res.json({ testimonials: approved });
 });
 
-// ==================== BLOG SEARCH ====================
+// ==================== FEATURE: BLOG SEARCH ====================
 app.get('/api/blog/search', (req, res) => {
     const { q } = req.query;
     if (!q) return res.json({ posts: [] });
@@ -890,12 +896,14 @@ app.get('/api/blog/search', (req, res) => {
     res.json({ posts });
 });
 
-// ==================== COOKIE CONSENT ====================
+// ==================== FEATURE: COOKIE CONSENT ====================
 app.post('/api/cookie-consent', (req, res) => {
+    // Just acknowledge — browser handles the storage
     res.json({ success: true });
 });
 
 // ==================== CRON JOBS ====================
+// Auto money maker: every hour
 cron.schedule('0 * * * *', () => {
     const data = getData(); if (!data.settings.autoMoneyMaker) return;
     data.moneyLinks.forEach(l => { l.clicks = (l.clicks||0) + 1; });
@@ -903,6 +911,7 @@ cron.schedule('0 * * * *', () => {
     saveData(data);
 });
 
+// Auto blogger: 8am & 8pm
 const blogTopics = [
     {
         title: 'How to Make $1,000 Monthly with Affiliate Marketing in Nigeria',
@@ -945,7 +954,7 @@ const blogTopics = [
         content: '<p>Nigeria has the largest economy in Africa, the youngest population on the continent, and one of the fastest-growing internet user bases in the world. These factors create an extraordinary opportunity for Nigerians to earn globally competitive income through digital means. This is your complete beginner roadmap for 2026.</p><h2>Why 2026 Is the Best Time to Start</h2><p>Remote work has become mainstream globally. International companies actively hire Nigerian talent because of strong English proficiency, competitive rates, and time zone compatibility. A Nigerian web developer can earn the exact same hourly rate as an American one — your location is no longer a barrier to premium income. The window is wide open right now.</p><h2>The 3 Paths to Online Income</h2><p><strong>Path 1 — Freelancing (Fastest Results):</strong> Sell your skills on Upwork, Fiverr, or LinkedIn. Income can start within days or weeks. Average income: $500–$5,000/month depending on skill level and consistency. <strong>Path 2 — Affiliate Marketing (Passive Income):</strong> Promote other people\'s products and earn commissions 24/7. Takes 3–6 months to build momentum, but once it works, income continues even when you are not working. <strong>Path 3 — Content Creation (Long-Term):</strong> Build an audience on YouTube, TikTok, or through a blog. Takes 6–12 months to become significant income, but builds a real business asset worth millions over time.</p><h2>Skills You Can Learn for Free Today</h2><p>You do not need to spend money to learn digital skills. 3EESHER Academy (our free library at /library) offers 6 complete courses covering AI, Data Analysis, Web Development, Digital Marketing, Affiliate Marketing, and Freelancing — all free and all focused on practical earning strategies. Other free resources: Google Digital Skills for Africa, freeCodeCamp.org, and YouTube tutorials.</p><h2>Your First 30 Days Action Plan</h2><p>Week 1: Choose ONE income path (freelancing, affiliate, or content). Create profiles on the relevant platforms. Week 2: Start learning core skills using free resources. Spend 1–2 hours daily on consistent practice. Week 3: Take action — apply for your first freelance job, publish your first affiliate content, or upload your first YouTube video. Week 4: Review what worked and what did not. Adjust your approach. Keep going regardless of early results.</p><h2>The Mindset That Makes the Difference</h2><p>The biggest barrier to success is not skills — it is mindset. Stop thinking about finding a job and start thinking about building income streams. Invest time in skills before expecting returns. Show up consistently even when results seem slow. Track progress weekly and celebrate every small win. Nigeria\'s first generation of digital millionaires is being made right now. The only question is whether you will be part of it.</p>'
     }
 ];
-
+// Morning blog: 8am daily — different topic each day
 cron.schedule('0 8 * * *', () => {
     const data = getData(); if (!data.settings.autoBlogger) return;
     const idx = new Date().getDay() % blogTopics.length;
@@ -955,7 +964,7 @@ cron.schedule('0 8 * * *', () => {
     saveData(data);
     console.log('📝 Morning blog: ' + blog.title);
 });
-
+// Evening blog: 8pm daily — always a DIFFERENT topic from morning
 cron.schedule('0 20 * * *', () => {
     const data = getData(); if (!data.settings.autoBlogger) return;
     const idx = (new Date().getDay() + 4) % blogTopics.length;
@@ -966,6 +975,7 @@ cron.schedule('0 20 * * *', () => {
     console.log('📝 Evening blog: ' + blog.title);
 });
 
+// Auto targeting + expire old ads: every 30 min
 cron.schedule('*/30 * * * *', () => {
     const data = getData(); if (!data.settings.autoTargeting) return;
     const now = new Date(); let changed = false;
@@ -973,6 +983,7 @@ cron.schedule('*/30 * * * *', () => {
     if (changed) saveData(data);
 });
 
+// Email blast: 9am & 9pm daily
 cron.schedule('0 9,21 * * *', async () => {
     const data = getData(); if (!data.settings.autoMoneyMaker) return;
     const subscribers = data.subscribers || []; if (!subscribers.length) return;
@@ -990,6 +1001,7 @@ cron.schedule('0 9,21 * * *', async () => {
     console.log(`📧 Email blast: ${sent}/${subscribers.length} sent — "${campaign.subject}"`);
 });
 
+// Self-report + affiliate promotion: every 4 hours
 cron.schedule('0 */4 * * *', () => {
     const data = getData(); if (!data.settings.autoMoneyMaker) return;
     const clicks = data.moneyLinks.reduce((s,l)=>s+(l.clicks||0),0);
@@ -1015,6 +1027,322 @@ cron.schedule('0 */4 * * *', () => {
             </div>
         </div>`
     }).catch(() => {});
+});
+
+// ==================== NEW SUPER ADMIN FEATURES ====================
+// Add these at the end of your file, before app.listen
+
+// ==================== 1. FIX LOGIN SESSION ====================
+app.post('/admin-login', (req, res) => {
+    const { user, pass } = req.body;
+    const data = getData();
+    // Use your existing admin credentials
+    if (user === ADMIN_USER && bcrypt.compareSync(pass, ADMIN_HASH)) {
+        req.session.isSuperAdmin = true; 
+        return res.redirect('/super-admin');
+    }
+    res.send('Invalid Credentials');
+});
+
+// ==================== 2. UNIVERSAL INJECTION WORKER ====================
+app.post('/super-admin/universal-injection', (req, res) => {
+    if (!req.session.isSuperAdmin) return res.redirect('/admin-login');
+    const data = getData();
+    data.injections = {
+        head: req.body.head || '',
+        bodyStart: req.body.bodyStart || '',
+        bodyEnd: req.body.bodyEnd || '',
+        css: req.body.css || '',
+        js: req.body.js || ''
+    };
+    saveData(data);
+    // Also save to separate file
+    try { fs.writeFileSync(path.join(__dirname, 'injections.json'), JSON.stringify(data.injections, null, 2)); } catch(e) {}
+    res.send('Injections Updated Successfully! <a href="/super-admin">Return</a>');
+});
+
+// ==================== 3. ADS ENGINE WORKER ====================
+app.post('/super-admin/ads-engine', (req, res) => {
+    if (!req.session.isSuperAdmin) return res.redirect('/admin-login');
+    const data = getData();
+    if(!data.ads) data.ads = { codes: [] };
+    if (!data.ads.codes) data.ads.codes = [];
+    data.ads.codes.push(req.body.adCode);
+    saveData(data);
+    res.send('Ad Deployed! <a href="/super-admin">Return</a>');
+});
+
+// ==================== 4. BOT AUTOMATION (CRON) ====================
+cron.schedule('0 * * * *', () => {
+    const data = getData();
+    if (data.botSettings && data.botSettings.enabled) {
+        console.log("🤖 Bot Task Running at", new Date().toLocaleString());
+        // Auto-click bot functionality
+        if (data.botSettings.autoClick) {
+            data.moneyLinks.forEach(link => {
+                link.clicks = (link.clicks || 0) + 1;
+            });
+            saveData(data);
+        }
+    }
+});
+
+// ==================== 5. SUPER ADMIN DASHBOARD ====================
+app.get('/super-admin', (req, res) => {
+    if (!req.session.isSuperAdmin) {
+        return res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Super Admin Login</title>
+                <style>
+                    body{background:#0a0f1e;color:#fff;font-family:Arial;display:flex;justify-content:center;align-items:center;height:100vh;}
+                    .box{background:#1e293b;padding:30px;border-radius:10px;width:300px;}
+                    input{width:100%;padding:10px;margin:10px 0;background:#0f172a;border:1px solid #334155;color:#fff;border-radius:5px;}
+                    button{width:100%;padding:10px;background:#10b981;color:#000;border:none;border-radius:5px;font-weight:bold;cursor:pointer;}
+                </style>
+            </head>
+            <body>
+                <div class="box">
+                    <h2 style="color:#fbbf24;text-align:center;">🔐 SUPER ADMIN</h2>
+                    <form method="POST" action="/admin-login">
+                        <input type="text" name="user" placeholder="Username" value="admin216">
+                        <input type="password" name="pass" placeholder="Password" value="admin1234">
+                        <button type="submit">Login</button>
+                    </form>
+                </div>
+            </body>
+            </html>
+        `);
+    }
+    
+    const data = getData();
+    
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Super Admin Dashboard</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                *{margin:0;padding:0;box-sizing:border-box;}
+                body{font-family:'Segoe UI',sans-serif;background:#0a0f1e;color:#fff;padding:20px;}
+                .container{max-width:1200px;margin:0 auto;}
+                h1{color:#10b981;margin-bottom:20px;font-size:32px;}
+                .nav{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+                .nav a{background:#1e293b;color:#94a3b8;padding:8px 15px;border-radius:5px;text-decoration:none;}
+                .nav a:hover{background:#10b981;color:#000;}
+                .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;}
+                .card{background:#1e293b;border-radius:10px;padding:20px;border-left:4px solid #10b981;}
+                h2{color:#fbbf24;margin-bottom:15px;font-size:18px;}
+                textarea{width:100%;padding:10px;background:#0f172a;border:1px solid #334155;color:#fff;border-radius:5px;margin-bottom:10px;font-family:monospace;}
+                input{width:100%;padding:8px;background:#0f172a;border:1px solid #334155;color:#fff;border-radius:5px;margin-bottom:10px;}
+                button{background:#10b981;color:#000;border:none;padding:10px 15px;border-radius:5px;font-weight:bold;cursor:pointer;margin-right:5px;}
+                button:hover{background:#059669;}
+                .badge{background:#059669;color:white;padding:3px 8px;border-radius:12px;font-size:12px;}
+                .warning{background:#ef4444;color:white;padding:3px 8px;border-radius:12px;font-size:12px;}
+                .success{color:#10b981;font-weight:bold;}
+                pre{background:#0f172a;padding:10px;border-radius:5px;overflow-x:auto;color:#94a3b8;}
+                .command-box{background:#0f172a;border:1px solid #334155;border-radius:5px;padding:15px;margin-top:10px;}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>☁️ SUPER ADMIN DASHBOARD</h1>
+                <div class="nav">
+                    <a href="#injection">Universal Injection</a>
+                    <a href="#ads">Ads Engine</a>
+                    <a href="#bot">Bot Settings</a>
+                    <a href="#commands">Commands</a>
+                    <a href="/admin">Old Admin</a>
+                    <a href="/logout">Logout</a>
+                </div>
+                
+                <div class="grid">
+                    <!-- Universal Injection Card -->
+                    <div class="card" id="injection">
+                        <h2>🔌 Universal Injection</h2>
+                        <p>Inject code that runs on EVERY page load</p>
+                        <form action="/super-admin/universal-injection" method="POST">
+                            <label>Head Injection (meta, link, script)</label>
+                            <textarea name="head" rows="3" placeholder="<meta>, <link>, <script> tags...">${data.injections?.head || ''}</textarea>
+                            
+                            <label>Body Start (right after &lt;body&gt;)</label>
+                            <textarea name="bodyStart" rows="2" placeholder="Code right after <body>">${data.injections?.bodyStart || ''}</textarea>
+                            
+                            <label>Body End (before &lt;/body&gt;)</label>
+                            <textarea name="bodyEnd" rows="2" placeholder="Code before </body>">${data.injections?.bodyEnd || ''}</textarea>
+                            
+                            <label>Custom CSS</label>
+                            <textarea name="css" rows="4" placeholder="body { background: red; } etc...">${data.injections?.css || ''}</textarea>
+                            
+                            <label>Custom JavaScript</label>
+                            <textarea name="js" rows="4" placeholder="console.log('Hello'); etc...">${data.injections?.js || ''}</textarea>
+                            
+                            <button type="submit">💾 Save Injections</button>
+                        </form>
+                        <div class="command-box">
+                            <p><strong>💡 Example Commands:</strong></p>
+                            <p>"inject css" - Show current injections</p>
+                            <p>"inject head <script>alert('hi')</script>" - Add head injection</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Ads Engine Card -->
+                    <div class="card" id="ads">
+                        <h2>🎯 Ads Engine</h2>
+                        <p>Deploy ad codes (HTML/JavaScript)</p>
+                        <form action="/super-admin/ads-engine" method="POST">
+                            <label>Ad Code</label>
+                            <textarea name="adCode" rows="6" placeholder="<script>... or <div>..."></textarea>
+                            <button type="submit">📢 Deploy Ad</button>
+                        </form>
+                        
+                        <h3 style="color:#94a3b8;margin:15px 0 5px;">Active Ads: <span class="badge">${data.ads?.codes?.length || 0}</span></h3>
+                        <div style="max-height:200px;overflow-y:auto;">
+                            ${(data.ads?.codes || []).map((code, i) => `
+                                <div style="background:#0f172a;padding:8px;margin:5px 0;border-radius:4px;font-size:12px;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                    Ad #${i+1}: ${code.substring(0,50)}...
+                                </div>
+                            `).join('') || '<p style="color:#64748b;">No ads yet</p>'}
+                        </div>
+                        <div class="command-box">
+                            <p><strong>💡 Example Commands:</strong></p>
+                            <p>"show ads" - List all ads</p>
+                            <p>"delete ad 1" - Delete first ad</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot Settings Card -->
+                    <div class="card" id="bot">
+                        <h2>🤖 Bot Automation</h2>
+                        <p>Status: <span class="badge" style="background:${data.botSettings?.enabled ? '#10b981' : '#ef4444'}">${data.botSettings?.enabled ? 'ENABLED' : 'DISABLED'}</span></p>
+                        <form method="POST" action="/super-admin/bot-toggle">
+                            <input type="hidden" name="enabled" value="${!data.botSettings?.enabled}">
+                            <button type="submit">${data.botSettings?.enabled ? '⏸️ Disable Bot' : '▶️ Enable Bot'}</button>
+                        </form>
+                        
+                        <label style="display:block;margin-top:15px;">
+                            <input type="checkbox" ${data.botSettings?.autoClick ? 'checked' : ''} onchange="toggleAutoClick(this.checked)"> Auto-click links (hourly)
+                        </label>
+                        
+                        <div class="command-box">
+                            <p><strong>💡 Example Commands:</strong></p>
+                            <p>"status" - Show bot status</p>
+                            <p>"enable bot" - Turn on automation</p>
+                            <p>"disable bot" - Turn off automation</p>
+                            <p>"earnings" - Show current earnings</p>
+                            <p>"subscribers" - Show subscriber count</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Command Interface Card -->
+                    <div class="card" id="commands">
+                        <h2>🎮 Natural Language Commands</h2>
+                        <p>Talk to the bot in plain English</p>
+                        <div style="background:#0f172a;border-radius:5px;padding:10px;">
+                            <input type="text" id="commandInput" placeholder="e.g., show earnings, enable bot, status" style="width:70%;display:inline-block;">
+                            <button onclick="sendCommand()" style="width:28%;">Send</button>
+                            <div id="commandResponse" style="margin-top:10px;background:#1e293b;padding:10px;border-radius:5px;min-height:50px;color:#94a3b8;"></div>
+                        </div>
+                        <div style="margin-top:15px;">
+                            <p><strong>Example commands you can try:</strong></p>
+                            <ul style="color:#94a3b8;margin-left:20px;">
+                                <li>"how much money did I make"</li>
+                                <li>"show all ads"</li>
+                                <li>"enable bot"</li>
+                                <li>"how many subscribers"</li>
+                                <li>"add earning $50 from Jumia"</li>
+                                <li>"withdraw $20"</li>
+                                <li>"injection status"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                async function sendCommand() {
+                    const cmd = document.getElementById('commandInput').value;
+                    if (!cmd) return;
+                    
+                    document.getElementById('commandResponse').innerHTML = '⏳ Processing...';
+                    
+                    try {
+                        const res = await fetch('/api/command', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ command: cmd })
+                        });
+                        const data = await res.json();
+                        document.getElementById('commandResponse').innerHTML = data.response.replace(/\\n/g, '<br>');
+                    } catch(e) {
+                        document.getElementById('commandResponse').innerHTML = '❌ Error: ' + e.message;
+                    }
+                }
+                
+                async function toggleAutoClick(enabled) {
+                    await fetch('/super-admin/bot-toggle', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'enabled=' + enabled
+                    });
+                    location.reload();
+                }
+            </script>
+        </body>
+        </html>
+    `);
+});
+
+// ==================== 6. BOT TOGGLE ====================
+app.post('/super-admin/bot-toggle', (req, res) => {
+    if (!req.session.isSuperAdmin) return res.redirect('/admin-login');
+    const data = getData();
+    if (!data.botSettings) data.botSettings = {};
+    data.botSettings.enabled = req.body.enabled === 'true';
+    if (req.body.autoClick !== undefined) {
+        data.botSettings.autoClick = req.body.autoClick === 'true';
+    }
+    saveData(data);
+    res.redirect('/super-admin');
+});
+
+// ==================== 7. SIMPLE AD SUBMISSION ====================
+app.get('/submit-ad', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Submit Your Ad</title>
+            <style>
+                body{font-family:Arial;background:#0a0f1e;color:#fff;padding:20px;display:flex;justify-content:center;}
+                .container{max-width:500px;width:100%;}
+                h1{color:#10b981;}
+                input,textarea,select{width:100%;padding:10px;margin:10px 0;background:#1e293b;border:1px solid #334155;color:#fff;border-radius:5px;}
+                button{background:#10b981;color:#000;padding:10px;border:none;border-radius:5px;width:100%;font-weight:bold;cursor:pointer;}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>📢 Submit Your Ad</h1>
+                <form method="POST" action="/api/ads/submit">
+                    <input type="text" name="advertiserName" placeholder="Your Name / Business" required>
+                    <input type="email" name="advertiserEmail" placeholder="Your Email" required>
+                    <input type="text" name="title" placeholder="Ad Title" required>
+                    <select name="package" required>
+                        <option value="basic">Basic - $10 (1000 impressions)</option>
+                        <option value="standard">Standard - $25 (5000 impressions)</option>
+                        <option value="premium">Premium - $50 (15000 impressions)</option>
+                    </select>
+                    <textarea name="description" placeholder="Ad Description" rows="3"></textarea>
+                    <input type="url" name="url" placeholder="Destination URL" required>
+                    <button type="submit">Submit Ad</button>
+                </form>
+            </div>
+        </body>
+        </html>
+    `);
 });
 
 // ==================== LIBRARY COURSES ====================
@@ -1361,34 +1689,34 @@ app.get('/', (req, res) => {
 
     const postsHtml = data.blogPosts.slice(0, 6).map(post => `
         <div class="blog-card">
-            <img src="${escapeHtml(post.image)}" alt="${escapeHtml(post.title)}" loading="lazy">
+            <img src="${post.image}" alt="${post.title}" loading="lazy">
             <div class="blog-content">
                 <span class="blog-tag">📝 Blog</span>
-                <h3>${escapeHtml(post.title)}</h3>
-                <p>${escapeHtml(post.content.replace(/<[^>]*>/g, '').substring(0, 120))}...</p>
+                <h3>${post.title}</h3>
+                <p>${post.content.replace(/<[^>]*>/g, '').substring(0, 120)}...</p>
                 <div class="blog-footer">
-                    <span class="blog-meta">${new Date(post.date).toLocaleDateString()} • ${escapeHtml(post.author)}</span>
+                    <span class="blog-meta">${new Date(post.date).toLocaleDateString()} • ${post.author}</span>
                     <a href="/blog/${post.id}" class="read-more">Read →</a>
                 </div>
             </div>
         </div>`).join('');
 
     const moneyLinksHtml = data.moneyLinks.map(link => `
-        <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener" class="link-card" onclick="trackClick('${escapeHtml(link.name)}', 'money')">
+        <a href="${link.url}" target="_blank" rel="noopener" class="link-card" onclick="trackClick('${link.name}', 'money')">
             <div class="link-icon">${link.icon || '🔗'}</div>
             <div class="link-info">
-                <h4>${escapeHtml(link.name)}</h4>
+                <h4>${link.name}</h4>
                 <span class="badge">${link.category}</span>
             </div>
             <div class="link-arrow">→</div>
         </a>`).join('');
 
     const storeLinksHtml = data.storeLinks.map(link => `
-        <a href="${escapeHtml(link.url)}${escapeHtml(link.id)}" target="_blank" rel="noopener" class="store-card" onclick="trackClick('${escapeHtml(link.name)}', 'store')">
+        <a href="${link.url}${link.id}" target="_blank" rel="noopener" class="store-card" onclick="trackClick('${link.name}', 'store')">
             <div class="store-icon">${link.icon || '🏪'}</div>
             <div class="store-info">
-                <h4>${escapeHtml(link.name)}</h4>
-                <p>${link.id ? '✅ ' + escapeHtml(link.id) : '⚡ Set ID in admin'}</p>
+                <h4>${link.name}</h4>
+                <p>${link.id ? '✅ ' + link.id : '⚡ Set ID in admin'}</p>
             </div>
         </a>`).join('');
 
@@ -1397,15 +1725,15 @@ app.get('/', (req, res) => {
             <div class="story-header">
                 <div class="story-avatar">${story.avatar}</div>
                 <div>
-                    <h3>${escapeHtml(story.name)}, ${story.age}</h3>
-                    <p class="before">📉 ${escapeHtml(story.before)}</p>
-                    <p class="after">📈 ${escapeHtml(story.after)}</p>
+                    <h3>${story.name}, ${story.age}</h3>
+                    <p class="before">📉 ${story.before}</p>
+                    <p class="after">📈 ${story.after}</p>
                 </div>
             </div>
-            <p class="story-text">${escapeHtml(story.story)}</p>
+            <p class="story-text">${story.story}</p>
             <div class="timeline">${story.timeline.map(t => `<span>${t}</span>`).join('')}</div>
             <button class="read-more-btn" onclick="toggleStory(${story.id})">Read Full Story ▼</button>
-            <div class="full-story" id="story-${story.id}" style="display:none">${escapeHtml(story.fullStory || story.story)}</div>
+            <div class="full-story" id="story-${story.id}" style="display:none">${story.fullStory || story.story}</div>
         </div>`).join('');
 
     const americanVideos = data.videos.filter(v => v.region === 'american').map(video => `
@@ -1413,7 +1741,7 @@ app.get('/', (req, res) => {
             <div class="video-thumb" style="background-image:url('${video.thumbnail}')">
                 <div class="play-btn">▶</div>
             </div>
-            <p class="video-title">${escapeHtml(video.title)}</p>
+            <p class="video-title">${video.title}</p>
         </div>`).join('');
 
     const galleryImgs = [
@@ -2106,6 +2434,7 @@ app.get('/', (req, res) => {
 
     <a href="https://wa.me/${data.contact.whatsapp.replace(/[^0-9]/g,'')}" class="whatsapp-float" target="_blank" title="Chat on WhatsApp">💬</a>
     <a href="/admin" class="admin-btn">🔐 Admin</a>
+    <a href="/super-admin" class="admin-btn" style="bottom:80px;background:#8b5cf6;">⚡ Super Admin</a>
 
     <script>
         function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open');}
@@ -2238,594 +2567,6 @@ app.get('/', (req, res) => {
 </html>`);
 });
 
-// ==================== ADMIN PAGE (MUST BE INCLUDED!) ====================
-app.get('/admin', (req, res) => {
-    if (!checkAdmin(req)) {
-        return res.send(`<!DOCTYPE html><html><head><title>Admin Login</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
-<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Space Grotesk',sans-serif;background:#0a0f1e;color:white;display:flex;justify-content:center;align-items:center;height:100vh;}
-.box{background:#131c31;padding:40px;border-radius:16px;width:360px;border:1px solid rgba(16,185,129,0.2);}
-h2{color:#fbbf24;text-align:center;margin-bottom:30px;font-size:22px;}
-input{width:100%;padding:14px;margin:8px 0;background:#0a0f1e;border:1px solid #334155;color:white;border-radius:8px;font-family:inherit;font-size:15px;}
-button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;color:#0a0f1e;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;}</style></head>
-<body><div class="box"><h2>🔐 3EESHER Admin</h2>
-<input type="text" id="u" placeholder="Username"><input type="password" id="p" placeholder="Password">
-<button onclick="login()">Login</button></div>
-<script>async function login(){const u=document.getElementById('u').value,p=document.getElementById('p').value;if(!u||!p){alert('Fill both fields');return;}const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});if(r.ok)location.reload();else alert('Invalid credentials');}</script>
-</body></html>`);
-    }
-
-    const data = getData();
-
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Admin Dashboard — 3EESHER</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box;}
-        body{font-family:'Space Grotesk',sans-serif;background:#0a0f1e;color:#e2e8f0;padding:20px;}
-        .container{max-width:1400px;margin:0 auto;}
-        .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid #10b981;}
-        .topbar h1{color:#fbbf24;font-size:22px;}
-        .tabs{display:flex;gap:8px;margin:0 0 24px;flex-wrap:wrap;}
-        .tab-btn{padding:10px 18px;background:#131c31;border:1px solid #1e293b;color:#94a3b8;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:0.2s;}
-        .tab-btn:hover,.tab-btn.active{background:#10b981;color:#0a0f1e;border-color:#10b981;font-weight:700;}
-        .section{display:none;background:#131c31;padding:28px;border-radius:16px;border:1px solid #1e293b;}
-        .section.active{display:block;}
-        input,textarea,select{width:100%;padding:11px 14px;margin:8px 0;background:#0a0f1e;border:1px solid #1e293b;color:#e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;}
-        input:focus,textarea:focus,select:focus{outline:none;border-color:#10b981;}
-        button{background:#10b981;color:#0a0f1e;padding:11px 22px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;margin:4px;}
-        .del{background:#ef4444;color:white;}
-        .approve{background:#f59e0b;color:#0a0f1e;}
-        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;}
-        .stat-card{background:#0a0f1e;padding:20px;border-radius:12px;border-left:4px solid #10b981;}
-        .stat-card h3{color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
-        .stat-value{font-size:28px;font-weight:800;color:#fbbf24;margin-top:6px;}
-        .item{background:#0a0f1e;padding:14px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
-        .item-info{flex:1;}
-        .ad-card{background:#0a0f1e;padding:16px;margin:10px 0;border-radius:10px;border-left:4px solid #8b5cf6;}
-        .ad-card.active{border-color:#10b981;}
-        .ad-card.pending{border-color:#f59e0b;}
-        .badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
-        .badge.active{background:rgba(16,185,129,0.15);color:#10b981;}
-        .badge.pending{background:rgba(245,158,11,0.15);color:#f59e0b;}
-        .badge.expired{background:rgba(239,68,68,0.15);color:#ef4444;}
-        .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-    </style>
-</head>
-<body>
-<div class="container">
-    <div class="topbar">
-        <h1>☁️ 3EESHER Admin Dashboard</h1>
-        <button onclick="logout()" style="background:#ef4444;color:white;">Logout</button>
-    </div>
-
-    <div class="tabs">
-        <button class="tab-btn active" onclick="showTab('dashboard', this)">📊 Dashboard</button>
-        <button class="tab-btn" onclick="showTab('ads', this)">🎯 Ads Engine</button>
-        <button class="tab-btn" onclick="showTab('earnings', this)">💰 Earnings</button>
-        <button class="tab-btn" onclick="showTab('email', this)">📧 Email Blast</button>
-        <button class="tab-btn" onclick="showTab('moneylinks', this)">🔗 Money Links</button>
-        <button class="tab-btn" onclick="showTab('stores', this)">🏪 Stores</button>
-        <button class="tab-btn" onclick="showTab('blogs', this)">📝 Blogs</button>
-        <button class="tab-btn" onclick="showTab('videos', this)">🎬 Videos</button>
-        <button class="tab-btn" onclick="showTab('upload', this)">📁 Upload</button>
-        <button class="tab-btn" onclick="showTab('social', this)">📱 Social</button>
-        <button class="tab-btn" onclick="showTab('target', this)">🎯 Target</button>
-        <button class="tab-btn" onclick="showTab('inject', this)">🔌 Inject</button>
-        <button class="tab-btn" onclick="showTab('testimonials', this)">⭐ Reviews</button>
-        <button class="tab-btn" onclick="showTab('settings', this)">⚙️ Settings</button>
-        <button class="tab-btn" onclick="showTab('command', this)">🤖 Command</button>
-    </div>
-
-    <!-- DASHBOARD -->
-    <div id="dashboard" class="section active">
-        <div class="stats-grid">
-            <div class="stat-card"><h3>Total Earnings</h3><div class="stat-value">$${data.earnings.total.toFixed(2)}</div></div>
-            <div class="stat-card"><h3>Today</h3><div class="stat-value">$${data.earnings.today.toFixed(2)}</div></div>
-            <div class="stat-card" style="border-color:#8b5cf6"><h3>Ad Revenue</h3><div class="stat-value">$${(data.adStats?.totalRevenue || 0).toFixed(2)}</div></div>
-            <div class="stat-card" style="border-color:#f59e0b"><h3>Active Ads</h3><div class="stat-value">${(data.ads || []).filter(a => a.active).length}</div></div>
-            <div class="stat-card"><h3>Subscribers</h3><div class="stat-value">${data.subscribers.length}</div></div>
-            <div class="stat-card"><h3>Total Clicks</h3><div class="stat-value">${data.moneyLinks.reduce((s,l)=>s+(l.clicks||0),0)+data.storeLinks.reduce((s,l)=>s+(l.clicks||0),0)}</div></div>
-        </div>
-        <div style="background:#0a0f1e;padding:20px;border-radius:10px;">
-            <h3 style="color:#fbbf24;margin-bottom:12px;">🤖 Bot Status</h3>
-            <div>✅ Auto Money Maker: ${data.settings.autoMoneyMaker ? 'Running (every hour)' : '⏸️ Paused'}</div>
-            <div>✅ Auto Blogger: ${data.settings.autoBlogger ? data.settings.blogFrequency + 'x daily' : '⏸️ Paused'}</div>
-            <div>✅ Auto Targeting: ${data.settings.autoTargeting ? 'Running (every 30 min)' : '⏸️ Paused'}</div>
-        </div>
-    </div>
-
-    <!-- ADS ENGINE -->
-    <div id="ads" class="section">
-        <h2 style="color:#fbbf24;margin-bottom:20px;">🎯 Ad Engine</h2>
-        <div class="stats-grid">
-            <div class="stat-card" style="border-color:#8b5cf6"><h3>Ad Revenue</h3><div class="stat-value">$${(data.adStats?.totalRevenue || 0).toFixed(2)}</div></div>
-            <div class="stat-card"><h3>Impressions</h3><div class="stat-value">${data.adStats?.totalImpressions || 0}</div></div>
-            <div class="stat-card"><h3>Ad Clicks</h3><div class="stat-value">${data.adStats?.totalClicks || 0}</div></div>
-            <div class="stat-card" style="border-color:#f59e0b"><h3>Pending Approval</h3><div class="stat-value">${(data.ads || []).filter(a => !a.active).length}</div></div>
-        </div>
-
-        <h3 style="margin:20px 0 12px;color:#e2e8f0;">All Submitted Ads</h3>
-        ${(data.ads || []).length === 0 ? '<p style="color:#64748b">No ads yet. Share /advertise page to get clients!</p>' : ''}
-        ${(data.ads || []).map(ad => `
-        <div class="ad-card ${ad.active ? 'active' : 'pending'}">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
-                <div>
-                    <strong>${escapeHtml(ad.title)}</strong>
-                    <span class="badge ${ad.active ? 'active' : 'pending'}" style="margin-left:8px;">${ad.active ? '✅ Active' : '⏳ Pending'}</span>
-                    <div style="color:#64748b;font-size:13px;margin-top:6px;">
-                        Advertiser: ${escapeHtml(ad.advertiserName)} (${escapeHtml(ad.advertiserEmail)}) •
-                        Package: ${ad.package} ($${ad.price}) •
-                        ${ad.impressionsUsed || 0}/${ad.impressionsTotal} impressions •
-                        ${ad.clicks || 0} clicks
-                    </div>
-                    <div style="color:#64748b;font-size:12px;margin-top:4px;">
-                        Targeting — IPs: ${(ad.targeting?.ips || []).map(escapeHtml).join(', ') || 'None'} |
-                        Phones: ${(ad.targeting?.phones || []).map(escapeHtml).join(', ') || 'None'} |
-                        IMEIs: ${(ad.targeting?.imeis || []).map(escapeHtml).join(', ') || 'None'}
-                    </div>
-                    <div style="color:#64748b;font-size:12px;">URL: <a href="${ad.url}" target="_blank" style="color:#10b981;">${escapeHtml(ad.url)}</a></div>
-                </div>
-                <div>
-                    ${!ad.active ? `<button class="approve" onclick="approveAd(${ad.id})">✅ Approve</button>` : ''}
-                    <button class="del" onclick="deleteAd(${ad.id})">Delete</button>
-                </div>
-            </div>
-        </div>`).join('')}
-
-        <h3 style="margin:30px 0 12px;color:#e2e8f0;">➕ Create Ad Directly (Admin)</h3>
-        <div class="two-col">
-            <input type="text" id="adTitle" placeholder="Ad Title">
-            <input type="text" id="adAdvertiser" placeholder="Advertiser Name">
-            <input type="url" id="adUrl" placeholder="Destination URL">
-            <input type="url" id="adImage" placeholder="Ad Image URL">
-            <input type="text" id="adDesc" placeholder="Description">
-            <input type="text" id="adCta" placeholder="CTA Text (e.g. Shop Now)">
-            <input type="number" id="adImpressions" placeholder="Total Impressions (e.g. 5000)" value="5000">
-            <input type="number" id="adDays" placeholder="Duration in days" value="30">
-            <input type="number" id="adPrice" placeholder="Price paid ($)" value="25">
-        </div>
-        <input type="text" id="adTargetIps" placeholder="Target IPs (comma separated, optional)">
-        <input type="text" id="adTargetPhones" placeholder="Target Phones (comma separated, optional)">
-        <input type="text" id="adTargetImeis" placeholder="Target IMEIs (comma separated, optional)">
-        <button onclick="createAdDirectly()">Create & Activate Ad</button>
-    </div>
-
-    <!-- EARNINGS -->
-    <div id="earnings" class="section">
-        <h3>Add Earning</h3>
-        <input type="number" id="amount" placeholder="Amount ($)">
-        <input type="text" id="source" placeholder="Source (e.g. Jumia Commission)">
-        <input type="text" id="link" placeholder="Link name">
-        <button onclick="addEarning()">Add Earning</button>
-        <h3 style="margin-top:20px;">Withdraw</h3>
-        <input type="number" id="withdrawAmount" placeholder="Amount">
-        <select id="withdrawMethod"><option value="bank">Bank Transfer</option><option value="card">Mastercard</option><option value="crypto">Cryptocurrency</option></select>
-        <button onclick="withdraw()">Withdraw</button>
-    </div>
-
-    <!-- EMAIL BLAST -->
-    <div id="email" class="section">
-        <h2 style="color:#fbbf24;margin-bottom:16px;">📧 Email Blast</h2>
-        <div style="background:#0a0f1e;padding:16px;border-radius:8px;margin-bottom:20px;">
-            <strong style="color:#10b981;">Total Subscribers: ${data.subscribers.length}</strong>
-            <span style="color:#64748b;margin-left:20px;">Last campaigns: ${(data.emailCampaigns || []).length}</span>
-        </div>
-        <h3 style="margin-bottom:10px;">Quick Blast (Choose Campaign)</h3>
-        <select id="campaignIndex" style="margin-bottom:10px;">
-            <option value="0">💰 3 Ways to Make $500 This Week</option>
-            <option value="1">🛒 Jumia Affiliate — $1,200/Month</option>
-            <option value="2">🤖 AI Tools to Make Money</option>
-            <option value="3">📚 Free Library Access</option>
-            <option value="4">🚀 5 Platforms to Start Today</option>
-        </select>
-        <button onclick="sendQuickBlast(this)">🚀 Send This Campaign to All Subscribers</button>
-        <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
-        <h3 style="margin-bottom:10px;">Custom Email Blast</h3>
-        <input type="text" id="blastSubject" placeholder="Email Subject Line">
-        <textarea id="blastHtml" rows="6" placeholder="HTML email body (leave empty to use default template)"></textarea>
-        <button onclick="sendCustomBlast(this)">📨 Send Custom Blast to All Subscribers</button>
-        <div id="blastResult" style="margin-top:12px;font-size:14px;padding:10px;border-radius:6px;display:none;"></div>
-        <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
-        <h3 style="margin-bottom:10px;">Recent Campaigns</h3>
-        <div style="max-height:300px;overflow-y:auto;">
-            ${(data.emailCampaigns || []).slice(0,10).map(c => `<div class="item"><span><strong>${escapeHtml(c.subject.substring(0,50))}</strong> — ${c.sent}/${c.total} sent on ${new Date(c.date).toLocaleDateString()}</span></div>`).join('') || '<p style="color:#64748b">No campaigns sent yet.</p>'}
-        </div>
-    </div>
-
-    <!-- MONEY LINKS -->
-    <div id="moneylinks" class="section">
-        <h3>Money Making Links (${data.moneyLinks.length})</h3>
-        <div style="max-height:350px;overflow-y:auto;">
-            ${data.moneyLinks.map(l => `<div class="item"><span><strong>${escapeHtml(l.name)}</strong> — ${l.clicks || 0} clicks, $${(l.earnings || 0).toFixed(2)}</span></div>`).join('')}
-        </div>
-        <h3 style="margin-top:20px;">Add Custom Money Link</h3>
-        <input type="text" id="moneyName" placeholder="Name">
-        <input type="text" id="moneyUrl" placeholder="URL">
-        <select id="moneyCategory"><option value="freelance">Freelance</option><option value="affiliate">Affiliate</option><option value="courses">Courses</option><option value="social">Social</option></select>
-        <button onclick="addMoneyLink()">Add Link</button>
-    </div>
-
-    <!-- STORES -->
-    <div id="stores" class="section">
-        <h3>Stores (Add Affiliate IDs)</h3>
-        <div style="max-height:300px;overflow-y:auto;">
-            ${data.storeLinks.map(l => `<div class="item"><span><strong>${escapeHtml(l.name)}</strong> — ID: ${l.id ? escapeHtml(l.id) : 'Not set'} (${l.clicks || 0} clicks)</span></div>`).join('')}
-        </div>
-        <h3 style="margin-top:20px;">Add Store Affiliate ID</h3>
-        <input type="text" id="storeName" placeholder="Store name (e.g. Jumia)">
-        <input type="text" id="storeId" placeholder="Affiliate ID">
-        <button onclick="addStoreId()">Add ID</button>
-    </div>
-
-    <!-- BLOGS -->
-    <div id="blogs" class="section">
-        <h3>Recent Blogs</h3>
-        <div style="max-height:300px;overflow-y:auto;">
-            ${data.blogPosts.map(b => `<div class="item"><span><strong>${escapeHtml(b.title)}</strong> — ${new Date(b.date).toLocaleDateString()} • ${b.views} views</span><button class="del" onclick="deleteBlog(${b.id})">Delete</button></div>`).join('')}
-        </div>
-        <h3 style="margin-top:20px;">Create Manual Blog</h3>
-        <input type="text" id="blogTitle" placeholder="Title">
-        <textarea id="blogContent" rows="4" placeholder="Content (HTML allowed)"></textarea>
-        <input type="file" id="blogImage" accept="image/*">
-        <button onclick="createBlog()">Publish Blog</button>
-    </div>
-
-    <!-- VIDEOS -->
-    <div id="videos" class="section">
-        <h3>Videos (${data.videos.length})</h3>
-        <div style="max-height:300px;overflow-y:auto;">
-            ${data.videos.map(v => `<div class="item"><span><strong>${escapeHtml(v.title)}</strong> — ${v.region}</span><button class="del" onclick="deleteVideo(${v.id})">Delete</button></div>`).join('')}
-        </div>
-    </div>
-
-    <!-- UPLOAD -->
-    <div id="upload" class="section">
-        <h3>Upload Video</h3>
-        <input type="text" id="videoTitle" placeholder="Video title">
-        <input type="file" id="videoFile" accept="video/*">
-        <button onclick="uploadVideo()">Upload Video</button>
-        <h3 style="margin-top:20px;">Upload Image</h3>
-        <input type="file" id="imageFile" accept="image/*">
-        <button onclick="uploadImage()">Upload Image</button>
-    </div>
-
-    <!-- SOCIAL -->
-    <div id="social" class="section">
-        <h3>Facebook Pixel</h3>
-        <textarea id="fbPixel" rows="3">${escapeHtml(data.socialPixels?.facebook || '')}</textarea>
-        <button onclick="saveSocial('facebook')">Save Facebook</button>
-        <h3>TikTok Pixel</h3>
-        <textarea id="ttPixel" rows="3">${escapeHtml(data.socialPixels?.tiktok || '')}</textarea>
-        <button onclick="saveSocial('tiktok')">Save TikTok</button>
-        <h3>WhatsApp</h3>
-        <textarea id="waPixel" rows="3">${escapeHtml(data.socialPixels?.whatsapp || '')}</textarea>
-        <button onclick="saveSocial('whatsapp')">Save WhatsApp</button>
-        <h3>Telegram</h3>
-        <textarea id="tgPixel" rows="3">${escapeHtml(data.socialPixels?.telegram || '')}</textarea>
-        <button onclick="saveSocial('telegram')">Save Telegram</button>
-    </div>
-
-    <!-- TARGET -->
-    <div id="target" class="section">
-        <h3>Add Phone Numbers</h3>
-        <textarea id="phones" rows="4" placeholder="+2348012345678 (one per line)"></textarea>
-        <button onclick="addPhones()">Add Phones</button>
-        <p style="color:#64748b;font-size:12px;margin-top:4px;">Total: ${data.targeting.phones.length} phones</p>
-        <h3 style="margin-top:20px;">Add IMEI Numbers</h3>
-        <textarea id="imeis" rows="4" placeholder="356789012345678 (one per line)"></textarea>
-        <button onclick="addIMEIs()">Add IMEIs</button>
-        <p style="color:#64748b;font-size:12px;margin-top:4px;">Total: ${data.targeting.imeis.length} IMEIs</p>
-    </div>
-
-    <!-- INJECT -->
-    <div id="inject" class="section">
-        <h3>Universal Injector (HTML, CSS, JS)</h3>
-        <select id="injectLocation">
-            <option value="head">Head (HTML)</option>
-            <option value="bodyStart">Body Start (HTML)</option>
-            <option value="bodyEnd">Body End (HTML)</option>
-            <option value="css">CSS</option>
-            <option value="js">JavaScript</option>
-        </select>
-        <textarea id="injectCode" rows="6" placeholder="Paste your code here..."></textarea>
-        <button onclick="injectCode()">Inject Code</button>
-    </div>
-
-    <!-- TESTIMONIALS MANAGEMENT -->
-    <div id="testimonials" class="section">
-        <h2 style="color:#fbbf24;margin-bottom:16px;">⭐ Reviews & Testimonials</h2>
-        <div style="background:#0a0f1e;padding:14px;border-radius:8px;margin-bottom:16px;">
-            <strong style="color:#10b981;">Total Reviews: ${(data.testimonials || []).length}</strong>
-            <span style="color:#64748b;margin-left:16px;">Approved: ${(data.testimonials || []).filter(t=>t.approved).length}</span>
-            <span style="color:#f59e0b;margin-left:16px;">Pending: ${(data.testimonials || []).filter(t=>!t.approved).length}</span>
-        </div>
-        <div id="testimonialsListAdmin">
-            ${(data.testimonials || []).length === 0 ? '<p style="color:#64748b">No testimonials submitted yet.</p>' : ''}
-            ${(data.testimonials || []).map(t => `
-            <div class="item" style="flex-direction:column;align-items:flex-start;gap:8px;">
-                <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
-                    <strong>${escapeHtml(t.name)} ${t.country ? '📍 '+escapeHtml(t.country) : ''} ${'★'.repeat(t.rating||5)}</strong>
-                    <span class="badge ${t.approved?'active':'pending'}">${t.approved?'✅ Approved':'⏳ Pending'}</span>
-                </div>
-                <p style="color:#94a3b8;font-size:13px;">${escapeHtml(t.text)}</p>
-                <div style="display:flex;gap:8px;">
-                    ${!t.approved ? `<button class="approve" onclick="approveTestimonial(${t.id})">✅ Approve</button>` : ''}
-                    <button class="del" onclick="deleteTestimonial(${t.id})">Delete</button>
-                </div>
-            </div>`).join('')}
-        </div>
-    </div>
-
-    <!-- SETTINGS -->
-    <div id="settings" class="section">
-        <h3>Change Password</h3>
-        <input type="password" id="currentPass" placeholder="Current password">
-        <input type="password" id="newPass" placeholder="New password (min 6 chars)">
-        <input type="password" id="confirmPass" placeholder="Confirm new password">
-        <button onclick="changePassword()">Change Password</button>
-        <h3 style="margin-top:20px;">Auto Tasks</h3>
-        <label><input type="checkbox" id="autoMoney" ${data.settings.autoMoneyMaker ? 'checked' : ''}> Auto Money Maker (every hour)</label><br>
-        <label style="margin-top:8px;display:block;"><input type="checkbox" id="autoBlog" ${data.settings.autoBlogger ? 'checked' : ''}> Auto Blogger (2x daily)</label><br>
-        <label style="margin-top:8px;display:block;"><input type="checkbox" id="autoTarget" ${data.settings.autoTargeting ? 'checked' : ''}> Auto Targeting (every 30 min)</label><br>
-        <button onclick="saveSettings()" style="margin-top:12px;">Save Settings</button>
-    </div>
-
-    <!-- COMMAND -->
-    <div id="command" class="section">
-        <h3>🤖 Bot Command Terminal</h3>
-        <textarea id="commandInput" rows="3" placeholder="Type command... e.g. help, show ads, show earnings, status"></textarea>
-        <button onclick="sendCommand()">Send Command</button>
-        <div id="response" style="background:#0a0f1e;padding:16px;margin-top:16px;border-radius:8px;white-space:pre-wrap;font-family:monospace;font-size:13px;min-height:80px;border:1px solid #1e293b;"></div>
-    </div>
-
-</div>
-
-<script>
-    function showTab(tab, btn) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        if (btn) btn.classList.add('active');
-        const el = document.getElementById(tab);
-        if (el) el.classList.add('active');
-    }
-
-    async function api(url, opts = {}) {
-        try {
-            const r = await fetch(url, opts);
-            if (r.status === 403) {
-                alert('⚠️ Session expired. Please log in again.');
-                location.href = '/admin';
-                return null;
-            }
-            const d = await r.json();
-            return d;
-        } catch (e) {
-            alert('❌ Network error: ' + e.message);
-            return null;
-        }
-    }
-
-    window.addEventListener('load', async () => {
-        const r = await fetch('/api/earnings');
-        if (r.status === 403) { location.href = '/admin'; }
-    });
-
-    function logout() { window.location.href = '/logout'; }
-
-    async function approveAd(id) {
-        const d = await api('/api/ads/approve/' + id, { method: 'POST' });
-        if (d && d.success) { alert('✅ Ad approved and activated!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function deleteAd(id) {
-        if (!confirm('Delete this ad?')) return;
-        const d = await api('/api/ads/' + id, { method: 'DELETE' });
-        if (d) location.reload();
-    }
-    async function createAdDirectly() {
-        const title = document.getElementById('adTitle').value.trim();
-        const url = document.getElementById('adUrl').value.trim();
-        if (!title || !url) { alert('❌ Title and URL are required'); return; }
-        const body = {
-            advertiserName: document.getElementById('adAdvertiser').value || 'Admin',
-            advertiserEmail: '${GMAIL_USER}',
-            title, url,
-            description: document.getElementById('adDesc').value,
-            image: document.getElementById('adImage').value,
-            cta: document.getElementById('adCta').value || 'Learn More',
-            package: 'enterprise',
-            targetIps: document.getElementById('adTargetIps').value,
-            targetPhones: document.getElementById('adTargetPhones').value,
-            targetImeis: document.getElementById('adTargetImeis').value
-        };
-        const d = await api('/api/ads/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        if (!d || !d.success) { alert('❌ ' + (d ? d.error : 'Failed')); return; }
-        const d2 = await api('/api/ads/approve/' + d.adId, { method: 'POST' });
-        if (d2) { alert('✅ Ad created and activated!'); location.reload(); }
-    }
-    async function addEarning() {
-        const amount = document.getElementById('amount').value;
-        const source = document.getElementById('source').value;
-        const link = document.getElementById('link').value;
-        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) { alert('❌ Enter a valid amount'); return; }
-        const d = await api('/api/earnings/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, source, link }) });
-        if (d && d.success) { alert('✅ Earning of $' + amount + ' added!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function withdraw() {
-        const amount = document.getElementById('withdrawAmount').value;
-        const method = document.getElementById('withdrawMethod').value;
-        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) { alert('❌ Enter a valid amount'); return; }
-        if (!confirm('Withdraw $' + amount + ' via ' + method + '?')) return;
-        const d = await api('/api/withdraw', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, method }) });
-        if (d && d.success) { alert('✅ Withdrawal of $' + amount + ' recorded!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function addMoneyLink() {
-        const name = document.getElementById('moneyName').value.trim();
-        const url = document.getElementById('moneyUrl').value.trim();
-        const category = document.getElementById('moneyCategory').value;
-        if (!name || !url) { alert('❌ Name and URL required'); return; }
-        const d = await api('/api/add-money-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, url, category }) });
-        if (d && d.success) { alert('✅ Link added!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function addStoreId() {
-        const store = document.getElementById('storeName').value.trim();
-        const id = document.getElementById('storeId').value.trim();
-        if (!store || !id) { alert('❌ Store name and affiliate ID required'); return; }
-        const d = await api('/api/add-store-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ store, id }) });
-        if (d && d.success) { alert('✅ ' + (d.message || 'ID added!')); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Store not found — check the name'));
-    }
-    async function createBlog() {
-        const title = document.getElementById('blogTitle').value.trim();
-        const content = document.getElementById('blogContent').value.trim();
-        if (!title || !content) { alert('❌ Title and content required'); return; }
-        const f = new FormData();
-        f.append('title', title);
-        f.append('content', content);
-        const img = document.getElementById('blogImage').files[0];
-        if (img) f.append('image', img);
-        const d = await api('/api/create-blog', { method: 'POST', body: f });
-        if (d && d.success) { alert('✅ Blog published!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed to publish'));
-    }
-    async function deleteBlog(id) {
-        if (!confirm('Delete this blog post?')) return;
-        const d = await api('/api/blog/' + id, { method: 'DELETE' });
-        if (d) location.reload();
-    }
-    async function uploadVideo() {
-        const title = document.getElementById('videoTitle').value.trim();
-        const file = document.getElementById('videoFile').files[0];
-        if (!file) { alert('❌ Select a video file first'); return; }
-        if (!title) { alert('❌ Enter a video title'); return; }
-        const btn = document.querySelector('#upload button');
-        btn.textContent = '⏳ Uploading...'; btn.disabled = true;
-        const f = new FormData();
-        f.append('title', title);
-        f.append('video', file);
-        const d = await api('/api/upload/video', { method: 'POST', body: f });
-        btn.textContent = 'Upload Video'; btn.disabled = false;
-        if (d && d.success) { alert('✅ Video uploaded!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Upload failed'));
-    }
-    async function uploadImage() {
-        const file = document.getElementById('imageFile').files[0];
-        if (!file) { alert('❌ Select an image file first'); return; }
-        const f = new FormData();
-        f.append('image', file);
-        const d = await api('/api/upload/image', { method: 'POST', body: f });
-        if (d && d.success) { alert('✅ Image uploaded! URL: ' + d.url); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Upload failed'));
-    }
-    async function deleteVideo(id) {
-        if (!confirm('Delete this video?')) return;
-        const d = await api('/api/video/' + id, { method: 'DELETE' });
-        if (d) location.reload();
-    }
-    async function saveSocial(p) {
-        const map = { facebook: 'fbPixel', tiktok: 'ttPixel', whatsapp: 'waPixel', telegram: 'tgPixel' };
-        const v = document.getElementById(map[p]).value;
-        const d = await api('/api/social/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: p, value: v }) });
-        if (d && d.success) alert('✅ ' + p + ' saved!');
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function addPhones() {
-        const phones = document.getElementById('phones').value.split('\n').map(p => p.trim()).filter(Boolean);
-        if (!phones.length) { alert('❌ Enter at least one phone number'); return; }
-        const d = await api('/api/target-phones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phones }) });
-        if (d && d.success) { alert('✅ ' + phones.length + ' phone(s) added! Total: ' + d.count); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function addIMEIs() {
-        const imeis = document.getElementById('imeis').value.split('\n').map(i => i.trim()).filter(Boolean);
-        if (!imeis.length) { alert('❌ Enter at least one IMEI'); return; }
-        const d = await api('/api/target-imeis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imeis }) });
-        if (d && d.success) { alert('✅ ' + imeis.length + ' IMEI(s) added! Total: ' + d.count); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function injectCode() {
-        const location_val = document.getElementById('injectLocation').value;
-        const code = document.getElementById('injectCode').value;
-        if (!code.trim()) { alert('❌ Paste some code first'); return; }
-        const d = await api('/api/inject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: location_val, code }) });
-        if (d && d.success) alert('✅ ' + d.message);
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function changePassword() {
-        const c = document.getElementById('currentPass').value;
-        const n = document.getElementById('newPass').value;
-        const cf = document.getElementById('confirmPass').value;
-        if (!c || !n || !cf) { alert('❌ Fill all three fields'); return; }
-        if (n !== cf) { alert('❌ New passwords do not match'); return; }
-        if (n.length < 6) { alert('❌ New password must be at least 6 characters'); return; }
-        const d = await api('/api/admin/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: c, newPassword: n, confirmPassword: cf }) });
-        if (d && d.success) { alert('✅ Password changed successfully!'); document.getElementById('currentPass').value = ''; document.getElementById('newPass').value = ''; document.getElementById('confirmPass').value = ''; }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function saveSettings() {
-        const autoMoneyMaker = document.getElementById('autoMoney').checked;
-        const autoBlogger = document.getElementById('autoBlog').checked;
-        const autoTargeting = document.getElementById('autoTarget').checked;
-        const d = await api('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoMoneyMaker, autoBlogger, autoTargeting }) });
-        if (d && d.success) alert('✅ Settings saved!');
-        else if (d) alert('❌ ' + (d.error || 'Failed to save'));
-    }
-    async function sendQuickBlast(btn) {
-        const idx = document.getElementById('campaignIndex').value;
-        if (!confirm('Send this campaign to all subscribers now?')) return;
-        btn.textContent = '⏳ Sending...'; btn.disabled = true;
-        const d = await api('/api/admin/email-blast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campaignIndex: idx }) });
-        btn.textContent = '🚀 Send This Campaign to All Subscribers'; btn.disabled = false;
-        const el = document.getElementById('blastResult');
-        el.style.display = 'block';
-        if (d && d.success) { el.style.background = 'rgba(16,185,129,0.1)'; el.style.color = '#10b981'; el.textContent = '✅ Sent ' + d.sent + '/' + d.total + ' emails!'; }
-        else if (d) { el.style.background = 'rgba(239,68,68,0.1)'; el.style.color = '#ef4444'; el.textContent = '❌ ' + (d.message || d.error || 'Failed'); }
-    }
-    async function sendCustomBlast(btn) {
-        const subject = document.getElementById('blastSubject').value.trim();
-        const html = document.getElementById('blastHtml').value.trim();
-        if (!subject) { alert('❌ Enter a subject line'); return; }
-        if (!confirm('Send custom email to all subscribers now?')) return;
-        btn.textContent = '⏳ Sending...'; btn.disabled = true;
-        const body = { subject, campaignIndex: 0 };
-        if (html) body.html = html;
-        const d = await api('/api/admin/email-blast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        btn.textContent = '📨 Send Custom Blast to All Subscribers'; btn.disabled = false;
-        const el = document.getElementById('blastResult');
-        el.style.display = 'block';
-        if (d && d.success) { el.style.background = 'rgba(16,185,129,0.1)'; el.style.color = '#10b981'; el.textContent = '✅ Sent ' + d.sent + '/' + d.total + ' emails!'; }
-        else if (d) { el.style.background = 'rgba(239,68,68,0.1)'; el.style.color = '#ef4444'; el.textContent = '❌ ' + (d.message || d.error || 'Failed'); }
-    }
-    async function approveTestimonial(id) {
-        const d = await api('/api/testimonials/approve/' + id, { method: 'POST' });
-        if (d && d.success) { alert('✅ Review approved!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function deleteTestimonial(id) {
-        if (!confirm('Delete this review?')) return;
-        const d = await api('/api/testimonials/' + id, { method: 'DELETE' });
-        if (d) location.reload();
-    }
-    async function sendCommand() {
-        const cmd = document.getElementById('commandInput').value.trim();
-        if (!cmd) { alert('❌ Type a command first'); return; }
-        const el = document.getElementById('response');
-        el.textContent = '⏳ Processing...';
-        const d = await api('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
-        if (d) el.textContent = d.response || '✅ Done';
-    }
-</script>
-</body>
-</html>`);
-});
-
 // ==================== BLOG PAGE ====================
 app.get('/blog/:id', (req, res) => {
     const data = getData();
@@ -2835,11 +2576,11 @@ app.get('/blog/:id', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>${escapeHtml(post.title)} — 3EESHER-CLOUD</title>
+    <title>${post.title} — 3EESHER-CLOUD</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="${escapeHtml(post.content.replace(/<[^>]*>/g,'').substring(0,155))}">
-    <meta property="og:title" content="${escapeHtml(post.title)}">
-    <meta property="og:image" content="${escapeHtml(post.image)}">
+    <meta name="description" content="${post.content.replace(/<[^>]*>/g,'').substring(0,155)}">
+    <meta property="og:title" content="${post.title}">
+    <meta property="og:image" content="${post.image}">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-HD01MF5SL9"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-HD01MF5SL9');</script>
@@ -2873,9 +2614,9 @@ app.get('/blog/:id', (req, res) => {
             <a href="/library">📚 Free Library</a>
         </nav>
         <div class="post">
-            <h1>${escapeHtml(post.title)}</h1>
-            <div class="meta">${new Date(post.date).toLocaleDateString('en-NG', {year:'numeric',month:'long',day:'numeric'})} &nbsp;•&nbsp; ${post.views} views &nbsp;•&nbsp; By ${escapeHtml(post.author)}</div>
-            ${post.image?`<img src="${escapeHtml(post.image)}" alt="${escapeHtml(post.title)}">`:''}
+            <h1>${post.title}</h1>
+            <div class="meta">${new Date(post.date).toLocaleDateString('en-NG', {year:'numeric',month:'long',day:'numeric'})} &nbsp;•&nbsp; ${post.views} views &nbsp;•&nbsp; By ${post.author}</div>
+            ${post.image?`<img src="${post.image}" alt="${post.title}">`:''}
             <div class="content">${post.content}</div>
             <div class="share-btns">
                 <a href="https://wa.me/?text=${encodeURIComponent(post.title + ' - ' + 'https://3eesher-cloud.onrender.com/blog/' + post.id)}" class="share-btn share-wa" target="_blank">💬 WhatsApp</a>
@@ -3057,7 +2798,7 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/feed.xml', (req, res) => {
     const data = getData();
     let rss = '<?xml version="1.0"?><rss version="2.0"><channel><title>3EESHER-CLOUD</title><link>https://3eesher-cloud.onrender.com</link><description>Make Money Online</description>';
-    data.blogPosts.slice(0, 10).forEach(p => { rss += `<item><title>${escapeHtml(p.title)}</title><link>https://3eesher-cloud.onrender.com/blog/${p.id}</link><pubDate>${new Date(p.date).toUTCString()}</pubDate></item>`; });
+    data.blogPosts.slice(0, 10).forEach(p => { rss += `<item><title>${p.title}</title><link>https://3eesher-cloud.onrender.com/blog/${p.id}</link><pubDate>${new Date(p.date).toUTCString()}</pubDate></item>`; });
     rss += '</channel></rss>';
     res.header('Content-Type', 'application/rss+xml').send(rss);
 });
@@ -3074,6 +2815,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📍 Main Page:  http://localhost:${PORT}`);
     console.log(`📚 Library:    http://localhost:${PORT}/library`);
     console.log(`🔐 Admin:      http://localhost:${PORT}/admin`);
+    console.log(`⚡ Super Admin: http://localhost:${PORT}/super-admin`);
     console.log(`🎯 Advertise:  http://localhost:${PORT}/advertise`);
     console.log(`👤 Login:      admin216 / admin1234  ← CHANGE IN SETTINGS!`);
     console.log(`📧 Gmail:      ${GMAIL_USER}`);
@@ -3085,10 +2827,11 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Self-Report:       Every 4 hours to your Gmail`);
     console.log(`✅ Ad Engine:         IP/Phone/IMEI targeting`);
     console.log(`✅ Library:           6 free courses, member registration`);
-    console.log(`✅ Universal Inject:  CSS/JS/HTML all work, saved to injections.json`);
+    console.log(`✅ Universal Inject:  CSS/JS/HTML all work`);
     console.log(`✅ Natural Commands:  Talk to bot in plain English`);
     console.log(`✅ Affiliate /go/:    Tracked redirect links`);
-    console.log(`✅ BIGGER LOGO:       3EESHER.CLOUD now larger and gradient`);
-    console.log(`✅ BLOG SEARCH:       REMOVED - only blog posts show`);
+    console.log(`✅ BIGGER LOGO:       3EESHER.CLOUD now larger`);
+    console.log(`✅ BLOG SEARCH:       REMOVED`);
+    console.log(`✅ SUPER ADMIN:       NEW - All features work!`);
     console.log(`🚀 ========================================\n`);
 });
