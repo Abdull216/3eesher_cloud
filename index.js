@@ -1251,7 +1251,7 @@ app.get('/library', (req, res) => {
         document.getElementById('lSub').textContent=crs.title+' — Lesson '+les.id+' of '+crs.lessons.length;
         let cnt=les.content;
         cnt = cnt.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        cnt = cnt.replace(/```([\s\S]*?)```/g, '<code style="background:#0a0f1e; padding:10px; border-radius:6px; display:block; font-family:monospace; font-size:12px; overflow-x:auto; white-space:pre; margin:10px 0;">$1</code>');
+        cnt = cnt.replace(/\`\`\`([\s\S]*?)\`\`\`/g, '<code style="background:#0a0f1e; padding:10px; border-radius:6px; display:block; font-family:monospace; font-size:12px; overflow-x:auto; white-space:pre; margin:10px 0;">$1</code>');
         document.getElementById('lBody').innerHTML = cnt.replace(/\n/g, '<br>');
         const ve=document.getElementById('lVid');const if2=document.getElementById('lIframe');
         if(les.video){if2.src=les.video;ve.style.display='block';}else{if2.src='';ve.style.display='none';}
@@ -2203,7 +2203,7 @@ app.get('/', (req, res) => {
                     const r=await fetch('/api/blog/search?q='+encodeURIComponent(q));
                     const d=await r.json();
                     if(d.posts.length===0){res.innerHTML='<div class="bsr-item" style="color:var(--muted)">No results found</div>';}
-                    else{res.innerHTML=d.posts.map(p=>`<div class="bsr-item" onclick="window.location='/blog/${p.id}'"><div class="bsr-title">${p.title}</div><div class="bsr-meta">${new Date(p.date).toLocaleDateString()} • ${p.views} views</div></div>`).join('');}
+                    else{res.innerHTML=d.posts.map(p=>\`<div class="bsr-item" onclick="window.location='/blog/\${p.id}'"><div class="bsr-title">\${p.title}</div><div class="bsr-meta">\${new Date(p.date).toLocaleDateString()} • \${p.views} views</div></div>\`).join('');}
                     res.style.display='block';
                 }catch(e){}
             },300);
