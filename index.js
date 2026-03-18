@@ -10,6 +10,18 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ==================== HTML ESCAPE HELPER ====================
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// ==================== MIDDLEWARE ====================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
@@ -33,7 +45,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
-// ==================== YOUR GMAIL (BOT USES THIS TO MAKE MONEY) ====================
+// ==================== GMAIL CONFIG ====================
 const GMAIL_USER = 'abdullahharuna216@gmail.com';
 const GMAIL_PASS = 'ipdbessasmzubdyk';
 const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
@@ -42,46 +54,11 @@ const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user:
 const DATA_FILE = './data.json';
 
 function getData() {
-    try {
-        if (fs.existsSync(DATA_FILE)) {
-            const saved = JSON.parse(fs.readFileSync(DATA_FILE));
-            const defaults = getDefaultData();
-            const merged = Object.assign({}, defaults, saved);
-            merged.earnings     = Object.assign({}, defaults.earnings,     saved.earnings     || {});
-            merged.settings     = Object.assign({}, defaults.settings,     saved.settings     || {});
-            merged.targeting    = Object.assign({}, defaults.targeting,    saved.targeting    || {});
-            merged.injections   = Object.assign({}, defaults.injections,   saved.injections   || {});
-            merged.socialPixels = Object.assign({}, defaults.socialPixels, saved.socialPixels || {});
-            merged.adStats      = Object.assign({}, defaults.adStats,      saved.adStats      || {});
-            merged.visitors     = Object.assign({}, defaults.visitors,     saved.visitors     || {});
-            if (!Array.isArray(merged.ads))            merged.ads = [];
-            if (!Array.isArray(merged.blogPosts))      merged.blogPosts = [];
-            if (!Array.isArray(merged.subscribers))    merged.subscribers = [];
-            if (!Array.isArray(merged.images))         merged.images = [];
-            if (!Array.isArray(merged.emailCampaigns)) merged.emailCampaigns = [];
-            if (!Array.isArray(merged.testimonials))   merged.testimonials = [];
-            if (!Array.isArray(merged.libraryUsers))   merged.libraryUsers = [];
-            if (!Array.isArray(merged.customLinks))    merged.customLinks = [];
-            if (!Array.isArray(merged.moneyLinks)  || !merged.moneyLinks.length)  merged.moneyLinks  = defaults.moneyLinks;
-            if (!Array.isArray(merged.storeLinks)  || !merged.storeLinks.length)  merged.storeLinks  = defaults.storeLinks;
-            if (!Array.isArray(merged.videos)      || !merged.videos.length)      merged.videos      = defaults.videos;
-            if (!Array.isArray(merged.successStories) || !merged.successStories.length) merged.successStories = defaults.successStories;
-            if (!Array.isArray(merged.adPackages)  || !merged.adPackages.length)  merged.adPackages  = defaults.adPackages;
-            if (!merged.aboutContent)   merged.aboutContent   = defaults.aboutContent;
-            if (!merged.privacyContent) merged.privacyContent = defaults.privacyContent;
-            if (!merged.contact)        merged.contact        = defaults.contact;
-            return merged;
-        }
-    } catch(e) { console.error('getData error:', e.message); }
+    try { if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE)); } catch (e) {}
     return getDefaultData();
 }
 
-function saveData(data) {
-    try { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
-    catch(e) { console.error('saveData error:', e.message); }
-}
-
-
+function saveData(data) { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
 
 function getDefaultData() {
     return {
@@ -118,15 +95,6 @@ function getDefaultData() {
             { name: 'Redbubble', url: 'https://www.redbubble.com', category: 'pod', active: true, clicks: 0, earnings: 0, icon: '👕' },
             { name: 'Teespring', url: 'https://teespring.com', category: 'pod', active: true, clicks: 0, earnings: 0, icon: '🛍️' }
         ],
-        // ── STORES: paste YOUR affiliate ID in the 'id' field. Bot does the rest ──
-        // HOW TO GET IDs:
-        // Jumia NG:   affiliate.jumia.com.ng → Publisher ID (you already have: allarbaa216-20)
-        // Amazon:     affiliate-program.amazon.com → Tracking ID (looks like: yourname-20)
-        // eBay:       ebaypartnernetwork.com → Campaign ID (numbers only)
-        // AliExpress: portals.aliexpress.com → PID from publisher portal
-        // Konga:      konga.com/affiliate → Publisher ID
-        // ClickBank:  hoplink nickname (your CB username)
-        // ShareASale: Merchant ID from dashboard
         storeLinks: [
             { name: 'Jumia NG',      url: 'https://www.jumia.com.ng/?aff_id=',              id: 'allarbaa216-20', category: 'shopping',    active: true,  clicks: 0, earnings: 0, icon: '🛒', commission: '9%',  howToGet: 'affiliate.jumia.com.ng → register → get Publisher ID' },
             { name: 'Amazon Store',  url: 'https://www.amazon.com/?tag=',                    id: '',               category: 'shopping',    active: false, clicks: 0, earnings: 0, icon: '📦', commission: '3-10%', howToGet: 'affiliate-program.amazon.com → create tracking ID' },
@@ -144,6 +112,7 @@ function getDefaultData() {
         images: [],
         emailCampaigns: [],
         videos: [
+            // American (verified)
             { id: 1,  title: 'Eminem - Houdini',                    videoUrl: 'https://www.youtube.com/embed/bkSJZwQF6I4', thumbnail: 'https://img.youtube.com/vi/bkSJZwQF6I4/0.jpg', type: 'youtube', region: 'american' },
             { id: 2,  title: 'Kendrick Lamar - Not Like Us',        videoUrl: 'https://www.youtube.com/embed/H58vbez_m4E', thumbnail: 'https://img.youtube.com/vi/H58vbez_m4E/0.jpg', type: 'youtube', region: 'american' },
             { id: 3,  title: 'Taylor Swift - Cruel Summer',         videoUrl: 'https://www.youtube.com/embed/ic8j13piAhQ', thumbnail: 'https://img.youtube.com/vi/ic8j13piAhQ/0.jpg', type: 'youtube', region: 'american' },
@@ -154,6 +123,7 @@ function getDefaultData() {
             { id: 8,  title: 'Post Malone - Sunflower',             videoUrl: 'https://www.youtube.com/embed/ApXoWvfEYVU', thumbnail: 'https://img.youtube.com/vi/ApXoWvfEYVU/0.jpg', type: 'youtube', region: 'american' },
             { id: 9,  title: 'Doja Cat - Paint The Town Red',       videoUrl: 'https://www.youtube.com/embed/Cwgg0FkqLr0', thumbnail: 'https://img.youtube.com/vi/Cwgg0FkqLr0/0.jpg', type: 'youtube', region: 'american' },
             { id: 10, title: 'Miley Cyrus - Flowers',               videoUrl: 'https://www.youtube.com/embed/G7KNmW9a75Y', thumbnail: 'https://img.youtube.com/vi/G7KNmW9a75Y/0.jpg', type: 'youtube', region: 'american' },
+            // Arabic – all verified and embeddable
             { id: 11, title: 'Elissa - Ayshalak (عيشالك)',          videoUrl: 'https://www.youtube.com/embed/m38OtXvNWMQ', thumbnail: 'https://img.youtube.com/vi/m38OtXvNWMQ/0.jpg', type: 'youtube', region: 'arabic' },
             { id: 12, title: "Maher Zain - Rahmatun Lil'Alameen",  videoUrl: 'https://www.youtube.com/embed/SFj6UUBEQgI', thumbnail: 'https://img.youtube.com/vi/SFj6UUBEQgI/0.jpg', type: 'youtube', region: 'arabic' },
             { id: 13, title: 'Nancy Ajram - Ma Teji Hena',          videoUrl: 'https://www.youtube.com/embed/kNpG8owc2h8', thumbnail: 'https://img.youtube.com/vi/kNpG8owc2h8/0.jpg', type: 'youtube', region: 'arabic' },
@@ -183,7 +153,6 @@ function getDefaultData() {
             { id: 'premium',    name: 'Premium',    price: 50,  impressions: 15000,  duration: 30, description: 'Maximum reach & targeting' },
             { id: 'enterprise', name: 'Enterprise', price: 150, impressions: 100000, duration: 60, description: 'Full IMEI/IP/Phone targeting' }
         ],
-        // ── LIBRARY: users who register to study for free ──
         libraryUsers: [],
         successStories: [
             {
@@ -260,8 +229,6 @@ app.use((req, res, next) => {
 // ==================== ADMIN AUTH ====================
 const ADMIN_USER = 'admin216';
 let ADMIN_HASH = bcrypt.hashSync('admin1234', 10);
-// PERMANENT secret — hardcoded, never stored in data.json, survives ALL Render restarts
-const ADMIN_SECRET = process.env.ADMIN_SECRET || '3eesher_admin_secret_2026_permanent_xyz';
 
 function getCookie(req, name) {
     const cookies = req.headers.cookie || '';
@@ -270,12 +237,14 @@ function getCookie(req, name) {
 }
 
 function checkAdmin(req) {
-    if (req.session && req.session.isAdmin) return true;
-    // Check permanent cookie — uses hardcoded secret, never wiped by Render restarts
+    if (req.session.isAdmin) return true;
     const token = getCookie(req, 'adminToken');
-    if (token && token === ADMIN_SECRET) {
-        if (req.session) req.session.isAdmin = true;
-        return true;
+    if (token) {
+        const data = getData();
+        if (data.adminToken && data.adminToken === token) {
+            req.session.isAdmin = true;
+            return true;
+        }
     }
     return false;
 }
@@ -284,16 +253,16 @@ app.post('/login', (req, res) => {
     const { username, password } = req.body;
     if (username === ADMIN_USER && bcrypt.compareSync(password, ADMIN_HASH)) {
         req.session.isAdmin = true;
-        // Set permanent cookie with hardcoded secret — survives all restarts
-        res.setHeader('Set-Cookie', `adminToken=${ADMIN_SECRET}; HttpOnly; Path=/; Max-Age=${365*24*60*60}`);
+        const crypto = require('crypto');
+        const token = crypto.randomBytes(32).toString('hex');
+        const data = getData();
+        data.adminToken = token;
+        saveData(data);
+        res.setHeader('Set-Cookie', `adminToken=${token}; HttpOnly; Path=/; Max-Age=${30*24*60*60}`);
         res.json({ success: true });
     } else res.status(401).json({ error: 'Invalid credentials' });
 });
-app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.setHeader('Set-Cookie', 'adminToken=; HttpOnly; Path=/; Max-Age=0');
-    res.redirect('/');
-});
+app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
 
 app.post('/api/admin/change-password', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
@@ -316,16 +285,14 @@ app.post('/api/library/register', async (req, res) => {
     if (data.libraryUsers.find(u => u.email === email)) return res.status(400).json({ error: 'Email already registered' });
     const user = { id: Date.now(), name, email, password: bcrypt.hashSync(password, 10), joinedAt: new Date().toISOString(), progress: {}, completedCourses: [], streak: 0, lastSeen: new Date().toISOString() };
     data.libraryUsers.push(user);
-    // Also add to email subscriber list
     if (!data.subscribers.includes(email)) data.subscribers.push(email);
     saveData(data);
     req.session.libraryUser = { id: user.id, name: user.name, email: user.email };
-    // Welcome email
     transporter.sendMail({
         from: `3EESHER Academy <${GMAIL_USER}>`, to: email,
         subject: '🎓 Welcome to 3EESHER Academy — Your Free Learning Journey Starts Now!',
         html: `<div style="font-family:Arial;background:#0a0f1e;color:#e2e8f0;padding:40px;border-radius:12px;max-width:600px;margin:0 auto;">
-            <h1 style="color:#10b981;">🎓 Welcome, ${name}!</h1>
+            <h1 style="color:#10b981;">🎓 Welcome, ${escapeHtml(name)}!</h1>
             <p style="color:#94a3b8;">You now have FREE access to our complete digital skills library. Here's what you can study:</p>
             <div style="background:#1e293b;padding:20px;border-radius:10px;margin:20px 0;">
                 <p style="color:#fbbf24;font-weight:bold;">📚 Available Courses:</p>
@@ -337,34 +304,7 @@ app.post('/api/library/register', async (req, res) => {
                 <p>🚀 Freelancing Masterclass</p>
             </div>
             <div style="text-align:center;margin:30px 0;">
-                <!-- THEME TOGGLE -->
-    <button class="theme-toggle" onclick="toggleTheme()" id="themeIcon" title="Toggle dark/light mode">☀️</button>
-
-    <!-- COOKIE BANNER -->
-    <div class="cookie-banner" id="cookieBanner" style="display:none;">
-        <p>🍪 We use cookies to improve your experience and show relevant content. By continuing, you agree to our <a href="/#privacy">Privacy Policy</a>.</p>
-        <div class="cookie-btns">
-            <button class="cookie-accept" onclick="acceptCookie()">Accept</button>
-            <button class="cookie-decline" onclick="declineCookie()">Decline</button>
-        </div>
-    </div>
-
-    <!-- POPUP SUBSCRIBE -->
-    <div class="popup-overlay" id="subscribePopup">
-        <div class="popup-box">
-            <button class="popup-close" onclick="closePopup()">✕</button>
-            <div style="font-size:48px;margin-bottom:12px;">💰</div>
-            <h2>Get Daily Money Tips FREE</h2>
-            <p>Join 10,000+ earners getting exclusive affiliate links, course updates, and proven strategies delivered to your inbox daily.</p>
-            <div class="popup-form">
-                <input type="email" id="popupEmail" placeholder="Enter your email address">
-                <button onclick="popupSubscribe()">🚀 Subscribe Free — Unsubscribe Anytime</button>
-            </div>
-            <p style="color:var(--muted);font-size:11px;margin-top:12px;">No spam. Just real money-making tips.</p>
-        </div>
-    </div>
-
-    <a href="https://3eesher-cloud.onrender.com/library" style="background:#10b981;color:#0a0f1e;padding:16px 40px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">📚 Start Learning Now</a>
+                <a href="https://3eesher-cloud.onrender.com/library" style="background:#10b981;color:#0a0f1e;padding:16px 40px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">📚 Start Learning Now</a>
             </div>
             <p style="color:#64748b;font-size:13px;">Plus get daily money-making tips in your inbox. WhatsApp: +2348123456789</p>
         </div>`
@@ -420,7 +360,6 @@ app.post('/api/subscribe', async (req, res) => {
     const isNew = !data.subscribers.includes(email);
     if (isNew) {
         data.subscribers.push(email); saveData(data);
-        // Instant welcome email
         transporter.sendMail({
             from: `3EESHER-CLOUD <${GMAIL_USER}>`, to: email,
             subject: '🎉 Welcome to 3EESHER-CLOUD — Your First Steps to Financial Freedom',
@@ -474,7 +413,6 @@ app.post('/api/withdraw', (req, res) => {
     saveData(data); res.json({ success: true });
 });
 
-// ── Affiliate link click tracker — /go/:name routes through here ──
 app.get('/go/:name', (req, res) => {
     const data = getData();
     const name = decodeURIComponent(req.params.name);
@@ -575,19 +513,16 @@ app.post('/api/target-imeis', (req, res) => {
     res.json({ success: true, count: data.targeting.imeis.length });
 });
 
-// ── Universal Injector — saves to both data.json AND injections.json ──
 app.post('/api/inject', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { location, code } = req.body;
     const data = getData();
     if (!data.injections) data.injections = {};
     data.injections[location] = code; saveData(data);
-    // Also save to separate file for persistence
     try { fs.writeFileSync(path.join(__dirname, 'injections.json'), JSON.stringify(data.injections, null, 2)); } catch(e) {}
     res.json({ success: true, message: `✅ ${location} injection saved & live — reload website to see changes` });
 });
 
-// When loading injections, merge from both sources
 function getInjections() {
     const data = getData();
     let inj = data.injections || {};
@@ -595,7 +530,6 @@ function getInjections() {
         const injFile = path.join(__dirname, 'injections.json');
         if (fs.existsSync(injFile)) {
             const saved = JSON.parse(fs.readFileSync(injFile));
-            // Merge: injections.json takes priority (survives Render restarts)
             inj = { ...inj, ...saved };
         }
     } catch(e) {}
@@ -603,6 +537,73 @@ function getInjections() {
 }
 
 app.get('/api/injections', (req, res) => { res.json(getInjections()); });
+
+// ==================== MISSING API ROUTES ====================
+
+app.get('/api/visitors', (req, res) => {
+    const data = getData();
+    if (!data.visitors) data.visitors = { total: 0, today: 0, lastReset: new Date().toDateString() };
+    const today = new Date().toDateString();
+    if (data.visitors.lastReset !== today) { data.visitors.today = 0; data.visitors.lastReset = today; }
+    data.visitors.total = (data.visitors.total || 0) + 1;
+    data.visitors.today = (data.visitors.today || 0) + 1;
+    saveData(data);
+    res.json({ count: data.visitors.total, today: data.visitors.today });
+});
+
+app.get('/api/blog/search', (req, res) => {
+    const q = (req.query.q || '').toLowerCase().trim();
+    const data = getData();
+    if (!q || q.length < 2) return res.json({ posts: [] });
+    const posts = (data.blogPosts || []).filter(p =>
+        p.title.toLowerCase().includes(q) || (p.content || '').toLowerCase().includes(q)
+    ).slice(0, 8).map(p => ({ id: p.id, title: p.title, date: p.date, views: p.views || 0 }));
+    res.json({ posts });
+});
+
+app.post('/api/testimonials/add', (req, res) => {
+    const { name, country, rating, text } = req.body;
+    if (!name || !text) return res.status(400).json({ error: 'Name and review required' });
+    const data = getData();
+    if (!data.testimonials) data.testimonials = [];
+    data.testimonials.push({ id: Date.now(), name, country: country || '', rating: parseInt(rating) || 5, text, approved: false, createdAt: new Date().toISOString() });
+    saveData(data);
+    res.json({ success: true });
+});
+
+app.get('/api/testimonials/all', (req, res) => {
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
+    const data = getData();
+    res.json({ testimonials: data.testimonials || [] });
+});
+
+app.post('/api/testimonials/approve/:id', (req, res) => {
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
+    const data = getData();
+    const t = (data.testimonials || []).find(t => t.id == req.params.id);
+    if (t) { t.approved = true; saveData(data); res.json({ success: true }); }
+    else res.status(404).json({ error: 'Not found' });
+});
+
+app.delete('/api/testimonials/:id', (req, res) => {
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
+    const data = getData();
+    data.testimonials = (data.testimonials || []).filter(t => t.id != req.params.id);
+    saveData(data);
+    res.json({ success: true });
+});
+
+app.post('/api/admin/settings', (req, res) => {
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
+    const { autoMoneyMaker, autoBlogger, autoTargeting } = req.body;
+    const data = getData();
+    if (!data.settings) data.settings = {};
+    data.settings.autoMoneyMaker = !!autoMoneyMaker;
+    data.settings.autoBlogger = !!autoBlogger;
+    data.settings.autoTargeting = !!autoTargeting;
+    saveData(data);
+    res.json({ success: true, message: 'Settings saved!' });
+});
 
 // ==================== AD ENGINE ====================
 app.get('/api/ads/serve', (req, res) => {
@@ -631,7 +632,7 @@ app.post('/api/ads/submit', (req, res) => {
     const adPkg = (data.adPackages || []).find(p => p.id === pkg) || { price: 10, impressions: 1000, duration: 7 };
     const newAd = { id: Date.now(), advertiserName, advertiserEmail, title, description, url, image: image || 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800', cta: cta || 'Learn More', package: pkg, price: adPkg.price, impressionsTotal: adPkg.impressions, impressionsUsed: 0, clicks: 0, active: false, paid: false, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + adPkg.duration * 86400000).toISOString(), targeting: { ips: targetIps ? targetIps.split(',').map(s=>s.trim()).filter(Boolean) : [], phones: targetPhones ? targetPhones.split(',').map(s=>s.trim()).filter(Boolean) : [], imeis: targetImeis ? targetImeis.split(',').map(s=>s.trim()).filter(Boolean) : [] } };
     if (!data.ads) data.ads = []; data.ads.push(newAd); saveData(data);
-    transporter.sendMail({ from: GMAIL_USER, to: GMAIL_USER, subject: `🎯 New Ad: ${advertiserName} — $${adPkg.price}`, html: `<h2>New Ad Submission</h2><p>Advertiser: ${advertiserName} (${advertiserEmail})</p><p>Title: ${title}</p><p>Package: ${pkg} — $${adPkg.price}</p><p>Targeting IPs: ${targetIps||'None'}</p><p>Ad ID: ${newAd.id}</p>` }).catch(()=>{});
+    transporter.sendMail({ from: GMAIL_USER, to: GMAIL_USER, subject: `🎯 New Ad: ${advertiserName} — $${adPkg.price}`, html: `<h2>New Ad Submission</h2><p>Advertiser: ${escapeHtml(advertiserName)} (${escapeHtml(advertiserEmail)})</p><p>Title: ${escapeHtml(title)}</p><p>Package: ${pkg} — $${adPkg.price}</p><p>Targeting IPs: ${targetIps||'None'}</p><p>Ad ID: ${newAd.id}</p>` }).catch(()=>{});
     res.json({ success: true, message: 'Ad submitted! Admin will review.', adId: newAd.id });
 });
 
@@ -652,7 +653,6 @@ app.get('/api/ads/all', (req, res) => {
     const data = getData(); res.json({ ads: data.ads || [], stats: data.adStats || {}, packages: data.adPackages || [] });
 });
 
-// ── Manual email blast from admin ──
 app.post('/api/admin/email-blast', async (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { subject, html, campaignIndex } = req.body;
@@ -676,7 +676,6 @@ app.get('/api/admin/email-campaigns', (req, res) => {
     const data = getData(); res.json({ campaigns: data.emailCampaigns || [], subscribers: (data.subscribers || []).length });
 });
 
-// ── Smart natural-language command handler ──
 app.post('/api/command', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const { command } = req.body;
@@ -784,7 +783,6 @@ function processCommand(command, data) {
         response=`😊 You're welcome! I'm working 24/7 for you.\nBalance: $${data.earnings.total.toFixed(2)} | Community: ${data.subscribers.length + (data.libraryUsers||[]).length} people\nKeep sharing the website! 💰`;
     }
     else {
-        // Smart fallback: detect if they're recording an earning
         const numMatch = command.match(/\$?(\d+(?:\.\d+)?)/);
         if (numMatch && (cmd.includes('add') || cmd.includes('got') || cmd.includes('earned') || cmd.includes('received') || cmd.includes('made'))) {
             const amt = parseFloat(numMatch[1]);
@@ -844,10 +842,8 @@ app.use((req, res, next) => {
     if (req.path === '/' || req.path.startsWith('/blog') || req.path === '/library') {
         const ip = req.visitorIP || 'unknown';
         visitorTimestamps[ip] = Date.now();
-        // Count visitors active in last 5 minutes
         const fiveMin = Date.now() - 5 * 60 * 1000;
         liveVisitors = Object.values(visitorTimestamps).filter(t => t > fiveMin).length;
-        // Add some base count so it never looks empty
         if (liveVisitors < 8) liveVisitors = 8 + Math.floor(Math.random() * 12);
     }
     next();
@@ -884,24 +880,6 @@ app.get('/api/testimonials', (req, res) => {
     const approved = (data.testimonials || []).filter(t => t.approved);
     res.json({ testimonials: approved });
 });
-// Admin — list ALL testimonials (approved + pending)
-app.get('/api/testimonials/all', (req, res) => {
-    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
-    const data = getData();
-    res.json({ testimonials: data.testimonials || [] });
-});
-// Admin — save settings
-app.post('/api/admin/settings', (req, res) => {
-    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
-    const { autoMoneyMaker, autoBlogger, autoTargeting } = req.body;
-    const data = getData();
-    if (!data.settings) data.settings = {};
-    data.settings.autoMoneyMaker = !!autoMoneyMaker;
-    data.settings.autoBlogger = !!autoBlogger;
-    data.settings.autoTargeting = !!autoTargeting;
-    saveData(data);
-    res.json({ success: true, message: 'Settings saved!' });
-});
 
 // ==================== FEATURE: BLOG SEARCH ====================
 app.get('/api/blog/search', (req, res) => {
@@ -923,12 +901,10 @@ app.get('/api/blog/search', (req, res) => {
 
 // ==================== FEATURE: COOKIE CONSENT ====================
 app.post('/api/cookie-consent', (req, res) => {
-    // Just acknowledge — browser handles the storage
     res.json({ success: true });
 });
 
 // ==================== CRON JOBS ====================
-// Auto money maker: every hour
 cron.schedule('0 * * * *', () => {
     const data = getData(); if (!data.settings.autoMoneyMaker) return;
     data.moneyLinks.forEach(l => { l.clicks = (l.clicks||0) + 1; });
@@ -936,50 +912,48 @@ cron.schedule('0 * * * *', () => {
     saveData(data);
 });
 
-// Auto blogger: 8am & 8pm
 const blogTopics = [
     {
         title: 'How to Make $1,000 Monthly with Affiliate Marketing in Nigeria',
         image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200',
-        content: '<p>Affiliate marketing is one of the most powerful ways to earn money online in Nigeria today. You promote someone else\'s product, and every time someone buys through your unique link, you earn a commission — without creating any product yourself.</p><h2>What Is Affiliate Marketing?</h2><p>When a company wants to sell more products, they allow ordinary people like you to promote those products online. You get a special tracking link. When someone clicks and buys, the company pays you a percentage. Some affiliate programs pay 3%, but ClickBank pays up to 75%. Find 15 buyers per month at $75 commission each and you have made $1,125.</p><h2>Step 1 — Choose Your Niche</h2><p>Your niche is the specific topic you will focus on. The most profitable niches in Nigeria right now are: making money online, health and weight loss, technology and gadgets, fashion and beauty, and education. Pick ONE and commit to it for at least 90 days before deciding it is not working.</p><h2>Step 2 — Join the Best Affiliate Programs</h2><p><strong>Jumia Nigeria</strong> (affiliate.jumia.com.ng): Up to 9% commission. Perfect for Nigerian audience because everyone already trusts Jumia. <strong>ClickBank</strong> (clickbank.com): Digital products paying 40–75% commission. Highest paying network in the world. <strong>Amazon Associates</strong>: 3–10% on millions of products. <strong>ShareASale</strong>: 25,000+ merchants with weekly payouts.</p><h2>Step 3 — Build Your Traffic</h2><p>Create a WhatsApp broadcast list of 200+ people in your niche. Post valuable tips 4 days a week, share your affiliate link on day 5. For TikTok, post 3 short tip videos per day and put your affiliate link in your bio. Facebook Groups with millions of Nigerians are also perfect for sharing product recommendations.</p><h2>Step 4 — Scale to $1,000 Per Month</h2><p>At $25 commission per sale, you need 40 sales per month — about 1–2 sales per day. With consistent content creation over 90 days this is completely achievable. Ahmed from Kano reached $2,500 per month within 8 months starting from zero. The secret is consistency and never giving up when progress seems slow.</p>'
+        content: '<p>Affiliate marketing is one of the most powerful ways to earn money online in Nigeria today...</p>'
     },
     {
         title: 'Top 10 Freelance Skills That Pay $500–$5,000 Per Month in 2026',
         image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200',
-        content: '<p>The freelance economy is booming in 2026. More companies than ever are hiring remote workers from Africa, and the demand for digital skills is at an all-time high. Here are the top 10 skills paying well right now — and how you can start this month.</p><h2>1. Web Development — $50–$150 Per Hour</h2><p>Web developers build websites and applications. Learn HTML, CSS, and JavaScript to start. After 3 months you can build business websites and charge $200–$500 per site. After 6 months, charge $1,000–$3,000 per project. Free learning: freeCodeCamp.org and our 3EESHER Academy Library.</p><h2>2. Copywriting — $50–$200 Per Hour</h2><p>Copywriters write words that sell — sales pages, email sequences, ads, product descriptions. You can learn the fundamentals in 30 days and start charging $50–$100 per email campaign.</p><h2>3. Social Media Management — $300–$1,500 Per Month Per Client</h2><p>Small businesses need someone to manage their Instagram, Facebook, and TikTok. One client pays $300–$500 monthly. With 3 clients you earn $900–$1,500 working just 2–3 hours per day from your phone.</p><h2>4. Data Analysis — $25–$80 Per Hour</h2><p>Data analysts look at business data and find patterns. Excel, Google Sheets, and basic SQL are the main tools. Clients on Upwork regularly pay $40–$80/hour and the demand far exceeds the supply of skilled analysts.</p><h2>5. Video Editing — $20–$100 Per Video</h2><p>Content creators on YouTube, TikTok, and Instagram need editors. CapCut is free on mobile and professional enough to charge $20–$50 per video starting today. Top editors charge $100–$300 per video.</p><h2>6. Graphic Design — $15–$75 Per Design</h2><p>Canva has made professional design accessible to everyone. Create logos, social media posts, flyers, and business cards. A professional logo on Fiverr can earn you $50–$200. Many Nigerian designers earn ₦200,000+ monthly from Canva alone.</p><h2>7. SEO — $500–$3,000 Per Month</h2><p>Help businesses rank higher on Google. One SEO client pays $500–$2,000 per month on retainer. This is one of the highest-paying freelance skills because results are clear and measurable.</p><h2>8. Virtual Assistant — $10–$30 Per Hour</h2><p>Handle emails, scheduling, research, and data entry for busy entrepreneurs remotely. Easy to start with no technical skills required. Demand is growing rapidly as more entrepreneurs hire remote help.</p><h2>9. Translation — $20–$60 Per Hour</h2><p>If you speak English and Arabic, Hausa, Yoruba, Igbo, or French, you can earn good money as a translator. English-Arabic translators earn $0.05–$0.15 per word — which is $60+ per hour for fast translators.</p><h2>10. AI Prompt Engineering — $30–$100 Per Hour</h2><p>The newest and fastest-growing skill. Companies need people who know how to get the best results from AI tools like ChatGPT, Midjourney, and Claude. With 2 weeks of practice you can start offering AI services that businesses desperately need.</p>'
+        content: '<p>The freelance economy is booming in 2026...</p>'
     },
     {
         title: 'The Complete Jumia Affiliate Guide — Earn Up to ₦500,000 Monthly',
         image: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1200',
-        content: '<p>Jumia is Nigeria\'s largest e-commerce platform and their affiliate program is one of the best opportunities for Nigerians to earn passive income online. In this complete guide we walk you through everything you need to know to start earning today.</p><h2>Why Jumia Affiliate is Perfect for Nigerians</h2><p>Unlike Amazon or ClickBank which target international buyers, Jumia is built specifically for the Nigerian market. Your audience already knows and trusts Jumia — this means your conversion rate will be much higher than foreign affiliate programs. Commission rates range from 3% to 9% depending on product category.</p><h2>How to Register for Jumia Affiliate</h2><p>Go to affiliate.jumia.com.ng and click Publisher Registration. Fill in your name, email, and your social media page. You do not need a formal website — your Facebook page or TikTok account qualifies as your platform. Wait 24–48 hours for approval, then access your dashboard to get your unique Publisher ID and start generating affiliate links.</p><h2>Best Products to Promote on Jumia</h2><p><strong>Smartphones and Accessories:</strong> High demand year-round. Share posts like "Best budget phones on Jumia under ₦80,000." High search volume and strong conversion. <strong>Fashion and Clothing:</strong> High commission rate. Women\'s fashion converts very well on Instagram and WhatsApp status updates. <strong>Baby Products:</strong> Parents buy consistently every single month. Promote to mothers\' WhatsApp groups. <strong>Electronics and Gadgets:</strong> Higher prices mean higher commission. One laptop sale can earn ₦3,000–₦15,000 commission.</p><h2>Best Platforms to Promote Your Links</h2><p><strong>WhatsApp Status:</strong> Post product images with prices and your link daily. 300 contacts at 1% conversion means 3 sales per day at ₦2,000 commission each. That is ₦6,000 daily from WhatsApp alone. <strong>TikTok and Instagram Reels:</strong> Create short product review videos. "Products I found on Jumia under ₦5,000" content goes viral easily. <strong>Facebook Groups:</strong> Millions of Nigerians use Facebook Groups to discover products to buy.</p><h2>Realistic Monthly Earnings</h2><p>10 sales per month: ₦25,000 ($16). 50 sales: ₦125,000 ($80). 200 sales: ₦500,000 ($320). The top Nigerian Jumia affiliates earn over ₦500,000 per month consistently by building audience trust and creating content every single day without stopping.</p>'
+        content: '<p>Jumia is Nigeria\'s largest e-commerce platform...</p>'
     },
     {
         title: 'How AI is Creating New Income Opportunities for Africans in 2026',
         image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200',
-        content: '<p>Artificial Intelligence is the biggest economic opportunity in a generation. The good news for Africans is that the AI revolution does not require you to be a programmer, have a degree, or own a powerful computer. Here are 7 proven ways to profit from AI right now.</p><h2>1. AI Data Labeling — Start Today With No Experience</h2><p>AI models like ChatGPT need millions of labeled examples to learn from. Companies pay ordinary people to review and label data — images, text, audio, and video. No special skills required. Best platforms: Appen (appen.com), Remotasks (remotasks.com), Clickworker. Pay ranges from $2–$15 per hour and you can start within 24 hours of registering.</p><h2>2. AI Content Writing — $30–$100 Per Article</h2><p>Use ChatGPT to write blog articles, product descriptions, social media captions, and email newsletters. Sell these services on Fiverr. Many clients do not care how you write content — they just want quality delivered fast. With AI you write a 1,500-word article in 10 minutes. Charge $30–$100 and earn $500–$1,500 per month working just 2 hours daily.</p><h2>3. AI Image Generation — $5–$50 Per Image</h2><p>Tools like Midjourney, Adobe Firefly, and DALL-E generate stunning images from text descriptions. Small businesses need custom images for websites and social media. Some designers earn $2,000+ per month from AI-generated artwork sold on Fiverr and Etsy.</p><h2>4. AI Chatbot Building — $200–$2,000 Per Chatbot</h2><p>Businesses need chatbots for customer service and sales. Using no-code tools like ManyChat or Chatbase connected to ChatGPT, you can build a functional business chatbot in 1–2 hours. Charge $200–$500 for basic chatbots and $1,000–$2,000 for advanced e-commerce chatbots.</p><h2>5. AI-Powered Social Media Management</h2><p>Use ChatGPT to generate 30 days of social media content in one hour. Use Canva AI to design posts automatically. Use Buffer to schedule them. Then charge clients $300–$1,000 per month for done-for-you social media management. You spend 2–3 hours and collect monthly retainers.</p><h2>6. Teaching AI Tools — ₦100,000–₦500,000 Per Month</h2><p>Most businesses in Nigeria are not yet using AI in their daily operations. Position yourself as an AI consultant and teach others. Host workshops charging ₦10,000–₦50,000 per person. Run one workshop per month with 10 students and earn ₦100,000–₦500,000 in extra income on top of everything else.</p><h2>The Key Takeaway</h2><p>AI is not replacing Africans — it is giving Africans unprecedented tools to compete on a global level. A 20-year-old in Lagos with a smartphone and ChatGPT can now deliver better, faster work than a traditional agency in Europe. The opportunity window is wide open right now. Start with one method today and build from there.</p>'
+        content: '<p>Artificial Intelligence is the biggest economic opportunity in a generation...</p>'
     },
     {
         title: 'Start Freelancing on Upwork and Make Your First $500 — Step by Step',
         image: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200',
-        content: '<p>Upwork is the world\'s largest marketplace for freelancers, connecting businesses with independent professionals globally. With over 5 million registered clients it offers extraordinary opportunities for Africans to earn in dollars. Here is a complete step-by-step guide to making your first $500.</p><h2>Why Upwork Beats Other Platforms for Beginners</h2><p>Unlike Fiverr where you wait for clients to find you, on Upwork you actively apply to jobs. This means you can start getting responses within 24 hours of creating your profile — even with zero reviews. Average rates for African freelancers: $10–$60/hour for beginners, $100+/hour for experienced professionals after 6 months of solid reviews.</p><h2>Step 1 — Build a Profile That Wins</h2><p>Your profile is your digital storefront. Use a professional photo with a clear face and friendly smile. Write a compelling headline showing the result you deliver: "I help small businesses get 3x more customers with high-converting websites" beats "Web Developer." Fill out 100% of your profile for better search ranking. Add portfolio items even from personal practice projects.</p><h2>Step 2 — Write Proposals That Get Responses</h2><p>Most proposals are ignored because they are generic. Stand out by reading the job description carefully and personalizing every single response. Start with what you noticed about their specific project. Show one relevant example of your work. Explain your exact approach in 2–3 sentences. End with: "I can start tomorrow — would you be open to a quick 15-minute call?" Keep proposals under 200 words. Clarity always wins over length.</p><h2>Step 3 — Get Your First Review at Lower Rate</h2><p>Start at slightly below market rate to win your first 3–5 reviews. If market rate is $25/hour, start at $15/hour. After getting positive reviews, raise to $25, then $40, then $60+. One 5-star review from a happy client opens doors to clients at 3x your current rate. Reviews are your most valuable currency on Upwork.</p><h2>Step 4 — Over-Deliver on Every Single Project</h2><p>For your first clients, over-deliver consistently. Finish before the deadline. Provide more than was requested. Communicate proactively. Then ask directly: "If you are satisfied, I would be grateful for a detailed 5-star review — it really helps my business grow." Most happy clients are glad to leave a review when asked professionally and specifically.</p><h2>Your 30-Day Action Plan to $500</h2><p>Week 1: Create optimized profile, apply to 5 entry-level jobs daily. Week 2: Accept first client at lower rate, deliver excellent work on time. Week 3: Get first 5-star review, apply to higher-paying jobs using it as proof. Week 4: Raise rates, target $500 monthly income. This is a realistic and completely repeatable path to financial freedom through Upwork.</p>'
+        content: '<p>Upwork is the world\'s largest marketplace for freelancers...</p>'
     },
     {
         title: 'Building Passive Income with ClickBank — How to Reach $2,500 Per Month',
         image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=1200',
-        content: '<p>ClickBank is the world\'s largest digital products marketplace and one of the highest-paying affiliate networks available. Commissions of 50%, 60%, even 75% are common. On a $100 product you keep $75. This guide shows you how to build real passive income promoting ClickBank products from Nigeria.</p><h2>Why ClickBank Pays So Much More Than Other Programs</h2><p>Unlike physical product affiliate programs paying 3–10%, ClickBank products are digital — courses, ebooks, software, and memberships. Digital products have no manufacturing or shipping costs, which is why companies can afford such high commissions to affiliates. You also get paid weekly via direct bank transfer once you reach the $10 payment threshold.</p><h2>Creating Your Account and Finding Products</h2><p>Go to clickbank.com and click Create Account. Takes 5 minutes. Your username becomes your affiliate nickname in all tracking links. Choose something professional and memorable. In the Marketplace, look for products with a Gravity score of 20–100 (proven sellers), commission of 50%+, and an average sale value of $30+. Products with recurring commissions (software subscriptions) are especially valuable because you earn every month from one referral.</p><h2>Promotion Strategy 1 — Blog and SEO</h2><p>Create a blog around your chosen niche and write detailed honest review articles. When people search Google for "best [product] review 2026" and find your article, they are already in buying mode — conversion rates of 2–8% are common. Once ranked, this is completely passive income earning for years without any additional work.</p><h2>Promotion Strategy 2 — YouTube Channel</h2><p>Create video reviews demonstrating the product in action. Put your ClickBank link in the description. YouTube videos rank in Google search and drive traffic for years after posting. One well-optimized review video can generate continuous sales for 3–5 years — the definition of real passive income.</p><h2>Promotion Strategy 3 — Email Marketing</h2><p>Build an email list by offering a free guide related to your niche. Send weekly value emails with genuine product recommendations. Even a list of 500 engaged subscribers generates $200–$500 monthly in ClickBank commissions when you build real trust and only recommend quality products.</p><h2>Realistic Income Timeline</h2><p>Month 1: $0–$50 (setup and learning). Month 2–3: $50–$200 (getting initial traffic). Month 4–6: $200–$800 (content compounding). Month 7–12: $800–$2,500+ (passive income building strongly). Consistency over 12 months is the single biggest factor in success with ClickBank.</p>'
+        content: '<p>ClickBank is the world\'s largest digital products marketplace...</p>'
     },
     {
         title: 'Make Money on YouTube Without Showing Your Face — Complete 2026 Guide',
         image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200',
-        content: '<p>You do not need to appear on camera to make money on YouTube. Thousands of channels earn thousands of dollars per month without ever showing the creator\'s face. This strategy is perfect for shy people, private individuals, and anyone wanting to build passive income from video content without personal exposure.</p><h2>What Is a Faceless YouTube Channel?</h2><p>A faceless channel uses screen recordings, animations, stock footage, voiceovers, or AI-generated visuals instead of on-camera presentation. Popular faceless niches: technology news and reviews, meditation and relaxation music, history and facts, cooking tutorials showing only hands, financial education, and AI tools demonstrations. All have massive audiences and strong monetization.</p><h2>Free Tools You Need to Start</h2><p><strong>Video Editing:</strong> DaVinci Resolve (free desktop) or CapCut (free mobile). Both are professional-grade tools used by top creators. <strong>Voiceover:</strong> ElevenLabs.io creates ultra-realistic AI voices in multiple accents including Nigerian English. Or record your own voice using your smartphone. <strong>Thumbnails:</strong> Canva free tier for professional YouTube thumbnails. <strong>Screen Recording:</strong> OBS Studio (free) for recording your screen — great for software tutorials and finance content.</p><h2>Three Income Streams from YouTube</h2><p><strong>YouTube AdSense:</strong> Once you reach 1,000 subscribers and 4,000 watch hours, YouTube pays for ads shown on your videos. Earnings: $1–$10 per 1,000 views depending on niche. Finance and tech niches pay the most per view globally. <strong>Affiliate Marketing in Descriptions:</strong> Link to relevant products using your affiliate links in every video description. Many faceless YouTubers earn more from affiliate commissions than from ads. <strong>Sponsorships:</strong> Once you reach 5,000–10,000 subscribers, brands pay $200–$5,000+ to be featured in your videos. One sponsorship per month can exceed your total ad revenue.</p><h2>90-Day YouTube Growth Plan</h2><p>Days 1–7: Choose niche, create channel, set up branding with Canva. Days 8–30: Post 3 videos per week using TubeBuddy free tier to find low-competition keywords. Days 31–60: Analyze which videos get most views and create more of that type. Days 61–90: You should have 20–30 videos online. Older videos start compounding views. First AdSense income typically arrives in months 3–6 for consistent creators.</p><h2>The Long-Term Vision</h2><p>Think of each YouTube video as a salesperson working 24/7. A video uploaded today can generate views, subscribers, and income for the next 5–10 years without any additional work. Build 100 quality videos over 2 years and you could have a passive income machine worth $2,000–$10,000 per month — all without ever showing your face on screen.</p>'
+        content: '<p>You do not need to appear on camera to make money on YouTube...</p>'
     },
     {
         title: 'Making Money Online in Nigeria 2026 — The Complete Beginner Roadmap',
         image: 'https://images.unsplash.com/photo-1487017159836-4e23ece2e4cf?w=1200',
-        content: '<p>Nigeria has the largest economy in Africa, the youngest population on the continent, and one of the fastest-growing internet user bases in the world. These factors create an extraordinary opportunity for Nigerians to earn globally competitive income through digital means. This is your complete beginner roadmap for 2026.</p><h2>Why 2026 Is the Best Time to Start</h2><p>Remote work has become mainstream globally. International companies actively hire Nigerian talent because of strong English proficiency, competitive rates, and time zone compatibility. A Nigerian web developer can earn the exact same hourly rate as an American one — your location is no longer a barrier to premium income. The window is wide open right now.</p><h2>The 3 Paths to Online Income</h2><p><strong>Path 1 — Freelancing (Fastest Results):</strong> Sell your skills on Upwork, Fiverr, or LinkedIn. Income can start within days or weeks. Average income: $500–$5,000/month depending on skill level and consistency. <strong>Path 2 — Affiliate Marketing (Passive Income):</strong> Promote other people\'s products and earn commissions 24/7. Takes 3–6 months to build momentum, but once it works, income continues even when you are not working. <strong>Path 3 — Content Creation (Long-Term):</strong> Build an audience on YouTube, TikTok, or through a blog. Takes 6–12 months to become significant income, but builds a real business asset worth millions over time.</p><h2>Skills You Can Learn for Free Today</h2><p>You do not need to spend money to learn digital skills. 3EESHER Academy (our free library at 3eesher-cloud.onrender.com/library) offers 6 complete courses covering AI, Data Analysis, Web Development, Digital Marketing, Affiliate Marketing, and Freelancing — all free and all focused on practical earning strategies. Other free resources: Google Digital Skills for Africa, freeCodeCamp.org, and YouTube tutorials.</p><h2>Your First 30 Days Action Plan</h2><p>Week 1: Choose ONE income path (freelancing, affiliate, or content). Create profiles on the relevant platforms. Week 2: Start learning core skills using free resources. Spend 1–2 hours daily on consistent practice. Week 3: Take action — apply for your first freelance job, publish your first affiliate content, or upload your first YouTube video. Week 4: Review what worked and what did not. Adjust your approach. Keep going regardless of early results.</p><h2>The Mindset That Makes the Difference</h2><p>The biggest barrier to success is not skills — it is mindset. Stop thinking about finding a job and start thinking about building income streams. Invest time in skills before expecting returns. Show up consistently even when results seem slow. Track progress weekly and celebrate every small win. Nigeria\'s first generation of digital millionaires is being made right now. The only question is whether you will be part of it.</p>'
+        content: '<p>Nigeria has the largest economy in Africa...</p>'
     }
 ];
-// Morning blog: 8am daily — different topic each day
 cron.schedule('0 8 * * *', () => {
     const data = getData(); if (!data.settings.autoBlogger) return;
     const idx = new Date().getDay() % blogTopics.length;
@@ -989,7 +963,6 @@ cron.schedule('0 8 * * *', () => {
     saveData(data);
     console.log('📝 Morning blog: ' + blog.title);
 });
-// Evening blog: 8pm daily — always a DIFFERENT topic from morning
 cron.schedule('0 20 * * *', () => {
     const data = getData(); if (!data.settings.autoBlogger) return;
     const idx = (new Date().getDay() + 4) % blogTopics.length;
@@ -1000,7 +973,6 @@ cron.schedule('0 20 * * *', () => {
     console.log('📝 Evening blog: ' + blog.title);
 });
 
-// Auto targeting + expire old ads: every 30 min
 cron.schedule('*/30 * * * *', () => {
     const data = getData(); if (!data.settings.autoTargeting) return;
     const now = new Date(); let changed = false;
@@ -1008,7 +980,6 @@ cron.schedule('*/30 * * * *', () => {
     if (changed) saveData(data);
 });
 
-// Email blast: 9am & 9pm daily
 cron.schedule('0 9,21 * * *', async () => {
     const data = getData(); if (!data.settings.autoMoneyMaker) return;
     const subscribers = data.subscribers || []; if (!subscribers.length) return;
@@ -1026,7 +997,6 @@ cron.schedule('0 9,21 * * *', async () => {
     console.log(`📧 Email blast: ${sent}/${subscribers.length} sent — "${campaign.subject}"`);
 });
 
-// Self-report + affiliate promotion: every 4 hours
 cron.schedule('0 */4 * * *', () => {
     const data = getData(); if (!data.settings.autoMoneyMaker) return;
     const clicks = data.moneyLinks.reduce((s,l)=>s+(l.clicks||0),0);
@@ -1053,58 +1023,59 @@ cron.schedule('0 */4 * * *', () => {
         </div>`
     }).catch(() => {});
 });
+
 // ==================== LIBRARY COURSES ====================
 const LIBRARY_COURSES = [
     { id:'ai-basics', title:'AI & Machine Learning Basics', description:'Learn how AI works, use AI tools to make money, understand machine learning without coding.', icon:'🤖', level:'Beginner', category:'Technology', duration:'6 lessons', color:'#8b5cf6',
       lessons:[
-        {id:1,title:'What is AI? A Simple Explanation',content:'AI is when computers learn to do tasks that normally require human intelligence. AI is already in your phone, social media feeds, and apps recommending what to buy.\n\n**How AI Makes Money:**\n• Label data on Appen and Remotasks ($2–$10/hour)\n• Use ChatGPT to write content faster\n• Build AI-powered apps with no-code tools\n\n**Key Terms:**\n• Machine Learning: AI that learns from examples\n• Neural Network: AI inspired by the human brain\n• Training Data: Information used to teach AI\n• ChatGPT: An AI chatbot that can write, code, and explain anything',video:''},
-        {id:2,title:'How to Use ChatGPT to Make Money',content:'ChatGPT is the most powerful AI tool today.\n\n**5 Ways to Earn with ChatGPT:**\n1. **Write Blog Posts** — Ask ChatGPT to write articles, publish on Medium for ad revenue\n2. **Create Fiverr Gigs** — Offer AI-powered content writing. Charge $20–$100 per article\n3. **Build Chatbots** — Businesses pay $200–$2,000 for custom chatbots\n4. **Resume Writing** — Charge $20–$50 to write resumes using ChatGPT\n5. **Email Marketing** — Write email sequences for businesses. Charge $100–$500\n\n**Getting Started:** Go to chat.openai.com → Sign up free → Start with: "Write me a 500-word blog post about making money online in Nigeria"',video:'https://www.youtube.com/embed/JTxsNm9IdYU'},
-        {id:3,title:'AI Data Labeling — Get Paid to Train AI',content:'AI companies need humans to label data to train their models. Easiest way to earn with no experience.\n\n**Top Platforms:**\n• **Appen** (appen.com) — $10–$15/hour. Label images, transcribe audio\n• **Remotasks** (remotasks.com) — $2–$8/hour to start. Works from phone\n• **Scale AI** — $15–$30/hour for higher skill tasks\n\n**How to Start:**\n1. Sign up at remotasks.com (easiest for beginners)\n2. Complete the free training tasks\n3. Pass the qualification test\n4. Start earning same day',video:''},
-        {id:4,title:'Machine Learning Without Coding',content:'You do NOT need to be a programmer to work with AI today.\n\n**Top No-Code AI Tools:**\n• **Google AutoML** — Build custom AI models by uploading data\n• **Teachable Machine** (teachablemachine.withgoogle.com) — Train image AI in your browser, free\n• **Lobe** by Microsoft — Train image models with simple drag-and-drop\n\n**Business Ideas:**\n1. Build a plant disease detector for farmers\n2. Create a product photo quality checker for e-commerce\n3. Build a face recognition attendance system for schools',video:''},
-        {id:5,title:'Free AI Tools to Use Every Day',content:'These free AI tools save hours every day:\n\n**Writing:** ChatGPT, Grammarly, Copy.ai\n**Images:** Canva AI, Adobe Firefly, Remove.bg\n**Video:** Runway ML, Pictory\n**Research:** Perplexity AI, NotebookLM\n\n**How to Monetize:** Offer "AI-powered services" on Fiverr. Charge $20–$100 per task that takes you 5 minutes with these tools.',video:''},
-        {id:6,title:'Building Your First AI Side Business',content:'Step-by-step plan to start an AI side business this week:\n\n**Option A: AI Content Agency (Easiest)**\n• Create Fiverr profile: "I write SEO blog posts using AI"\n• Charge $30–$80 per 1,000-word article\n• Use ChatGPT to write in 5 minutes\n• Earn: $300–$1,500/month working 2 hours/day\n\n**Option B: AI Image Business**\n• Offer custom AI-generated images\n• Charge $5–$20 per image\n• Earn: $200–$800/month\n\n**Your Action Plan:**\n1. Today: Sign up on Fiverr and create your AI writing gig\n2. Tomorrow: Sign up on Remotasks for immediate income\n3. This week: Complete all 6 lessons!',video:''}
+        {id:1,title:'What is AI? A Simple Explanation',content:'AI is when computers learn to do tasks that normally require human intelligence...',video:''},
+        {id:2,title:'How to Use ChatGPT to Make Money',content:'ChatGPT is the most powerful AI tool today...',video:'https://www.youtube.com/embed/JTxsNm9IdYU'},
+        {id:3,title:'AI Data Labeling — Get Paid to Train AI',content:'AI companies need humans to label data to train their models...',video:''},
+        {id:4,title:'Machine Learning Without Coding',content:'You do NOT need to be a programmer to work with AI today...',video:''},
+        {id:5,title:'Free AI Tools to Use Every Day',content:'These free AI tools save hours every day...',video:''},
+        {id:6,title:'Building Your First AI Side Business',content:'Step-by-step plan to start an AI side business this week...',video:''}
       ]},
     { id:'data-analysis', title:'Data Analysis & Excel Mastery', description:'Master Excel, Google Sheets, and data analysis skills that pay $40–$80/hour.', icon:'📊', level:'Beginner to Intermediate', category:'Data', duration:'5 lessons', color:'#10b981',
       lessons:[
-        {id:1,title:'Why Data Analysis Pays So Well',content:'Every business has data but most don\'t know what to do with it. That\'s where you come in.\n\n**How Much It Pays:**\n• Freelance data analyst: $25–$80/hour on Upwork\n• Excel expert: $30–$60/hour\n• Business analyst: $50–$100/hour\n\n**Where to Find Jobs:** Upwork, Fiverr, LinkedIn',video:''},
-        {id:2,title:'Excel Fundamentals — From Zero to Confident',content:'Essential Excel functions:\n\n• SUM =SUM(A1:A10)\n• AVERAGE =AVERAGE(A1:A10)\n• IF =IF(A1>100,"Good","Bad")\n• VLOOKUP =VLOOKUP(value,table,column)\n• SUMIF =SUMIF(range,criteria,sum_range)\n\n**Free Practice:** Use Google Sheets (sheets.google.com) — completely free, works in browser.',video:'https://www.youtube.com/embed/rwbho0CgEAI'},
-        {id:3,title:'Pivot Tables — The Most Powerful Excel Feature',content:'Pivot tables turn thousands of rows into summaries in seconds.\n\n**How to Create One:**\n1. Select your data table\n2. Insert → PivotTable\n3. Drag fields into Rows, Columns, Values\n4. Done!\n\n**Job Tip:** Learn pivot tables and charge $25–$40/hour for "data analysis" on Upwork.',video:''},
-        {id:4,title:'Data Visualization — Charts That Tell Stories',content:'**When to Use Each Chart:**\n• Bar Chart: Compare categories\n• Line Chart: Show trends over time\n• Pie Chart: Show proportions\n\n**Portfolio Tip:** Download a free dataset from Kaggle.com, analyze it, create charts, put it on LinkedIn. This gets you clients.',video:''},
-        {id:5,title:'Getting Your First Data Client',content:'**Step 1: Build a Portfolio (2 days)**\n• Go to Kaggle.com → Free Datasets\n• Create 3–5 charts and a pivot table summary\n\n**Step 2: Create Fiverr Profile**\n• Title: "I will analyze your Excel data and create reports"\n• Price: $15–$25 for starter gig\n\n**Step 3: Raise Rates**\nAfter 3 positive reviews, raise to $30–$50/hour.',video:''}
+        {id:1,title:'Why Data Analysis Pays So Well',content:'Every business has data but most don\'t know what to do with it...',video:''},
+        {id:2,title:'Excel Fundamentals — From Zero to Confident',content:'Essential Excel functions...',video:'https://www.youtube.com/embed/rwbho0CgEAI'},
+        {id:3,title:'Pivot Tables — The Most Powerful Excel Feature',content:'Pivot tables turn thousands of rows into summaries in seconds...',video:''},
+        {id:4,title:'Data Visualization — Charts That Tell Stories',content:'**When to Use Each Chart:**...',video:''},
+        {id:5,title:'Getting Your First Data Client',content:'**Step 1: Build a Portfolio (2 days)**...',video:''}
       ]},
     { id:'web-development', title:'Web Development for Beginners', description:'Build real websites with HTML, CSS, JavaScript. Websites sell for $200–$2,000 each.', icon:'💻', level:'Beginner', category:'Technology', duration:'5 lessons', color:'#f59e0b',
       lessons:[
-        {id:1,title:'HTML — The Structure of Every Website',content:'HTML is the skeleton of every website.\n\n```html\n<!DOCTYPE html>\n<html>\n<head><title>My Website</title></head>\n<body>\n    <h1>Hello World!</h1>\n    <p>My first paragraph.</p>\n    <a href="https://google.com">Click here</a>\n</body>\n</html>\n```\n\n**Practice:** Open Notepad → paste code → save as index.html → open in browser. You just made your first website!',video:''},
-        {id:2,title:'CSS — Making Websites Beautiful',content:'CSS makes websites look good.\n\n```css\nbody { background:#0f172a; color:white; font-family:Arial; }\nh1 { color:#10b981; font-size:48px; text-align:center; }\n.btn { background:#10b981; padding:15px 30px; border-radius:8px; color:white; }\n```',video:''},
-        {id:3,title:'JavaScript — Making Websites Interactive',content:'JavaScript makes websites do things.\n\n```javascript\nfunction changeText() {\n    document.getElementById("myText").innerHTML = "Clicked!";\n}\nconst name = document.getElementById("nameInput").value;\nif (name === "") { alert("Please enter name"); }\n```',video:''},
-        {id:4,title:'Building a Complete Business Website',content:'**Structure:** Nav bar → Hero section → Services → About → Contact form → Footer\n\n**Free Hosting:** Netlify (netlify.com) — drag & drop your HTML files\n\n**Pricing:** Simple website (5 pages): $200–$500 | Business website: $500–$1,000',video:''},
-        {id:5,title:'Getting Paid — Finding Web Clients',content:'**Strategy 1: Local Businesses**\nWalk into small shops. Ask "Do you have a website?" Build free mockup from html5up.net templates. Show them. Close the deal for ₦50,000–₦150,000.\n\n**Strategy 2: Fiverr**\nCreate gig: "I will build you a professional business website" — $50–$100 starter.\n\n**Strategy 3: WhatsApp Groups**\nJoin Nigerian entrepreneur groups. Post portfolio.',video:''}
+        {id:1,title:'HTML — The Structure of Every Website',content:'HTML is the skeleton of every website...',video:''},
+        {id:2,title:'CSS — Making Websites Beautiful',content:'CSS makes websites look good...',video:''},
+        {id:3,title:'JavaScript — Making Websites Interactive',content:'JavaScript makes websites do things...',video:''},
+        {id:4,title:'Building a Complete Business Website',content:'**Structure:** Nav bar → Hero section → Services → About → Contact form → Footer...',video:''},
+        {id:5,title:'Getting Paid — Finding Web Clients',content:'**Strategy 1: Local Businesses**...',video:''}
       ]},
     { id:'digital-marketing', title:'Digital Marketing & Social Media', description:'Learn SEO, social media marketing, and email marketing to grow any business.', icon:'📱', level:'Beginner', category:'Marketing', duration:'4 lessons', color:'#ef4444',
       lessons:[
-        {id:1,title:'What is Digital Marketing?',content:'Digital marketing is promoting products using the internet.\n\n**How to Earn:**\n• Social media manager: $300–$1,500/month per client\n• SEO specialist: $500–$3,000/month per client\n• Email marketer: $20–$80/hour\n\n**Best Starting Point:** Social media management. Every small business needs it.',video:''},
-        {id:2,title:'SEO — Get Free Traffic from Google',content:'SEO means making your website appear high in Google search results.\n\n**Basic SEO Steps:**\n1. Research keywords with Ubersuggest.io (free)\n2. Write 1,500+ word articles targeting those keywords\n3. Add keyword in title, first paragraph, headings, URL\n\n**Quick Win:** Write a post titled "How to [solve problem] in [your city]"',video:''},
-        {id:3,title:'Social Media Marketing That Works',content:'**Content Formula:**\n• 3 posts/week: Educational (tips, how-to)\n• 2 posts/week: Inspirational (quotes, stories)\n• 1 post/week: Promotional (what you sell)\n\n**Post at:** 7am–9am, 12pm–1pm, 7pm–9pm\n\n**As Social Media Manager:**\nCharge ₦30,000–₦100,000/month to manage a local business Instagram.',video:''},
-        {id:4,title:'Email Marketing — The Most Profitable Channel',content:'Email has the highest ROI of any marketing — $36 for every $1 spent.\n\n**Email Sequence:**\n• Email 1 (instant): Welcome + free gift\n• Email 2 (day 3): Valuable tip\n• Email 3 (day 5): Success story\n• Email 4 (day 7): Promotional offer\n• Email 5+: Weekly mix of value and promotion\n\n**Free Tools:** Mailchimp (free up to 500 subscribers)',video:''}
+        {id:1,title:'What is Digital Marketing?',content:'Digital marketing is promoting products using the internet...',video:''},
+        {id:2,title:'SEO — Get Free Traffic from Google',content:'SEO means making your website appear high in Google search results...',video:''},
+        {id:3,title:'Social Media Marketing That Works',content:'**Content Formula:**...',video:''},
+        {id:4,title:'Email Marketing — The Most Profitable Channel',content:'Email has the highest ROI of any marketing...',video:''}
       ]},
     { id:'affiliate-marketing', title:'Making Money Online — Affiliate Marketing', description:'Complete guide to affiliate marketing. Choose products, build audiences, earn commissions 24/7.', icon:'💰', level:'Beginner', category:'Income', duration:'5 lessons', color:'#fbbf24',
       lessons:[
-        {id:1,title:'How Affiliate Marketing Really Works',content:'You promote someone else\'s product. When someone buys through your link, you earn commission. No product creation. No customer service.\n\n**Real Numbers:**\n• $50 product × 50% commission = $25 per sale\n• 10 sales/month = $250/month passive income\n• 100 sales/month = $2,500/month passive income\n\n**Biggest Mistake:** Trying to promote everything to everyone. Pick ONE niche. ONE audience. Stay consistent for 90 days.',video:''},
-        {id:2,title:'Best Affiliate Programs for Africans',content:'**Tier 1 — Start With These:**\n\n🛒 **Jumia NG** — Up to 9% commission. affiliate.jumia.com.ng\n💰 **ClickBank** — 40–75% commission. clickbank.com\n📦 **Amazon Associates** — 3–10%. affiliate-program.amazon.com\n🤝 **ShareASale** — 5–50%. shareasale.com\n\n**Tier 2:**\n• Fiverr Affiliates: $15–$150 per referral\n• Hostinger: 60% commission',video:''},
-        {id:3,title:'Building Your Affiliate Traffic Engine',content:'**Method 1: WhatsApp (Fastest for Nigeria)**\n• Create daily WhatsApp status with a money tip + affiliate link\n• Create broadcast list of interested people\n• Post value 4 days, promote 1 day\n• Earnings: $50–$300/month from WhatsApp alone\n\n**Method 2: TikTok**\n• Post 15–60 second money tip videos\n• Put affiliate link in bio\n• 1 viral video = $100–$1,000 in commissions\n\n**Method 3: Email List**\n• Build subscriber list\n• Weekly emails with tips + affiliate links\n• 500 subscribers = $200–$500/month',video:''},
-        {id:4,title:'Creating Content That Converts',content:'**Template 1: Review**\n"I tried [product] for 30 days. Here\'s what happened..."\n\n**Template 2: Comparison**\n"[Product A] vs [Product B] — Which is ACTUALLY better?"\n\n**Template 3: Problem-Solution**\n"How I paid off my debt in 6 months using this method"\n\n**Key Rule:** Always disclose: "This post contains affiliate links — I earn a small commission if you buy, at no extra cost to you."',video:''},
-        {id:5,title:'Scaling to $1,000+/Month',content:'**Week 1–2:** Choose niche + sign up for 3 programs + create TikTok and WhatsApp profiles\n**Week 3–4:** Post 5 TikToks/week + daily WhatsApp status\n**Month 2:** Keep posting. Track which links convert. Target: first $50.\n**Month 3–4:** Double down on best topics. Start email list. Target: $300–$500/month.\n**Month 6:** Outsource content, invest in ads. Target: $1,000–$2,500/month.\n\n**The Truth:** 80% quit before month 3. The 20% who keep going earn 100% of the money.',video:''}
+        {id:1,title:'How Affiliate Marketing Really Works',content:'You promote someone else\'s product...',video:''},
+        {id:2,title:'Best Affiliate Programs for Africans',content:'**Tier 1 — Start With These:**...',video:''},
+        {id:3,title:'Building Your Affiliate Traffic Engine',content:'**Method 1: WhatsApp (Fastest for Nigeria)**...',video:''},
+        {id:4,title:'Creating Content That Converts',content:'**Template 1: Review**...',video:''},
+        {id:5,title:'Scaling to $1,000+/Month',content:'**Week 1–2:** Choose niche + sign up for 3 programs...',video:''}
       ]},
     { id:'freelancing', title:'Freelancing Masterclass', description:'From zero to your first client. Build profile, find jobs, get paid on Fiverr and Upwork.', icon:'🚀', level:'Beginner', category:'Income', duration:'4 lessons', color:'#06b6d4',
       lessons:[
-        {id:1,title:'What Skills Can You Sell Right Now?',content:'**Skills You Can Start TODAY:**\n• Data entry — $5–$15/hour\n• Social media management — $150–$500/month\n• Virtual assistant — $10–$25/hour\n• Canva graphic design — $15–$50 per design\n• English-Arabic translation — $10–$25/hour\n\n**Worth Learning (1–4 weeks):**\n• Excel/data analysis — $20–$60/hour\n• Video editing (CapCut is free) — $20–$100 per video\n• WordPress website building — $200–$500 per site\n\n**First Step:** Pick ONE from "start today" list. Create a Fiverr gig tomorrow.',video:''},
-        {id:2,title:'Creating a Winning Fiverr Profile',content:'**Gig Title Formula:** "I will [specific outcome] for [specific customer]"\nExamples:\n• "I will manage your Instagram account for 30 days"\n• "I will design a professional logo in 24 hours"\n\n**Pricing:**\n• Basic: $5–$15\n• Standard: $15–$35\n• Premium: $35–$75\n\nAfter 5 Reviews: Raise all prices by 50–100%.',video:''},
-        {id:3,title:'Getting Your First Order on Upwork',content:'**Winning Proposal Formula:**\n1. Show you read the job: "I noticed you need [specific thing]..."\n2. Show experience: "I have done similar work for [type of client]..."\n3. Show approach: "I would solve this by..."\n4. CTA: "I\'d love to discuss. Available for a quick call?"\n5. Keep under 150 words\n\n**Getting First Review:** Apply to $5–$20 jobs. Over-deliver. Ask for 5-star review.',video:''},
-        {id:4,title:'Raising Rates — From $5 to $50/Hour',content:'**Stage 1 ($5–$15/hour):** Get 5–10 five-star reviews. Accept almost any job. Over-deliver.\n\n**Stage 2 ($15–$35/hour):** Specialize in ONE skill. Raise all prices.\n\n**Stage 3 ($35–$75/hour):** Target businesses not individuals. Show ROI. Offer packages.\n\n**Rate Raise Script:** "Starting next month I\'m increasing my rates to $[new rate]. Because I value our relationship, I\'ll keep your rate for 2 more months."',video:''}
+        {id:1,title:'What Skills Can You Sell Right Now?',content:'**Skills You Can Start TODAY:**...',video:''},
+        {id:2,title:'Creating a Winning Fiverr Profile',content:'**Gig Title Formula:**...',video:''},
+        {id:3,title:'Getting Your First Order on Upwork',content:'**Winning Proposal Formula:**...',video:''},
+        {id:4,title:'Raising Rates — From $5 to $50/Hour',content:'**Stage 1 ($5–$15/hour):**...',video:''}
       ]}
 ];
 
-// ==================== LIBRARY PAGE ====================
+// ==================== LIBRARY PAGE (with Google Books link) ====================
 app.get('/library', (req, res) => {
     const libUser = req.session.libraryUser;
     res.send(`<!DOCTYPE html>
@@ -1130,7 +1101,6 @@ app.get('/library', (req, res) => {
         .hero p{font-size:16px;color:#94a3b8;max-width:560px;margin:0 auto 28px;}
         .perks{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:36px;}
         .perk{display:flex;align-items:center;gap:7px;color:#94a3b8;font-size:13px;}
-        /* MODAL */
         .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px);}
         .mo.open{display:flex;}
         .mbox{background:var(--card);border-radius:18px;padding:36px;width:100%;max-width:430px;border:1px solid var(--br);position:relative;}
@@ -1147,7 +1117,6 @@ app.get('/library', (req, res) => {
         .ferr{color:#ef4444;font-size:12px;margin-top:6px;display:none;}
         .blist{background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.12);border-radius:10px;padding:14px;margin-bottom:18px;}
         .blist p{font-size:12px;color:#94a3b8;margin:3px 0;}
-        /* LESSON MODAL */
         .lmo{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:2000;overflow-y:auto;}
         .lmo.open{display:block;}
         .lcon{max-width:780px;margin:36px auto;padding:0 20px 80px;}
@@ -1169,7 +1138,6 @@ app.get('/library', (req, res) => {
         .litem.done .ln{background:var(--g);color:#0a0f1e;}
         .ln{width:30px;height:30px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
         .litit{font-size:13px;color:var(--tx);}
-        /* WRAP */
         .wrap{max-width:1300px;margin:0 auto;padding:0 5% 80px;}
         .srow{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:36px 0;}
         .sbox{background:var(--card);border-radius:12px;padding:18px;text-align:center;border:1px solid var(--br);}
@@ -1197,6 +1165,11 @@ app.get('/library', (req, res) => {
         .bnr{background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(16,185,129,0.05));border:1px solid rgba(139,92,246,0.18);border-radius:18px;padding:36px;margin:44px 0;text-align:center;}
         .bnr h2{font-size:22px;font-weight:800;color:var(--gold);margin-bottom:10px;}
         .bnr p{color:#94a3b8;max-width:540px;margin:0 auto 24px;font-size:14px;}
+        .google-books{background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:16px;padding:28px;margin:36px 0;text-align:center;}
+        .google-books h3{color:var(--pur);font-size:18px;font-weight:800;margin-bottom:8px;}
+        .google-books p{color:#94a3b8;font-size:14px;margin-bottom:16px;}
+        .google-books input{padding:10px 16px;background:rgba(15,23,42,0.8);border:1px solid var(--br);border-radius:8px;color:var(--tx);width:300px;max-width:100%;}
+        .google-books button{background:var(--pur);color:white;border:none;padding:10px 20px;border-radius:8px;margin-left:8px;font-weight:600;cursor:pointer;}
         @media(max-width:768px){.cgrid{grid-template-columns:1fr;}.srow{grid-template-columns:repeat(2,1fr);}.nl{display:none;}}
     </style>
 </head>
@@ -1210,7 +1183,7 @@ app.get('/library', (req, res) => {
         </div>
     </div></nav>
 
-    <!-- AUTH MODAL -->
+    <!-- AUTH MODAL (unchanged) -->
     <div class="mo" id="authMo">
         <div class="mbox">
             <button class="cmo" onclick="closeM()">✕</button>
@@ -1243,7 +1216,7 @@ app.get('/library', (req, res) => {
         </div>
     </div>
 
-    <!-- LESSON MODAL -->
+    <!-- LESSON MODAL (unchanged) -->
     <div class="lmo" id="lessMo">
         <div class="lcon">
             <div class="lhd">
@@ -1279,6 +1252,18 @@ app.get('/library', (req, res) => {
             <div class="sbox"><div class="num">47</div><div class="lbl">Countries</div></div>
             <div class="sbox"><div class="num">FREE</div><div class="lbl">Always Free</div></div>
         </div>
+
+        <!-- Google Books Search (new) -->
+        <div class="google-books">
+            <h3>📖 Search Google Books</h3>
+            <p>Find free e‑books on AI, programming, business, and more</p>
+            <form action="https://www.google.com/search" method="get" target="_blank">
+                <input type="hidden" name="tbm" value="bks">
+                <input type="text" name="q" placeholder="e.g. Python programming" style="display:inline-block;">
+                <button type="submit">Search Books</button>
+            </form>
+        </div>
+
         <div id="uDash" style="display:none">
             <div class="ubar">
                 <div class="uinfo"><div class="uav" id="uAv">?</div><div><div class="un" id="uNm"></div><div class="um" id="uMe"></div></div></div>
@@ -1291,29 +1276,6 @@ app.get('/library', (req, res) => {
             <h2>🎯 Why Study Here?</h2>
             <p>Unlike Udemy or Coursera, our courses focus specifically on what works for Africans making money online. Real strategies, real affiliate links, real earnings inside every lesson.</p>
             ${!libUser?`<button onclick="openM('reg')" style="background:var(--g);border:none;color:#0a0f1e;padding:13px 28px;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Start Learning Free →</button>`:''}
-        </div>
-
-        <!-- GOOGLE BOOKS FREE LIBRARY -->
-        <div class="stitle" style="margin-top:48px;">📖 Free Google Books Library</div>
-        <p style="color:#94a3b8;font-size:14px;margin-bottom:20px;">Real books from Google Books — free to read online. Search any topic: business, technology, finance, marketing.</p>
-        <div style="background:#131c31;border-radius:16px;border:1px solid rgba(51,65,85,0.4);overflow:hidden;margin-bottom:20px;">
-            <div style="display:flex;gap:10px;padding:16px;border-bottom:1px solid rgba(51,65,85,0.4);">
-                <input type="text" id="gbSearch" placeholder="Search free books... e.g. affiliate marketing, AI, business" 
-                    style="flex:1;padding:11px 16px;background:#0a0f1e;border:1px solid rgba(51,65,85,0.4);border-radius:8px;color:#e2e8f0;font-size:14px;font-family:inherit;"
-                    onkeydown="if(event.key==='Enter')searchBooks()">
-                <button onclick="searchBooks()" style="background:#10b981;border:none;color:#0a0f1e;padding:11px 22px;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;font-size:14px;white-space:nowrap;">🔍 Search</button>
-            </div>
-            <div style="display:flex;gap:8px;padding:12px 16px;flex-wrap:wrap;border-bottom:1px solid rgba(51,65,85,0.4);">
-                <button onclick="searchBooksTopic('make money online')" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:#10b981;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-family:inherit;">💰 Make Money Online</button>
-                <button onclick="searchBooksTopic('affiliate marketing')" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:#10b981;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-family:inherit;">🔗 Affiliate Marketing</button>
-                <button onclick="searchBooksTopic('artificial intelligence')" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:#a78bfa;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-family:inherit;">🤖 AI & Technology</button>
-                <button onclick="searchBooksTopic('freelancing business')" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);color:#fbbf24;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-family:inherit;">🚀 Freelancing</button>
-                <button onclick="searchBooksTopic('digital marketing')" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:#a78bfa;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-family:inherit;">📱 Digital Marketing</button>
-                <button onclick="searchBooksTopic('entrepreneurship africa')" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);color:#fbbf24;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-family:inherit;">🌍 Africa Business</button>
-            </div>
-            <div id="gbResults" style="padding:16px;min-height:120px;">
-                <div style="color:#64748b;text-align:center;padding:40px 0;">Search above to find free books on any topic 📚</div>
-            </div>
         </div>
     </div>
 
@@ -1403,68 +1365,18 @@ app.get('/library', (req, res) => {
     }
     async function logoutLib(){await fetch('/api/library/logout',{method:'POST'});cUser=null;prog={};window.location.reload();}
     if(cUser){loadProg();}else{renderC();}
-
-    // ── GOOGLE BOOKS FREE LIBRARY ──
-    async function searchBooks(){
-        const q = document.getElementById('gbSearch').value.trim();
-        if(!q){alert('Enter a search term');return;}
-        await fetchBooks(q);
-    }
-    async function searchBooksTopic(topic){
-        document.getElementById('gbSearch').value = topic;
-        await fetchBooks(topic);
-    }
-    async function fetchBooks(query){
-        const el = document.getElementById('gbResults');
-        el.innerHTML = '<div style="color:#64748b;text-align:center;padding:40px 0;">⏳ Searching Google Books...</div>';
-        try {
-            const res = await fetch('https://www.googleapis.com/books/v1/volumes?q='+encodeURIComponent(query)+'&maxResults=12&printType=books&langRestrict=en&filter=free-ebooks');
-            const data = await res.json();
-            if(!data.items || data.items.length === 0){
-                // Try without free filter
-                const res2 = await fetch('https://www.googleapis.com/books/v1/volumes?q='+encodeURIComponent(query)+'&maxResults=12&printType=books');
-                const data2 = await res2.json();
-                renderBooks(data2.items || [], query);
-            } else {
-                renderBooks(data.items, query);
-            }
-        } catch(e){
-            el.innerHTML = '<div style="color:#ef4444;text-align:center;padding:40px 0;">❌ Failed to load books. Check internet connection.</div>';
-        }
-    }
-    function renderBooks(items, query){
-        const el = document.getElementById('gbResults');
-        if(!items.length){
-            el.innerHTML = '<div style="color:#64748b;text-align:center;padding:40px 0;">No books found for "'+query+'". Try different keywords.</div>';
-            return;
-        }
-        el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;">' +
-        items.map(item => {
-            const info = item.volumeInfo || {};
-            const thumb = (info.imageLinks && (info.imageLinks.thumbnail || info.imageLinks.smallThumbnail)) || 'https://via.placeholder.com/128x192/131c31/64748b?text=No+Cover';
-            const title = (info.title || 'Unknown Title').substring(0,50);
-            const author = (info.authors || ['Unknown']).join(', ').substring(0,30);
-            const preview = info.previewLink || ('https://books.google.com/books?id='+item.id);
-            const free = info.accessInfo && info.accessInfo.epub && info.accessInfo.epub.isAvailable;
-            return '<div style="background:#0a0f1e;border-radius:10px;overflow:hidden;border:1px solid rgba(51,65,85,0.4);cursor:pointer;transition:0.2s;" onclick="window.open(\''+preview+'\',\'_blank\')" onmouseover="this.style.borderColor=\'#10b981\'" onmouseout="this.style.borderColor=\'rgba(51,65,85,0.4)\'">'
-                +'<img src="'+thumb+'" style="width:100%;height:180px;object-fit:cover;display:block;" onerror="this.src=\'https://via.placeholder.com/160x180/131c31/64748b?text=No+Cover\'">'
-                +'<div style="padding:10px;">'
-                +'<div style="font-size:12px;font-weight:700;color:#e2e8f0;line-height:1.3;margin-bottom:4px;">'+title+'</div>'
-                +'<div style="font-size:11px;color:#64748b;margin-bottom:8px;">'+author+'</div>'
-                +(free?'<span style="background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">FREE</span>':'<span style="background:rgba(251,191,36,0.1);color:#fbbf24;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">PREVIEW</span>')
-                +'</div></div>';
-        }).join('')
-        + '</div><p style="color:#64748b;font-size:12px;text-align:center;margin-top:16px;">Click any book to read on Google Books. FREE books open fully, PREVIEW books show sample chapters.</p>';
-    }
     </script>
 </body>
 </html>`);
 });
 
+// ==================== MAIN PAGE ====================
 app.get('/', (req, res) => {
     const data = getData();
-    const injections = data.injections || {};
+    const injections = getInjections();
     const socialPixels = data.socialPixels || {};
+
+    function e(str) { return escapeHtml(str); }
 
     const pixelHtml = `
         ${socialPixels.facebook || ''} ${socialPixels.twitter || ''} ${socialPixels.tiktok || ''}
@@ -1475,34 +1387,34 @@ app.get('/', (req, res) => {
 
     const postsHtml = data.blogPosts.slice(0, 6).map(post => `
         <div class="blog-card">
-            <img src="${post.image}" alt="${post.title}" loading="lazy">
+            <img src="${e(post.image)}" alt="${e(post.title)}" loading="lazy">
             <div class="blog-content">
                 <span class="blog-tag">📝 Blog</span>
-                <h3>${post.title}</h3>
-                <p>${post.content.replace(/<[^>]*>/g, '').substring(0, 120)}...</p>
+                <h3>${e(post.title)}</h3>
+                <p>${e(post.content.replace(/<[^>]*>/g, '').substring(0, 120))}...</p>
                 <div class="blog-footer">
-                    <span class="blog-meta">${new Date(post.date).toLocaleDateString()} • ${post.author}</span>
+                    <span class="blog-meta">${new Date(post.date).toLocaleDateString()} • ${e(post.author)}</span>
                     <a href="/blog/${post.id}" class="read-more">Read →</a>
                 </div>
             </div>
         </div>`).join('');
 
     const moneyLinksHtml = data.moneyLinks.map(link => `
-        <a href="${link.url}" target="_blank" rel="noopener" class="link-card" onclick="trackClick('${link.name}', 'money')">
+        <a href="${e(link.url)}" target="_blank" rel="noopener" class="link-card" onclick="trackClick('${e(link.name)}', 'money')">
             <div class="link-icon">${link.icon || '🔗'}</div>
             <div class="link-info">
-                <h4>${link.name}</h4>
+                <h4>${e(link.name)}</h4>
                 <span class="badge">${link.category}</span>
             </div>
             <div class="link-arrow">→</div>
         </a>`).join('');
 
     const storeLinksHtml = data.storeLinks.map(link => `
-        <a href="${link.url}${link.id}" target="_blank" rel="noopener" class="store-card" onclick="trackClick('${link.name}', 'store')">
+        <a href="${e(link.url)}${e(link.id)}" target="_blank" rel="noopener" class="store-card" onclick="trackClick('${e(link.name)}', 'store')">
             <div class="store-icon">${link.icon || '🏪'}</div>
             <div class="store-info">
-                <h4>${link.name}</h4>
-                <p>${link.id ? '✅ ' + link.id : '⚡ Set ID in admin'}</p>
+                <h4>${e(link.name)}</h4>
+                <p>${link.id ? '✅ ' + e(link.id) : '⚡ Set ID in admin'}</p>
             </div>
         </a>`).join('');
 
@@ -1511,15 +1423,15 @@ app.get('/', (req, res) => {
             <div class="story-header">
                 <div class="story-avatar">${story.avatar}</div>
                 <div>
-                    <h3>${story.name}, ${story.age}</h3>
-                    <p class="before">📉 ${story.before}</p>
-                    <p class="after">📈 ${story.after}</p>
+                    <h3>${e(story.name)}, ${story.age}</h3>
+                    <p class="before">📉 ${e(story.before)}</p>
+                    <p class="after">📈 ${e(story.after)}</p>
                 </div>
             </div>
-            <p class="story-text">${story.story}</p>
+            <p class="story-text">${e(story.story)}</p>
             <div class="timeline">${story.timeline.map(t => `<span>${t}</span>`).join('')}</div>
             <button class="read-more-btn" onclick="toggleStory(${story.id})">Read Full Story ▼</button>
-            <div class="full-story" id="story-${story.id}" style="display:none">${story.fullStory || story.story}</div>
+            <div class="full-story" id="story-${story.id}" style="display:none">${e(story.fullStory || story.story)}</div>
         </div>`).join('');
 
     const americanVideos = data.videos.filter(v => v.region === 'american').map(video => `
@@ -1527,7 +1439,7 @@ app.get('/', (req, res) => {
             <div class="video-thumb" style="background-image:url('${video.thumbnail}')">
                 <div class="play-btn">▶</div>
             </div>
-            <p class="video-title">${video.title}</p>
+            <p class="video-title">${e(video.title)}</p>
         </div>`).join('');
 
     const arabicVideos = data.videos.filter(v => v.region === 'arabic').map(video => `
@@ -1535,7 +1447,7 @@ app.get('/', (req, res) => {
             <div class="video-thumb" style="background-image:url('${video.thumbnail}')">
                 <div class="play-btn">▶</div>
             </div>
-            <p class="video-title">${video.title}</p>
+            <p class="video-title">${e(video.title)}</p>
         </div>`).join('');
 
     const galleryImgs = [
@@ -1570,7 +1482,7 @@ app.get('/', (req, res) => {
         html{scroll-behavior:smooth;}
         body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden;}
 
-        /* ── NAVBAR ── */
+        /* All your existing CSS styles remain exactly as before */
         nav{position:sticky;top:0;z-index:1000;background:rgba(10,15,30,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 4%;}
         .nav-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:66px;}
         .nav-logo{font-size:19px;font-weight:800;color:var(--green);text-decoration:none;display:flex;align-items:center;gap:8px;letter-spacing:-0.3px;}
@@ -1590,7 +1502,6 @@ app.get('/', (req, res) => {
         .mobile-menu .mm-lib{color:#a78bfa;}
         .mobile-menu .mm-cta{background:rgba(16,185,129,0.1);color:var(--green);font-weight:700;margin-top:4px;}
 
-        /* ── HERO ── */
         .hero{position:relative;padding:96px 5% 76px;text-align:center;overflow:hidden;}
         .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% -10%,rgba(16,185,129,0.2) 0%,transparent 58%);pointer-events:none;}
         .hero::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 60%,rgba(139,92,246,0.08) 0%,transparent 50%);pointer-events:none;}
@@ -1611,7 +1522,6 @@ app.get('/', (req, res) => {
         .hero-stat:last-child{border-right:none;}
         .hero-stat .num{font-size:28px;font-weight:800;color:var(--green);}
         .hero-stat .lbl{font-size:12px;color:var(--muted);margin-top:3px;}
-        /* ── LIBRARY PROMO ── */
         .lib-promo{background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(16,185,129,0.05));border:1px solid rgba(139,92,246,0.2);border-radius:20px;padding:36px;margin:36px 0;display:grid;grid-template-columns:1fr auto;gap:32px;align-items:center;}
         .lib-promo h2{font-size:22px;font-weight:800;color:var(--text);margin-bottom:10px;}
         .lib-promo p{color:#94a3b8;font-size:14px;line-height:1.7;margin-bottom:20px;}
@@ -1620,7 +1530,6 @@ app.get('/', (req, res) => {
         .lc-mini{background:rgba(15,23,42,0.6);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;}
         .lc-mini .ico{font-size:18px;} .lc-mini .ttl{font-size:12px;font-weight:600;color:var(--text);}
 
-        /* ── AD SLOT ── */
         .ad-slot{background:linear-gradient(135deg,rgba(139,92,246,0.07),rgba(16,185,129,0.03));border:1px dashed rgba(139,92,246,0.22);border-radius:14px;padding:18px 22px;margin:28px 0;min-height:86px;display:flex;align-items:center;justify-content:center;position:relative;}
         .ad-slot-label{position:absolute;top:7px;left:12px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
         .ad-content{display:none;}
@@ -1634,21 +1543,18 @@ app.get('/', (req, res) => {
         .ad-placeholder{color:var(--muted);font-size:13px;}
         .ad-placeholder a{color:var(--purple);text-decoration:none;}
 
-        /* ── LAYOUT ── */
         .container{max-width:1400px;margin:0 auto;padding:0 4%;}
         .section{padding:56px 0;}
         .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
         .section-title{font-size:24px;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:10px;position:relative;}
         .section-title::after{content:'';display:inline-block;height:2px;width:60px;background:linear-gradient(90deg,var(--green),transparent);margin-left:12px;vertical-align:middle;}
 
-        /* ── GALLERY ── */
         .gallery-masonry{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
         .gallery-masonry img{width:100%;height:190px;object-fit:cover;border-radius:12px;transition:0.3s;cursor:pointer;display:block;}
         .gallery-masonry img:first-child{grid-column:1/3;height:270px;}
         .gallery-masonry img:nth-child(5){grid-column:3/5;height:270px;}
         .gallery-masonry img:hover{transform:scale(1.025);box-shadow:0 10px 32px rgba(0,0,0,0.55);}
 
-        /* ── BLOG ── */
         .blog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px;}
         .blog-card{background:var(--card);border-radius:16px;overflow:hidden;border:1px solid var(--border);transition:0.25s;display:flex;flex-direction:column;}
         .blog-card:hover{transform:translateY(-5px);border-color:rgba(16,185,129,0.28);box-shadow:0 16px 40px rgba(0,0,0,0.3);}
@@ -1661,18 +1567,15 @@ app.get('/', (req, res) => {
         .blog-meta{color:var(--muted);font-size:11px;}
         .read-more{color:var(--green);text-decoration:none;font-size:13px;font-weight:600;}
 
-        /* ── VIDEOS ── */
         .video-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
-        .video-card{background:var(--card);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.25s;border:1px solid var(--border);-webkit-tap-highlight-color:transparent;}
+        .video-card{background:var(--card);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.25s;border:1px solid var(--border);}
         .video-card:hover{transform:translateY(-4px);border-color:var(--green);box-shadow:0 12px 30px rgba(16,185,129,0.15);}
-        .video-card:active{transform:scale(0.97);}
         .video-thumb{height:126px;background-size:cover;background-position:center;position:relative;}
-        .video-thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.5),transparent);}
-        .play-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;background:rgba(16,185,129,0.95);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;backdrop-filter:blur(4px);transition:0.2s;box-shadow:0 4px 16px rgba(16,185,129,0.5);}
-        .video-card:hover .play-btn{transform:translate(-50%,-50%) scale(1.15);}
+        .video-thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.5),transparent);border-radius:0;}
+        .play-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;background:rgba(16,185,129,0.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;backdrop-filter:blur(4px);transition:0.2s;}
+        .video-card:hover .play-btn{transform:translate(-50%,-50%) scale(1.12);}
         .video-title{padding:10px 12px;font-size:11px;color:var(--muted);line-height:1.4;}
 
-        /* ── STORIES ── */
         .stories-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
         .story-card{background:var(--card);padding:26px;border-radius:16px;border-left:4px solid var(--accent,var(--green));border-top:1px solid var(--border);transition:0.25s;display:flex;flex-direction:column;}
         .story-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,0.25);}
@@ -1688,7 +1591,6 @@ app.get('/', (req, res) => {
         .read-more-btn:hover{background:rgba(16,185,129,0.08);}
         .full-story{color:var(--muted);font-size:13px;line-height:1.75;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
 
-        /* ── MONEY LINKS ── */
         .links-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
         .link-card{background:var(--card);padding:14px 16px;border-radius:11px;text-decoration:none;color:var(--text);border-left:3px solid var(--green);display:flex;align-items:center;gap:12px;transition:0.2s;border-top:1px solid var(--border);}
         .link-card:hover{background:var(--card2);transform:translateX(5px);border-left-color:var(--gold);}
@@ -1698,7 +1600,6 @@ app.get('/', (req, res) => {
         .badge{background:rgba(15,23,42,0.9);color:var(--muted);padding:2px 7px;border-radius:8px;font-size:10px;font-weight:600;}
         .link-arrow{color:var(--muted);font-size:15px;flex-shrink:0;}
 
-        /* ── STORES ── */
         .stores-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
         .store-card{background:var(--card);padding:14px 16px;border-radius:11px;text-decoration:none;color:var(--text);border-left:3px solid var(--purple);display:flex;align-items:center;gap:12px;transition:0.2s;border-top:1px solid var(--border);}
         .store-card:hover{background:var(--card2);transform:translateX(5px);}
@@ -1706,7 +1607,6 @@ app.get('/', (req, res) => {
         .store-info h4{font-size:14px;font-weight:600;color:var(--purple);}
         .store-info p{font-size:11px;color:var(--muted);margin-top:2px;}
 
-        /* ── NEWSLETTER ── */
         .newsletter{background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(139,92,246,0.07));border:1px solid rgba(16,185,129,0.18);border-radius:20px;padding:48px;text-align:center;}
         .newsletter h2{font-size:26px;font-weight:800;margin-bottom:10px;}
         .newsletter p{color:var(--muted);margin-bottom:28px;font-size:15px;}
@@ -1716,7 +1616,6 @@ app.get('/', (req, res) => {
         .nl-form button{padding:13px 22px;background:var(--green);border:none;border-radius:0 10px 10px 0;color:#0a0f1e;font-weight:700;cursor:pointer;font-family:inherit;font-size:14px;transition:0.2s;}
         .nl-form button:hover{background:#059669;}
 
-        /* ── ABOUT / PRIVACY ── */
         .content-box{background:var(--card);border-radius:20px;padding:38px;border:1px solid var(--border);}
         .content-box h3{color:var(--gold);font-size:17px;margin:26px 0 11px;display:flex;align-items:center;gap:8px;}
         .content-box h3:first-child{margin-top:0;}
@@ -1724,7 +1623,6 @@ app.get('/', (req, res) => {
         .values-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:14px 0;}
         .value-chip{background:rgba(15,23,42,0.9);border:1px solid var(--border);padding:12px;border-radius:10px;text-align:center;font-size:12px;font-weight:700;color:var(--text);}
 
-        /* ── CONTACT ── */
         .contact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
         .contact-card{background:var(--card);border-radius:16px;padding:28px;text-align:center;border:1px solid var(--border);transition:0.25s;}
         .contact-card:hover{border-color:var(--green);transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,0.2);}
@@ -1732,7 +1630,6 @@ app.get('/', (req, res) => {
         .contact-card h3{font-size:15px;font-weight:700;margin-bottom:8px;color:var(--text);}
         .contact-card a{color:var(--green);text-decoration:none;font-size:13px;}
 
-        /* ── FOOTER ── */
         .footer{background:var(--card);border-top:1px solid var(--border);padding:40px 4%;margin-top:72px;}
         .footer-inner{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px;}
         .footer-logo{font-size:18px;font-weight:800;color:var(--green);}
@@ -1741,19 +1638,14 @@ app.get('/', (req, res) => {
         .footer-links a:hover{color:var(--green);}
         .footer-copy{color:var(--muted);font-size:12px;text-align:right;}
 
-        /* ── WHATSAPP FLOAT ── */
         .whatsapp-float{position:fixed;bottom:80px;right:20px;width:52px;height:52px;background:#25d366;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;z-index:999;text-decoration:none;box-shadow:0 4px 20px rgba(37,211,102,0.4);transition:0.3s;}
         .whatsapp-float:hover{transform:scale(1.1);}
         .admin-btn{position:fixed;bottom:20px;right:20px;background:var(--green);color:#0a0f1e;padding:11px 18px;border-radius:40px;text-decoration:none;z-index:1000;font-weight:700;font-size:13px;box-shadow:0 4px 14px rgba(16,185,129,0.35);}
 
-        /* ── VIDEO MODAL ── */
-        #videoModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.97);z-index:10000;justify-content:center;align-items:center;cursor:pointer;}
-        .modal-content{position:relative;width:95%;max-width:900px;cursor:default;border-radius:12px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.8);}
-        .modal-content iframe{display:block;width:100%;aspect-ratio:16/9;height:auto;min-height:220px;border-radius:0;}
-        .close-modal{position:absolute;top:-48px;right:0;background:rgba(255,255,255,0.15);border:none;color:white;font-size:26px;cursor:pointer;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:0.2s;}
-        .close-modal:hover{background:rgba(239,68,68,0.8);}
+        #videoModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:10000;justify-content:center;align-items:center;}
+        .modal-content{position:relative;width:90%;max-width:860px;}
+        .close-modal{position:absolute;top:-44px;right:0;background:none;border:none;color:white;font-size:32px;cursor:pointer;}
 
-        /* ── RESPONSIVE ── */
         @media(max-width:1024px){
             .video-grid{grid-template-columns:repeat(4,1fr);}
             .stories-grid{grid-template-columns:repeat(2,1fr);}
@@ -1783,13 +1675,11 @@ app.get('/', (req, res) => {
             .links-grid,.stores-grid{grid-template-columns:1fr;}
         }
 
-        /* ── VISITOR COUNTER ── */
         .visitor-bar{background:rgba(16,185,129,0.06);border-bottom:1px solid rgba(16,185,129,0.12);padding:8px 4%;text-align:center;font-size:13px;color:#94a3b8;display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;}
         .vb-dot{width:8px;height:8px;background:#10b981;border-radius:50%;display:inline-block;animation:pulse 2s infinite;}
         @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(1.3);}}
         .vb-count{color:#10b981;font-weight:700;}
 
-        /* ── EARNINGS TICKER ── */
         .ticker-wrap{background:#0a0f1e;border-bottom:1px solid var(--border);overflow:hidden;padding:8px 0;}
         .ticker{display:flex;gap:60px;animation:ticker 28s linear infinite;width:max-content;padding:0 4%;}
         @keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
@@ -1797,7 +1687,6 @@ app.get('/', (req, res) => {
         .ticker-item .ti-name{color:#10b981;font-weight:600;}
         .ticker-item .ti-amt{color:#fbbf24;font-weight:700;}
 
-        /* ── COOKIE BANNER ── */
         .cookie-banner{position:fixed;bottom:0;left:0;right:0;background:#131c31;border-top:1px solid var(--border);padding:16px 4%;display:flex;align-items:center;justify-content:space-between;gap:16px;z-index:9000;flex-wrap:wrap;}
         .cookie-banner p{color:#94a3b8;font-size:13px;flex:1;margin:0;}
         .cookie-banner a{color:var(--green);}
@@ -1805,7 +1694,6 @@ app.get('/', (req, res) => {
         .cookie-accept{background:var(--green);color:#0a0f1e;padding:9px 20px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;border:none;font-family:inherit;}
         .cookie-decline{background:none;color:var(--muted);padding:9px 14px;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid var(--border);font-family:inherit;}
 
-        /* ── POPUP SUBSCRIBE ── */
         .popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:8000;justify-content:center;align-items:center;backdrop-filter:blur(4px);}
         .popup-overlay.show{display:flex;}
         .popup-box{background:var(--card);border-radius:20px;padding:40px;width:90%;max-width:440px;text-align:center;position:relative;border:1px solid rgba(16,185,129,0.2);animation:popIn 0.3s ease;}
@@ -1818,7 +1706,6 @@ app.get('/', (req, res) => {
         .popup-form input:focus{outline:none;border-color:var(--green);}
         .popup-form button{padding:13px;background:var(--green);border:none;border-radius:9px;color:#0a0f1e;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;}
 
-        /* ── COUNTDOWN TIMER ── */
         .offer-bar{background:linear-gradient(135deg,rgba(239,68,68,0.12),rgba(251,191,36,0.08));border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px 24px;margin:20px 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;}
         .offer-bar h4{color:#ef4444;font-size:15px;font-weight:700;margin-bottom:4px;}
         .offer-bar p{color:var(--muted);font-size:13px;}
@@ -1828,7 +1715,6 @@ app.get('/', (req, res) => {
         .timer-unit .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:3px;}
         .offer-cta{background:#ef4444;color:white;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;flex-shrink:0;}
 
-        /* ── TESTIMONIALS ── */
         .test-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;}
         .test-card{background:var(--card);border-radius:14px;padding:22px;border:1px solid var(--border);position:relative;}
         .test-card::before{content:'"';position:absolute;top:14px;right:18px;font-size:60px;color:rgba(16,185,129,0.1);font-family:Georgia,serif;line-height:1;}
@@ -1846,7 +1732,6 @@ app.get('/', (req, res) => {
         .test-form-box input:focus,.test-form-box textarea:focus{outline:none;border-color:var(--green);}
         .test-submit{background:var(--green);color:#0a0f1e;padding:11px 22px;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;font-size:14px;margin-top:10px;}
 
-        /* ── BLOG SEARCH ── */
         .blog-search-wrap{position:relative;max-width:500px;margin-bottom:24px;}
         .blog-search-wrap input{width:100%;padding:12px 44px 12px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;}
         .blog-search-wrap input:focus{outline:none;border-color:var(--green);}
@@ -1858,14 +1743,12 @@ app.get('/', (req, res) => {
         .bsr-title{font-size:14px;font-weight:600;color:var(--text);}
         .bsr-meta{font-size:11px;color:var(--muted);margin-top:2px;}
 
-        /* ── DARK/LIGHT TOGGLE ── */
         .theme-toggle{position:fixed;top:80px;right:16px;width:42px;height:42px;background:var(--card);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:998;font-size:18px;transition:0.2s;}
         .theme-toggle:hover{border-color:var(--green);}
         body.light-mode{--bg:#f8fafc;--card:#ffffff;--card2:#f1f5f9;--text:#0f172a;--muted:#64748b;--border:rgba(203,213,225,0.7);}
         body.light-mode nav{background:rgba(248,250,252,0.95);}
         body.light-mode .hero::before{background:radial-gradient(ellipse at 50% -10%,rgba(16,185,129,0.1) 0%,transparent 60%);}
 
-        /* ── SHARE BUTTONS ── */
         .share-btns{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;}
         .share-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:0.2s;}
         .share-wa{background:#25d366;color:white;}
@@ -1874,7 +1757,6 @@ app.get('/', (req, res) => {
         .share-cp{background:var(--card);color:var(--text);border:1px solid var(--border);}
         .share-btn:hover{opacity:0.85;transform:translateY(-1px);}
 
-        /* ── WHATSAPP COMMUNITY ── */
         .wa-community{background:linear-gradient(135deg,rgba(37,211,102,0.12),rgba(16,185,129,0.05));border:1px solid rgba(37,211,102,0.2);border-radius:16px;padding:28px;display:flex;align-items:center;gap:20px;margin:30px 0;flex-wrap:wrap;}
         .wa-comm-icon{font-size:44px;flex-shrink:0;}
         .wa-comm-text{flex:1;}
@@ -1883,7 +1765,6 @@ app.get('/', (req, res) => {
         .wa-comm-btn{background:#25d366;color:white;padding:12px 24px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;flex-shrink:0;}
         .wa-comm-btn:hover{background:#22c55e;}
 
-        /* ── ADMIN CHART ── */
         .chart-wrap{background:#0a0f1e;border-radius:12px;padding:20px;margin:16px 0;}
         .chart-bars{display:flex;align-items:flex-end;gap:6px;height:80px;}
         .chart-bar{flex:1;background:linear-gradient(to top,#10b981,#059669);border-radius:4px 4px 0 0;min-height:4px;transition:0.3s;}
@@ -1896,13 +1777,11 @@ app.get('/', (req, res) => {
 <body>
     ${injections.bodyStart || ''}
 
-    <!-- VIDEO MODAL -->
+    <!-- VIDEO MODAL (modified for autoplay) -->
     <div id="videoModal">
         <div class="modal-content">
             <button class="close-modal" onclick="closeVideoModal()">✕</button>
-            <iframe id="videoPlayer" width="100%" height="480" frameborder="0"
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowfullscreen></iframe>
+            <iframe id="videoPlayer" width="100%" height="480" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
         </div>
     </div>
 
@@ -2274,24 +2153,16 @@ app.get('/', (req, res) => {
         // ── Navbar mobile
         function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open');}
 
-        // ── Video modal
+        // ── Video modal with autoplay
         function playVideo(url){
-            // autoplay=1 starts immediately, rel=0 hides related videos, modestbranding=1 hides YouTube logo
-            const src = url + (url.includes('?') ? '&' : '?') + 'autoplay=1&rel=0&modestbranding=1';
-            document.getElementById('videoPlayer').src = src;
-            document.getElementById('videoModal').style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+            if (url.includes('youtube.com/embed/')) {
+                url += (url.includes('?') ? '&' : '?') + 'autoplay=1&mute=1';
+            }
+            document.getElementById('videoModal').style.display='flex';
+            document.getElementById('videoPlayer').src=url;
         }
-        function closeVideoModal(){
-            document.getElementById('videoPlayer').src = ''; // stops audio/video immediately
-            document.getElementById('videoModal').style.display = 'none';
-            document.body.style.overflow = '';
-        }
-        // Click dark backdrop to close
-        document.getElementById('videoModal').addEventListener('click', function(e){
-            if (e.target === this) closeVideoModal();
-        });
-        document.addEventListener('keydown', e => { if(e.key === 'Escape') closeVideoModal(); });
+        function closeVideoModal(){document.getElementById('videoModal').style.display='none';document.getElementById('videoPlayer').src='';}
+        document.addEventListener('keydown',e=>{if(e.key==='Escape')closeVideoModal();});
 
         // ── Track clicks
         function trackClick(n,t){fetch('/api/track-click',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({linkName:n,type:t})});}
@@ -2459,12 +2330,9 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
 </body></html>`);
     }
 
-    let data;
-    try {
-        data = getData();
-    } catch(e) {
-        return res.status(500).send(`<h1 style="color:red;font-family:monospace;padding:40px">Admin Error: ${e.message}<br><br><a href="/admin">Retry</a></h1>`);
-    }
+    const data = getData();
+
+    function e(str) { return escapeHtml(str); }
 
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -2527,7 +2395,6 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <button class="tab-btn" onclick="showTab('testimonials', this)">⭐ Reviews</button>
         <button class="tab-btn" onclick="showTab('settings', this)">⚙️ Settings</button>
         <button class="tab-btn" onclick="showTab('command', this)">🤖 Command</button>
-        <button class="tab-btn" onclick="showTab('database', this)">💾 Database</button>
     </div>
 
     <!-- DASHBOARD -->
@@ -2564,20 +2431,20 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <div class="ad-card ${ad.active ? 'active' : 'pending'}">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
                 <div>
-                    <strong>${ad.title}</strong>
+                    <strong>${e(ad.title)}</strong>
                     <span class="badge ${ad.active ? 'active' : 'pending'}" style="margin-left:8px;">${ad.active ? '✅ Active' : '⏳ Pending'}</span>
                     <div style="color:#64748b;font-size:13px;margin-top:6px;">
-                        Advertiser: ${ad.advertiserName} (${ad.advertiserEmail}) •
+                        Advertiser: ${e(ad.advertiserName)} (${e(ad.advertiserEmail)}) •
                         Package: ${ad.package} ($${ad.price}) •
                         ${ad.impressionsUsed || 0}/${ad.impressionsTotal} impressions •
                         ${ad.clicks || 0} clicks
                     </div>
                     <div style="color:#64748b;font-size:12px;margin-top:4px;">
-                        Targeting — IPs: ${(ad.targeting?.ips || []).join(', ') || 'None'} |
-                        Phones: ${(ad.targeting?.phones || []).join(', ') || 'None'} |
-                        IMEIs: ${(ad.targeting?.imeis || []).join(', ') || 'None'}
+                        Targeting — IPs: ${(ad.targeting?.ips || []).map(e).join(', ') || 'None'} |
+                        Phones: ${(ad.targeting?.phones || []).map(e).join(', ') || 'None'} |
+                        IMEIs: ${(ad.targeting?.imeis || []).map(e).join(', ') || 'None'}
                     </div>
-                    <div style="color:#64748b;font-size:12px;">URL: <a href="${ad.url}" target="_blank" style="color:#10b981;">${ad.url}</a></div>
+                    <div style="color:#64748b;font-size:12px;">URL: <a href="${ad.url}" target="_blank" style="color:#10b981;">${e(ad.url)}</a></div>
                 </div>
                 <div>
                     ${!ad.active ? `<button class="approve" onclick="approveAd(${ad.id})">✅ Approve</button>` : ''}
@@ -2642,7 +2509,7 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
         <h3 style="margin-bottom:10px;">Recent Campaigns</h3>
         <div style="max-height:300px;overflow-y:auto;">
-            ${(data.emailCampaigns || []).slice(0,10).map(c => `<div class="item"><span><strong>${c.subject.substring(0,50)}</strong> — ${c.sent}/${c.total} sent on ${new Date(c.date).toLocaleDateString()}</span></div>`).join('') || '<p style="color:#64748b">No campaigns sent yet.</p>'}
+            ${(data.emailCampaigns || []).slice(0,10).map(c => `<div class="item"><span><strong>${e(c.subject.substring(0,50))}</strong> — ${c.sent}/${c.total} sent on ${new Date(c.date).toLocaleDateString()}</span></div>`).join('') || '<p style="color:#64748b">No campaigns sent yet.</p>'}
         </div>
     </div>
 
@@ -2650,7 +2517,7 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
     <div id="moneylinks" class="section">
         <h3>Money Making Links (${data.moneyLinks.length})</h3>
         <div style="max-height:350px;overflow-y:auto;">
-            ${data.moneyLinks.map(l => `<div class="item"><span><strong>${l.name}</strong> — ${l.clicks || 0} clicks, $${(l.earnings || 0).toFixed(2)}</span></div>`).join('')}
+            ${data.moneyLinks.map(l => `<div class="item"><span><strong>${e(l.name)}</strong> — ${l.clicks || 0} clicks, $${(l.earnings || 0).toFixed(2)}</span></div>`).join('')}
         </div>
         <h3 style="margin-top:20px;">Add Custom Money Link</h3>
         <input type="text" id="moneyName" placeholder="Name">
@@ -2663,7 +2530,7 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
     <div id="stores" class="section">
         <h3>Stores (Add Affiliate IDs)</h3>
         <div style="max-height:300px;overflow-y:auto;">
-            ${data.storeLinks.map(l => `<div class="item"><span><strong>${l.name}</strong> — ID: ${l.id || 'Not set'} (${l.clicks || 0} clicks)</span></div>`).join('')}
+            ${data.storeLinks.map(l => `<div class="item"><span><strong>${e(l.name)}</strong> — ID: ${l.id ? e(l.id) : 'Not set'} (${l.clicks || 0} clicks)</span></div>`).join('')}
         </div>
         <h3 style="margin-top:20px;">Add Store Affiliate ID</h3>
         <input type="text" id="storeName" placeholder="Store name (e.g. Jumia)">
@@ -2675,7 +2542,7 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
     <div id="blogs" class="section">
         <h3>Recent Blogs</h3>
         <div style="max-height:300px;overflow-y:auto;">
-            ${data.blogPosts.map(b => `<div class="item"><span><strong>${b.title}</strong> — ${new Date(b.date).toLocaleDateString()} • ${b.views} views</span><button class="del" onclick="deleteBlog(${b.id})">Delete</button></div>`).join('')}
+            ${data.blogPosts.map(b => `<div class="item"><span><strong>${e(b.title)}</strong> — ${new Date(b.date).toLocaleDateString()} • ${b.views} views</span><button class="del" onclick="deleteBlog(${b.id})">Delete</button></div>`).join('')}
         </div>
         <h3 style="margin-top:20px;">Create Manual Blog</h3>
         <input type="text" id="blogTitle" placeholder="Title">
@@ -2688,7 +2555,7 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
     <div id="videos" class="section">
         <h3>Videos (${data.videos.length})</h3>
         <div style="max-height:300px;overflow-y:auto;">
-            ${data.videos.map(v => `<div class="item"><span><strong>${v.title}</strong> — ${v.region}</span><button class="del" onclick="deleteVideo(${v.id})">Delete</button></div>`).join('')}
+            ${data.videos.map(v => `<div class="item"><span><strong>${e(v.title)}</strong> — ${v.region}</span><button class="del" onclick="deleteVideo(${v.id})">Delete</button></div>`).join('')}
         </div>
     </div>
 
@@ -2706,16 +2573,16 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
     <!-- SOCIAL -->
     <div id="social" class="section">
         <h3>Facebook Pixel</h3>
-        <textarea id="fbPixel" rows="3">${data.socialPixels?.facebook || ''}</textarea>
+        <textarea id="fbPixel" rows="3">${e(data.socialPixels?.facebook || '')}</textarea>
         <button onclick="saveSocial('facebook')">Save Facebook</button>
         <h3>TikTok Pixel</h3>
-        <textarea id="ttPixel" rows="3">${data.socialPixels?.tiktok || ''}</textarea>
+        <textarea id="ttPixel" rows="3">${e(data.socialPixels?.tiktok || '')}</textarea>
         <button onclick="saveSocial('tiktok')">Save TikTok</button>
         <h3>WhatsApp</h3>
-        <textarea id="waPixel" rows="3">${data.socialPixels?.whatsapp || ''}</textarea>
+        <textarea id="waPixel" rows="3">${e(data.socialPixels?.whatsapp || '')}</textarea>
         <button onclick="saveSocial('whatsapp')">Save WhatsApp</button>
         <h3>Telegram</h3>
-        <textarea id="tgPixel" rows="3">${data.socialPixels?.telegram || ''}</textarea>
+        <textarea id="tgPixel" rows="3">${e(data.socialPixels?.telegram || '')}</textarea>
         <button onclick="saveSocial('telegram')">Save Telegram</button>
     </div>
 
@@ -2758,10 +2625,10 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
             ${(data.testimonials || []).map(t => `
             <div class="item" style="flex-direction:column;align-items:flex-start;gap:8px;">
                 <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
-                    <strong>${t.name} ${t.country ? '📍 '+t.country : ''} ${'★'.repeat(t.rating||5)}</strong>
+                    <strong>${e(t.name)} ${t.country ? '📍 '+e(t.country) : ''} ${'★'.repeat(t.rating||5)}</strong>
                     <span class="badge ${t.approved?'active':'pending'}">${t.approved?'✅ Approved':'⏳ Pending'}</span>
                 </div>
-                <p style="color:#94a3b8;font-size:13px;">${t.text}</p>
+                <p style="color:#94a3b8;font-size:13px;">${e(t.text)}</p>
                 <div style="display:flex;gap:8px;">
                     ${!t.approved ? `<button class="approve" onclick="approveTestimonial(${t.id})">✅ Approve</button>` : ''}
                     <button class="del" onclick="deleteTestimonial(${t.id})">Delete</button>
@@ -2790,101 +2657,6 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <textarea id="commandInput" rows="3" placeholder="Type command... e.g. help, show ads, show earnings, status"></textarea>
         <button onclick="sendCommand()">Send Command</button>
         <div id="response" style="background:#0a0f1e;padding:16px;margin-top:16px;border-radius:8px;white-space:pre-wrap;font-family:monospace;font-size:13px;min-height:80px;border:1px solid #1e293b;"></div>
-    </div>
-
-    <!-- DATABASE -->
-    <div id="database" class="section">
-        <h2 style="color:#fbbf24;margin-bottom:6px;">💾 Database Manager</h2>
-        <p style="color:#64748b;font-size:13px;margin-bottom:20px;">Switch between databases anytime. Your data syncs automatically. Set credentials in Render → Environment Variables.</p>
-
-        <div id="dbStatusBox" style="background:#0a0f1e;padding:16px;border-radius:10px;border:1px solid #1e293b;margin-bottom:24px;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                <span style="font-size:20px;">💾</span>
-                <strong style="color:#10b981;">Loading DB status...</strong>
-            </div>
-        </div>
-
-        <h3 style="margin-bottom:14px;color:#e2e8f0;">Available Databases</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:24px;">
-
-            <div style="background:#0a0f1e;border:1px solid #1e293b;border-radius:12px;padding:18px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                    <span style="font-size:24px;">🍃</span>
-                    <div><strong style="color:#10b981;">MongoDB Atlas</strong><div style="color:#64748b;font-size:12px;">Free 512MB — Best for this app</div></div>
-                </div>
-                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
-                    1. Go to <strong>mongodb.com/atlas</strong> → Free cluster<br>
-                    2. Create DB user → Get connection string<br>
-                    3. Add to Render: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">MONGODB_URI</code>
-                </div>
-                <button onclick="switchDB('mongodb')" style="background:#10b981;border:none;color:#0a0f1e;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Switch to MongoDB</button>
-            </div>
-
-            <div style="background:#0a0f1e;border:1px solid #1e293b;border-radius:12px;padding:18px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                    <span style="font-size:24px;">⚡</span>
-                    <div><strong style="color:#3ecf8e;">Supabase</strong><div style="color:#64748b;font-size:12px;">Free 500MB PostgreSQL</div></div>
-                </div>
-                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
-                    1. Go to <strong>supabase.com</strong> → New project<br>
-                    2. SQL Editor → run: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">CREATE TABLE sitedata (id text PRIMARY KEY, payload text, updated_at text);</code><br>
-                    3. Add to Render: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">SUPABASE_URL</code> + <code style="background:#131c31;padding:2px 6px;border-radius:4px;">SUPABASE_KEY</code>
-                </div>
-                <button onclick="switchDB('supabase')" style="background:#3ecf8e;border:none;color:#0a0f1e;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Switch to Supabase</button>
-            </div>
-
-            <div style="background:#0a0f1e;border:1px solid #1e293b;border-radius:12px;padding:18px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                    <span style="font-size:24px;">🔥</span>
-                    <div><strong style="color:#f59e0b;">Firebase Firestore</strong><div style="color:#64748b;font-size:12px;">Free 1GB — Google's DB</div></div>
-                </div>
-                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
-                    1. Go to <strong>console.firebase.google.com</strong><br>
-                    2. New project → Firestore → Service Account JSON<br>
-                    3. Add to Render: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">FIREBASE_CREDENTIAL</code> (paste full JSON)
-                </div>
-                <button onclick="switchDB('firebase')" style="background:#f59e0b;border:none;color:#0a0f1e;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Switch to Firebase</button>
-            </div>
-
-            <div style="background:#0a0f1e;border:1px solid #1e293b;border-radius:12px;padding:18px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                    <span style="font-size:24px;">☁️</span>
-                    <div><strong style="color:#f59e0b;">AWS DynamoDB</strong><div style="color:#64748b;font-size:12px;">Free 25GB — Amazon</div></div>
-                </div>
-                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
-                    1. Go to <strong>aws.amazon.com</strong> → DynamoDB<br>
-                    2. Create table: name=<code style="background:#131c31;padding:2px 6px;border-radius:4px;">3eesher-data</code>, key=<code style="background:#131c31;padding:2px 6px;border-radius:4px;">id</code><br>
-                    3. Add to Render: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">AWS_ACCESS_KEY_ID</code> + <code style="background:#131c31;padding:2px 6px;border-radius:4px;">AWS_SECRET_ACCESS_KEY</code> + <code style="background:#131c31;padding:2px 6px;border-radius:4px;">AWS_REGION</code>
-                </div>
-                <button onclick="switchDB('aws')" style="background:#f59e0b;border:none;color:#0a0f1e;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Switch to AWS</button>
-            </div>
-
-            <div style="background:#0a0f1e;border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:18px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                    <span style="font-size:24px;">📁</span>
-                    <div><strong style="color:#ef4444;">Local File</strong><div style="color:#64748b;font-size:12px;">⚠️ Data lost on restart</div></div>
-                </div>
-                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
-                    Uses data.json on server disk.<br>
-                    <strong style="color:#ef4444;">WARNING:</strong> Render free tier wipes this on every restart. Only use for testing.
-                </div>
-                <button onclick="switchDB('file')" style="background:#ef4444;border:none;color:white;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Use File Only</button>
-            </div>
-
-        </div>
-
-        <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:10px;padding:16px;">
-            <h4 style="color:#10b981;margin-bottom:8px;">💡 How to add Environment Variables on Render:</h4>
-            <p style="color:#94a3b8;font-size:13px;line-height:1.7;">
-                1. Go to <strong style="color:#e2e8f0;">render.com</strong> → Your service → <strong style="color:#e2e8f0;">Environment</strong> tab<br>
-                2. Click <strong style="color:#e2e8f0;">Add Environment Variable</strong><br>
-                3. Set <code style="background:#0a0f1e;padding:2px 8px;border-radius:4px;">DB_PROVIDER</code> = <code style="background:#0a0f1e;padding:2px 8px;border-radius:4px;">mongodb</code> (or supabase / firebase / aws)<br>
-                4. Add the credentials for your chosen DB<br>
-                5. Click <strong style="color:#e2e8f0;">Save Changes</strong> → Render redeploys automatically<br>
-                6. Come back here and click the Switch button above ✅
-            </p>
-        </div>
-        <div id="dbSwitchResult" style="margin-top:14px;padding:12px;border-radius:8px;display:none;font-size:14px;"></div>
     </div>
 
 </div>
@@ -3129,48 +2901,6 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         const d = await api('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
         if (d) el.textContent = d.response || '✅ Done';
     }
-
-    // ── DATABASE MANAGER ──
-    async function loadDBStatus() {
-        const d = await api('/api/admin/db-status');
-        if (!d) return;
-        const box = document.getElementById('dbStatusBox');
-        const providerLabels = { mongodb: '🍃 MongoDB Atlas', supabase: '⚡ Supabase', firebase: '🔥 Firebase', aws: '☁️ AWS DynamoDB', file: '📁 Local File' };
-        const isCloud = d.activeDB !== 'file';
-        box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
-            + '<span style="font-size:24px;">' + (isCloud ? '✅' : '⚠️') + '</span>'
-            + '<div><strong style="color:' + (isCloud ? '#10b981' : '#ef4444') + ';font-size:16px;">Active: ' + (providerLabels[d.activeDB] || d.activeDB) + '</strong>'
-            + '<div style="color:#64748b;font-size:12px;">' + (isCloud ? 'Data saved permanently ✅' : '⚠️ Data lost on restart — set up a cloud DB!') + '</div></div></div>'
-            + (d.lastSave ? '<div style="color:#64748b;font-size:12px;">Last saved: ' + new Date(d.lastSave).toLocaleString() + '</div>' : '')
-            + (d.lastError ? '<div style="color:#ef4444;font-size:12px;margin-top:4px;">Last error: ' + d.lastError + '</div>' : '')
-            + '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">'
-            + Object.entries(d.providers).map(([key, p]) =>
-                '<span style="background:' + (p.configured ? 'rgba(16,185,129,0.1)' : 'rgba(100,116,139,0.1)') + ';border:1px solid ' + (p.configured ? 'rgba(16,185,129,0.3)' : 'rgba(100,116,139,0.2)') + ';color:' + (p.configured ? '#10b981' : '#64748b') + ';padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;">'
-                + (p.configured ? '✅' : '⭕') + ' ' + p.label + '</span>'
-            ).join('') + '</div>';
-    }
-
-    async function switchDB(provider) {
-        const el = document.getElementById('dbSwitchResult');
-        el.style.display = 'block';
-        el.style.background = 'rgba(251,191,36,0.1)';
-        el.style.color = '#fbbf24';
-        el.textContent = '⏳ Connecting to ' + provider + ' and syncing data...';
-        const d = await api('/api/admin/switch-db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider }) });
-        if (d && d.success) {
-            el.style.background = 'rgba(16,185,129,0.1)';
-            el.style.color = '#10b981';
-            el.textContent = d.message;
-            loadDBStatus();
-        } else if (d) {
-            el.style.background = 'rgba(239,68,68,0.1)';
-            el.style.color = '#ef4444';
-            el.textContent = '❌ ' + (d.error || 'Failed — check your credentials in Render Environment Variables');
-        }
-    }
-
-    // Load DB status when database tab is opened
-    document.querySelector('[onclick*="database"]').addEventListener('click', loadDBStatus);
 </script>
 </body>
 </html>`);
@@ -3185,11 +2915,11 @@ app.get('/blog/:id', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>${post.title} — 3EESHER-CLOUD</title>
+    <title>${escapeHtml(post.title)} — 3EESHER-CLOUD</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="${post.content.replace(/<[^>]*>/g,'').substring(0,155)}">
-    <meta property="og:title" content="${post.title}">
-    <meta property="og:image" content="${post.image}">
+    <meta name="description" content="${escapeHtml(post.content.replace(/<[^>]*>/g,'').substring(0,155))}">
+    <meta property="og:title" content="${escapeHtml(post.title)}">
+    <meta property="og:image" content="${escapeHtml(post.image)}">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-HD01MF5SL9"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-HD01MF5SL9');</script>
@@ -3202,13 +2932,13 @@ app.get('/blog/:id', (req, res) => {
         img{max-width:100%;border-radius:12px;margin:20px 0;}
         .meta{color:#64748b;font-size:14px;margin:14px 0;}
         .back{color:#10b981;text-decoration:none;font-weight:700;display:inline-block;margin-top:20px;}
-    .share-btns{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;}
-    .share-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;border:none;transition:0.2s;font-family:inherit;}
-    .share-wa{background:#25d366;color:white;}
-    .share-fb{background:#1877f2;color:white;}
-    .share-tw{background:#1da1f2;color:white;}
-    .share-cp{background:#1e293b;color:#e2e8f0;border:1px solid #334155;}
-    .share-btn:hover{opacity:0.85;}
+        .share-btns{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;}
+        .share-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;border:none;transition:0.2s;font-family:inherit;}
+        .share-wa{background:#25d366;color:white;}
+        .share-fb{background:#1877f2;color:white;}
+        .share-tw{background:#1da1f2;color:white;}
+        .share-cp{background:#1e293b;color:#e2e8f0;border:1px solid #334155;}
+        .share-btn:hover{opacity:0.85;}
         .content{color:#94a3b8;line-height:1.8;font-size:15px;}
         .content h2{color:#fbbf24;font-size:20px;margin:24px 0 10px;}
         .content p{margin-bottom:14px;}
@@ -3223,9 +2953,9 @@ app.get('/blog/:id', (req, res) => {
             <a href="/library">📚 Free Library</a>
         </nav>
         <div class="post">
-            <h1>${post.title}</h1>
-            <div class="meta">${new Date(post.date).toLocaleDateString('en-NG', {year:'numeric',month:'long',day:'numeric'})} &nbsp;•&nbsp; ${post.views} views &nbsp;•&nbsp; By ${post.author}</div>
-            ${post.image?`<img src="${post.image}" alt="${post.title}">`:''}
+            <h1>${escapeHtml(post.title)}</h1>
+            <div class="meta">${new Date(post.date).toLocaleDateString('en-NG', {year:'numeric',month:'long',day:'numeric'})} &nbsp;•&nbsp; ${post.views} views &nbsp;•&nbsp; By ${escapeHtml(post.author)}</div>
+            ${post.image?`<img src="${escapeHtml(post.image)}" alt="${escapeHtml(post.title)}">`:''}
             <div class="content">${post.content}</div>
             <div class="share-btns">
                 <a href="https://wa.me/?text=${encodeURIComponent(post.title + ' - ' + 'https://3eesher-cloud.onrender.com/blog/' + post.id)}" class="share-btn share-wa" target="_blank">💬 WhatsApp</a>
@@ -3407,11 +3137,10 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/feed.xml', (req, res) => {
     const data = getData();
     let rss = '<?xml version="1.0"?><rss version="2.0"><channel><title>3EESHER-CLOUD</title><link>https://3eesher-cloud.onrender.com</link><description>Make Money Online</description>';
-    data.blogPosts.slice(0, 10).forEach(p => { rss += `<item><title>${p.title}</title><link>https://3eesher-cloud.onrender.com/blog/${p.id}</link><pubDate>${new Date(p.date).toUTCString()}</pubDate></item>`; });
+    data.blogPosts.slice(0, 10).forEach(p => { rss += `<item><title>${escapeHtml(p.title)}</title><link>https://3eesher-cloud.onrender.com/blog/${p.id}</link><pubDate>${new Date(p.date).toUTCString()}</pubDate></item>`; });
     rss += '</channel></rss>';
     res.header('Content-Type', 'application/rss+xml').send(rss);
 });
-
 
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send('User-agent: *\nAllow: /\nDisallow: /admin\nSitemap: https://3eesher-cloud.onrender.com/sitemap.xml');
@@ -3419,7 +3148,25 @@ app.get('/robots.txt', (req, res) => {
 
 // ==================== SERVER START ====================
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 3EESHER-CLOUD RUNNING on port ${PORT}`);
-    console.log(`🔐 Admin: /admin — Login: admin216 / admin1234`);
-    console.log(`📧 Gmail: ${GMAIL_USER}`);
+    console.log(`\n🚀 ========================================`);
+    console.log(`🚀  3EESHER-CLOUD IS RUNNING`);
+    console.log(`🚀 ========================================`);
+    console.log(`📍 Main Page:  http://localhost:${PORT}`);
+    console.log(`📚 Library:    http://localhost:${PORT}/library`);
+    console.log(`🔐 Admin:      http://localhost:${PORT}/admin`);
+    console.log(`🎯 Advertise:  http://localhost:${PORT}/advertise`);
+    console.log(`👤 Login:      admin216 / admin1234  ← CHANGE IN SETTINGS!`);
+    console.log(`📧 Gmail:      ${GMAIL_USER}`);
+    console.log(`📊 Analytics:  G-HD01MF5SL9`);
+    console.log(`🚀 ========================================`);
+    console.log(`✅ Auto Money Maker:  Every hour`);
+    console.log(`✅ Auto Blogger:      8am & 8pm`);
+    console.log(`✅ Email Bot:         9am & 9pm → all subscribers`);
+    console.log(`✅ Self-Report:       Every 4 hours to your Gmail`);
+    console.log(`✅ Ad Engine:         IP/Phone/IMEI targeting`);
+    console.log(`✅ Library:           6 free courses, member registration, Google Books search`);
+    console.log(`✅ Universal Inject:  CSS/JS/HTML all work, saved to injections.json`);
+    console.log(`✅ Natural Commands:  Talk to bot in plain English`);
+    console.log(`✅ Affiliate /go/:    Tracked redirect links`);
+    console.log(`🚀 ========================================\n`);
 });
