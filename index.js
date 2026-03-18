@@ -10,7 +10,7 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ==================== HTML ESCAPE HELPER (CRITICAL FOR ADMIN) ====================
+// ==================== HTML ESCAPE HELPER ====================
 function escapeHtml(unsafe) {
     if (!unsafe) return '';
     return String(unsafe)
@@ -54,11 +54,30 @@ const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user:
 const DATA_FILE = './data.json';
 
 function getData() {
-    try { if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE)); } catch (e) {}
+    try { 
+        if (fs.existsSync(DATA_FILE)) {
+            return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        }
+    } catch (e) {
+        console.error('Error reading data:', e);
+    }
     return getDefaultData();
 }
 
-function saveData(data) { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
+function saveData(data) {
+    try {
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        return true;
+    } catch (e) {
+        console.error('Error saving data:', e);
+        return false;
+    }
+}
+
+function getInjections() {
+    const data = getData();
+    return data.injections || { head: '', bodyStart: '', bodyEnd: '', css: '', js: '' };
+}
 
 function getDefaultData() {
     return {
@@ -111,7 +130,6 @@ function getDefaultData() {
         subscribers: [],
         images: [],
         emailCampaigns: [],
-        // ONLY AMERICAN MUSIC - NO ARABIC VIDEOS
         videos: [
             { id: 1,  title: 'Eminem - Houdini',                    videoUrl: 'https://www.youtube.com/embed/bkSJZwQF6I4', thumbnail: 'https://img.youtube.com/vi/bkSJZwQF6I4/0.jpg', type: 'youtube', region: 'american' },
             { id: 2,  title: 'Kendrick Lamar - Not Like Us',        videoUrl: 'https://www.youtube.com/embed/H58vbez_m4E', thumbnail: 'https://img.youtube.com/vi/H58vbez_m4E/0.jpg', type: 'youtube', region: 'american' },
@@ -336,7 +354,7 @@ app.post('/api/library/progress', (req, res) => {
     res.json({ success: true, progress: user.progress });
 });
 
-// ==================== ALL ORIGINAL API ROUTES ====================
+// ==================== ALL API ROUTES ====================
 app.get('/api/data', (req, res) => {
     const data = getData();
     res.json({ blogPosts: data.blogPosts || [], moneyLinks: data.moneyLinks, storeLinks: data.storeLinks, successStories: data.successStories, aboutContent: data.aboutContent, privacyContent: data.privacyContent, contact: data.contact, videos: data.videos });
@@ -508,27 +526,12 @@ app.post('/api/inject', (req, res) => {
     const data = getData();
     if (!data.injections) data.injections = {};
     data.injections[location] = code; saveData(data);
-    try { fs.writeFileSync(path.join(__dirname, 'injections.json'), JSON.stringify(data.injections, null, 2)); } catch(e) {}
     res.json({ success: true, message: `✅ ${location} injection saved & live — reload website to see changes` });
 });
-
-function getInjections() {
-    const data = getData();
-    let inj = data.injections || {};
-    try {
-        const injFile = path.join(__dirname, 'injections.json');
-        if (fs.existsSync(injFile)) {
-            const saved = JSON.parse(fs.readFileSync(injFile));
-            inj = { ...inj, ...saved };
-        }
-    } catch(e) {}
-    return inj;
-}
 
 app.get('/api/injections', (req, res) => { res.json(getInjections()); });
 
 // ==================== MISSING API ROUTES ====================
-
 app.get('/api/visitors', (req, res) => {
     const data = getData();
     if (!data.visitors) data.visitors = { total: 0, today: 0, lastReset: new Date().toDateString() };
@@ -785,7 +788,7 @@ function processCommand(command, data) {
     return { text: response, newHash };
 }
 
-// ==================== EMAIL CAMPAIGNS (BOT MAKES MONEY AUTOMATICALLY) ====================
+// ==================== EMAIL CAMPAIGNS ====================
 function getEmailCampaigns(data) {
     const jumia = data.storeLinks.find(l => l.name.includes('Jumia') && l.id);
     const jumiaUrl = jumia ? `https://www.jumia.com.ng/?aff_id=${jumia.id}` : 'https://www.jumia.com.ng';
@@ -823,8 +826,7 @@ function buildCampaignHtml(campaign, data) {
     </div>`;
 }
 
-
-// ==================== FEATURE: VISITOR COUNTER ====================
+// ==================== VISITOR COUNTER ====================
 let liveVisitors = 0;
 const visitorTimestamps = {};
 app.use((req, res, next) => {
@@ -839,7 +841,7 @@ app.use((req, res, next) => {
 });
 app.get('/api/visitors', (req, res) => { res.json({ count: liveVisitors }); });
 
-// ==================== FEATURE: TESTIMONIALS/REVIEWS ====================
+// ==================== TESTIMONIALS ====================
 app.post('/api/testimonials/add', (req, res) => {
     const { name, country, rating, text } = req.body;
     if (!name || !text || !rating) return res.status(400).json({ error: 'Missing fields' });
@@ -870,7 +872,7 @@ app.get('/api/testimonials', (req, res) => {
     res.json({ testimonials: approved });
 });
 
-// ==================== FEATURE: BLOG SEARCH ====================
+// ==================== BLOG SEARCH ====================
 app.get('/api/blog/search', (req, res) => {
     const { q } = req.query;
     if (!q) return res.json({ posts: [] });
@@ -888,7 +890,7 @@ app.get('/api/blog/search', (req, res) => {
     res.json({ posts });
 });
 
-// ==================== FEATURE: COOKIE CONSENT ====================
+// ==================== COOKIE CONSENT ====================
 app.post('/api/cookie-consent', (req, res) => {
     res.json({ success: true });
 });
@@ -905,44 +907,45 @@ const blogTopics = [
     {
         title: 'How to Make $1,000 Monthly with Affiliate Marketing in Nigeria',
         image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200',
-        content: '<p>Affiliate marketing is one of the most powerful ways to earn money online in Nigeria today...</p>'
+        content: '<p>Affiliate marketing is one of the most powerful ways to earn money online in Nigeria today. You promote someone else\'s product, and every time someone buys through your unique link, you earn a commission — without creating any product yourself.</p><h2>What Is Affiliate Marketing?</h2><p>When a company wants to sell more products, they allow ordinary people like you to promote those products online. You get a special tracking link. When someone clicks and buys, the company pays you a percentage. Some affiliate programs pay 3%, but ClickBank pays up to 75%. Find 15 buyers per month at $75 commission each and you have made $1,125.</p><h2>Step 1 — Choose Your Niche</h2><p>Your niche is the specific topic you will focus on. The most profitable niches in Nigeria right now are: making money online, health and weight loss, technology and gadgets, fashion and beauty, and education. Pick ONE and commit to it for at least 90 days before deciding it is not working.</p><h2>Step 2 — Join the Best Affiliate Programs</h2><p><strong>Jumia Nigeria</strong> (affiliate.jumia.com.ng): Up to 9% commission. Perfect for Nigerian audience because everyone already trusts Jumia. <strong>ClickBank</strong> (clickbank.com): Digital products paying 40–75% commission. Highest paying network in the world. <strong>Amazon Associates</strong>: 3–10% on millions of products. <strong>ShareASale</strong>: 25,000+ merchants with weekly payouts.</p><h2>Step 3 — Build Your Traffic</h2><p>Create a WhatsApp broadcast list of 200+ people in your niche. Post valuable tips 4 days a week, share your affiliate link on day 5. For TikTok, post 3 short tip videos per day and put your affiliate link in your bio. Facebook Groups with millions of Nigerians are also perfect for sharing product recommendations.</p><h2>Step 4 — Scale to $1,000 Per Month</h2><p>At $25 commission per sale, you need 40 sales per month — about 1–2 sales per day. With consistent content creation over 90 days this is completely achievable. Ahmed from Kano reached $2,500 per month within 8 months starting from zero. The secret is consistency and never giving up when progress seems slow.</p>'
     },
     {
         title: 'Top 10 Freelance Skills That Pay $500–$5,000 Per Month in 2026',
         image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200',
-        content: '<p>The freelance economy is booming in 2026...</p>'
+        content: '<p>The freelance economy is booming in 2026. More companies than ever are hiring remote workers from Africa, and the demand for digital skills is at an all-time high. Here are the top 10 skills paying well right now — and how you can start this month.</p><h2>1. Web Development — $50–$150 Per Hour</h2><p>Web developers build websites and applications. Learn HTML, CSS, and JavaScript to start. After 3 months you can build business websites and charge $200–$500 per site. After 6 months, charge $1,000–$3,000 per project. Free learning: freeCodeCamp.org and our 3EESHER Academy Library.</p><h2>2. Copywriting — $50–$200 Per Hour</h2><p>Copywriters write words that sell — sales pages, email sequences, ads, product descriptions. You can learn the fundamentals in 30 days and start charging $50–$100 per email campaign.</p><h2>3. Social Media Management — $300–$1,500 Per Month Per Client</h2><p>Small businesses need someone to manage their Instagram, Facebook, and TikTok. One client pays $300–$500 monthly. With 3 clients you earn $900–$1,500 working just 2–3 hours per day from your phone.</p><h2>4. Data Analysis — $25–$80 Per Hour</h2><p>Data analysts look at business data and find patterns. Excel, Google Sheets, and basic SQL are the main tools. Clients on Upwork regularly pay $40–$80/hour and the demand far exceeds the supply of skilled analysts.</p><h2>5. Video Editing — $20–$100 Per Video</h2><p>Content creators on YouTube, TikTok, and Instagram need editors. CapCut is free on mobile and professional enough to charge $20–$50 per video starting today. Top editors charge $100–$300 per video.</p><h2>6. Graphic Design — $15–$75 Per Design</h2><p>Canva has made professional design accessible to everyone. Create logos, social media posts, flyers, and business cards. A professional logo on Fiverr can earn you $50–$200. Many Nigerian designers earn ₦200,000+ monthly from Canva alone.</p><h2>7. SEO — $500–$3,000 Per Month</h2><p>Help businesses rank higher on Google. One SEO client pays $500–$2,000 per month on retainer. This is one of the highest-paying freelance skills because results are clear and measurable.</p><h2>8. Virtual Assistant — $10–$30 Per Hour</h2><p>Handle emails, scheduling, research, and data entry for busy entrepreneurs remotely. Easy to start with no technical skills required. Demand is growing rapidly as more entrepreneurs hire remote help.</p><h2>9. Translation — $20–$60 Per Hour</h2><p>If you speak English and Arabic, Hausa, Yoruba, Igbo, or French, you can earn good money as a translator. English-Arabic translators earn $0.05–$0.15 per word — which is $60+ per hour for fast translators.</p><h2>10. AI Prompt Engineering — $30–$100 Per Hour</h2><p>The newest and fastest-growing skill. Companies need people who know how to get the best results from AI tools like ChatGPT, Midjourney, and Claude. With 2 weeks of practice you can start offering AI services that businesses desperately need.</p>'
     },
     {
         title: 'The Complete Jumia Affiliate Guide — Earn Up to ₦500,000 Monthly',
         image: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1200',
-        content: '<p>Jumia is Nigeria\'s largest e-commerce platform...</p>'
+        content: '<p>Jumia is Nigeria\'s largest e-commerce platform and their affiliate program is one of the best opportunities for Nigerians to earn passive income online. In this complete guide we walk you through everything you need to know to start earning today.</p><h2>Why Jumia Affiliate is Perfect for Nigerians</h2><p>Unlike Amazon or ClickBank which target international buyers, Jumia is built specifically for the Nigerian market. Your audience already knows and trusts Jumia — this means your conversion rate will be much higher than foreign affiliate programs. Commission rates range from 3% to 9% depending on product category.</p><h2>How to Register for Jumia Affiliate</h2><p>Go to affiliate.jumia.com.ng and click Publisher Registration. Fill in your name, email, and your social media page. You do not need a formal website — your Facebook page or TikTok account qualifies as your platform. Wait 24–48 hours for approval, then access your dashboard to get your unique Publisher ID and start generating affiliate links.</p><h2>Best Products to Promote on Jumia</h2><p><strong>Smartphones and Accessories:</strong> High demand year-round. Share posts like "Best budget phones on Jumia under ₦80,000." High search volume and strong conversion. <strong>Fashion and Clothing:</strong> High commission rate. Women\'s fashion converts very well on Instagram and WhatsApp status updates. <strong>Baby Products:</strong> Parents buy consistently every single month. Promote to mothers\' WhatsApp groups. <strong>Electronics and Gadgets:</strong> Higher prices mean higher commission. One laptop sale can earn ₦3,000–₦15,000 commission.</p><h2>Best Platforms to Promote Your Links</h2><p><strong>WhatsApp Status:</strong> Post product images with prices and your link daily. 300 contacts at 1% conversion means 3 sales per day at ₦2,000 commission each. That is ₦6,000 daily from WhatsApp alone. <strong>TikTok and Instagram Reels:</strong> Create short product review videos. "Products I found on Jumia under ₦5,000" content goes viral easily. <strong>Facebook Groups:</strong> Millions of Nigerians use Facebook Groups to discover products to buy.</p><h2>Realistic Monthly Earnings</h2><p>10 sales per month: ₦25,000 ($16). 50 sales: ₦125,000 ($80). 200 sales: ₦500,000 ($320). The top Nigerian Jumia affiliates earn over ₦500,000 per month consistently by building audience trust and creating content every single day without stopping.</p>'
     },
     {
         title: 'How AI is Creating New Income Opportunities for Africans in 2026',
         image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200',
-        content: '<p>Artificial Intelligence is the biggest economic opportunity in a generation...</p>'
+        content: '<p>Artificial Intelligence is the biggest economic opportunity in a generation. The good news for Africans is that the AI revolution does not require you to be a programmer, have a degree, or own a powerful computer. Here are 7 proven ways to profit from AI right now.</p><h2>1. AI Data Labeling — Start Today With No Experience</h2><p>AI models like ChatGPT need millions of labeled examples to learn from. Companies pay ordinary people to review and label data — images, text, audio, and video. No special skills required. Best platforms: Appen (appen.com), Remotasks (remotasks.com), Clickworker. Pay ranges from $2–$15 per hour and you can start within 24 hours of registering.</p><h2>2. AI Content Writing — $30–$100 Per Article</h2><p>Use ChatGPT to write blog articles, product descriptions, social media captions, and email newsletters. Sell these services on Fiverr. Many clients do not care how you write content — they just want quality delivered fast. With AI you write a 1,500-word article in 10 minutes. Charge $30–$100 and earn $500–$1,500 per month working just 2 hours daily.</p><h2>3. AI Image Generation — $5–$50 Per Image</h2><p>Tools like Midjourney, Adobe Firefly, and DALL-E generate stunning images from text descriptions. Small businesses need custom images for websites and social media. Some designers earn $2,000+ per month from AI-generated artwork sold on Fiverr and Etsy.</p><h2>4. AI Chatbot Building — $200–$2,000 Per Chatbot</h2><p>Businesses need chatbots for customer service and sales. Using no-code tools like ManyChat or Chatbase connected to ChatGPT, you can build a functional business chatbot in 1–2 hours. Charge $200–$500 for basic chatbots and $1,000–$2,000 for advanced e-commerce chatbots.</p><h2>5. AI-Powered Social Media Management</h2><p>Use ChatGPT to generate 30 days of social media content in one hour. Use Canva AI to design posts automatically. Use Buffer to schedule them. Then charge clients $300–$1,000 per month for done-for-you social media management. You spend 2–3 hours and collect monthly retainers.</p><h2>6. Teaching AI Tools — ₦100,000–₦500,000 Per Month</h2><p>Most businesses in Nigeria are not yet using AI in their daily operations. Position yourself as an AI consultant and teach others. Host workshops charging ₦10,000–₦50,000 per person. Run one workshop per month with 10 students and earn ₦100,000–₦500,000 in extra income on top of everything else.</p><h2>The Key Takeaway</h2><p>AI is not replacing Africans — it is giving Africans unprecedented tools to compete on a global level. A 20-year-old in Lagos with a smartphone and ChatGPT can now deliver better, faster work than a traditional agency in Europe. The opportunity window is wide open right now. Start with one method today and build from there.</p>'
     },
     {
         title: 'Start Freelancing on Upwork and Make Your First $500 — Step by Step',
         image: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200',
-        content: '<p>Upwork is the world\'s largest marketplace for freelancers...</p>'
+        content: '<p>Upwork is the world\'s largest marketplace for freelancers, connecting businesses with independent professionals globally. With over 5 million registered clients it offers extraordinary opportunities for Africans to earn in dollars. Here is a complete step-by-step guide to making your first $500.</p><h2>Why Upwork Beats Other Platforms for Beginners</h2><p>Unlike Fiverr where you wait for clients to find you, on Upwork you actively apply to jobs. This means you can start getting responses within 24 hours of creating your profile — even with zero reviews. Average rates for African freelancers: $10–$60/hour for beginners, $100+/hour for experienced professionals after 6 months of solid reviews.</p><h2>Step 1 — Build a Profile That Wins</h2><p>Your profile is your digital storefront. Use a professional photo with a clear face and friendly smile. Write a compelling headline showing the result you deliver: "I help small businesses get 3x more customers with high-converting websites" beats "Web Developer." Fill out 100% of your profile for better search ranking. Add portfolio items even from personal practice projects.</p><h2>Step 2 — Write Proposals That Get Responses</h2><p>Most proposals are ignored because they are generic. Stand out by reading the job description carefully and personalizing every single response. Start with what you noticed about their specific project. Show one relevant example of your work. Explain your exact approach in 2–3 sentences. End with: "I can start tomorrow — would you be open to a quick 15-minute call?" Keep proposals under 200 words. Clarity always wins over length.</p><h2>Step 3 — Get Your First Review at Lower Rate</h2><p>Start at slightly below market rate to win your first 3–5 reviews. If market rate is $25/hour, start at $15/hour. After getting positive reviews, raise to $25, then $40, then $60+. One 5-star review from a happy client opens doors to clients at 3x your current rate. Reviews are your most valuable currency on Upwork.</p><h2>Step 4 — Over-Deliver on Every Single Project</h2><p>For your first clients, over-deliver consistently. Finish before the deadline. Provide more than was requested. Communicate proactively. Then ask directly: "If you are satisfied, I would be grateful for a detailed 5-star review — it really helps my business grow." Most happy clients are glad to leave a review when asked professionally and specifically.</p><h2>Your 30-Day Action Plan to $500</h2><p>Week 1: Create optimized profile, apply to 5 entry-level jobs daily. Week 2: Accept first client at lower rate, deliver excellent work on time. Week 3: Get first 5-star review, apply to higher-paying jobs using it as proof. Week 4: Raise rates, target $500 monthly income. This is a realistic and completely repeatable path to financial freedom through Upwork.</p>'
     },
     {
         title: 'Building Passive Income with ClickBank — How to Reach $2,500 Per Month',
         image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=1200',
-        content: '<p>ClickBank is the world\'s largest digital products marketplace...</p>'
+        content: '<p>ClickBank is the world\'s largest digital products marketplace and one of the highest-paying affiliate networks available. Commissions of 50%, 60%, even 75% are common. On a $100 product you keep $75. This guide shows you how to build real passive income promoting ClickBank products from Nigeria.</p><h2>Why ClickBank Pays So Much More Than Other Programs</h2><p>Unlike physical product affiliate programs paying 3–10%, ClickBank products are digital — courses, ebooks, software, and memberships. Digital products have no manufacturing or shipping costs, which is why companies can afford such high commissions to affiliates. You also get paid weekly via direct bank transfer once you reach the $10 payment threshold.</p><h2>Creating Your Account and Finding Products</h2><p>Go to clickbank.com and click Create Account. Takes 5 minutes. Your username becomes your affiliate nickname in all tracking links. Choose something professional and memorable. In the Marketplace, look for products with a Gravity score of 20–100 (proven sellers), commission of 50%+, and an average sale value of $30+. Products with recurring commissions (software subscriptions) are especially valuable because you earn every month from one referral.</p><h2>Promotion Strategy 1 — Blog and SEO</h2><p>Create a blog around your chosen niche and write detailed honest review articles. When people search Google for "best [product] review 2026" and find your article, they are already in buying mode — conversion rates of 2–8% are common. Once ranked, this is completely passive income earning for years without any additional work.</p><h2>Promotion Strategy 2 — YouTube Channel</h2><p>Create video reviews demonstrating the product in action. Put your ClickBank link in the description. YouTube videos rank in Google search and drive traffic for years after posting. One well-optimized review video can generate continuous sales for 3–5 years — the definition of real passive income.</p><h2>Promotion Strategy 3 — Email Marketing</h2><p>Build an email list by offering a free guide related to your niche. Send weekly value emails with genuine product recommendations. Even a list of 500 engaged subscribers generates $200–$500 monthly in ClickBank commissions when you build real trust and only recommend quality products.</p><h2>Realistic Income Timeline</h2><p>Month 1: $0–$50 (setup and learning). Month 2–3: $50–$200 (getting initial traffic). Month 4–6: $200–$800 (content compounding). Month 7–12: $800–$2,500+ (passive income building strongly). Consistency over 12 months is the single biggest factor in success with ClickBank.</p>'
     },
     {
         title: 'Make Money on YouTube Without Showing Your Face — Complete 2026 Guide',
         image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200',
-        content: '<p>You do not need to appear on camera to make money on YouTube...</p>'
+        content: '<p>You do not need to appear on camera to make money on YouTube. Thousands of channels earn thousands of dollars per month without ever showing the creator\'s face. This strategy is perfect for shy people, private individuals, and anyone wanting to build passive income from video content without personal exposure.</p><h2>What Is a Faceless YouTube Channel?</h2><p>A faceless channel uses screen recordings, animations, stock footage, voiceovers, or AI-generated visuals instead of on-camera presentation. Popular faceless niches: technology news and reviews, meditation and relaxation music, history and facts, cooking tutorials showing only hands, financial education, and AI tools demonstrations. All have massive audiences and strong monetization.</p><h2>Free Tools You Need to Start</h2><p><strong>Video Editing:</strong> DaVinci Resolve (free desktop) or CapCut (free mobile). Both are professional-grade tools used by top creators. <strong>Voiceover:</strong> ElevenLabs.io creates ultra-realistic AI voices in multiple accents including Nigerian English. Or record your own voice using your smartphone. <strong>Thumbnails:</strong> Canva free tier for professional YouTube thumbnails. <strong>Screen Recording:</strong> OBS Studio (free) for recording your screen — great for software tutorials and finance content.</p><h2>Three Income Streams from YouTube</h2><p><strong>YouTube AdSense:</strong> Once you reach 1,000 subscribers and 4,000 watch hours, YouTube pays for ads shown on your videos. Earnings: $1–$10 per 1,000 views depending on niche. Finance and tech niches pay the most per view globally. <strong>Affiliate Marketing in Descriptions:</strong> Link to relevant products using your affiliate links in every video description. Many faceless YouTubers earn more from affiliate commissions than from ads. <strong>Sponsorships:</strong> Once you reach 5,000–10,000 subscribers, brands pay $200–$5,000+ to be featured in your videos. One sponsorship per month can exceed your total ad revenue.</p><h2>90-Day YouTube Growth Plan</h2><p>Days 1–7: Choose niche, create channel, set up branding with Canva. Days 8–30: Post 3 videos per week using TubeBuddy free tier to find low-competition keywords. Days 31–60: Analyze which videos get most views and create more of that type. Days 61–90: You should have 20–30 videos online. Older videos start compounding views. First AdSense income typically arrives in months 3–6 for consistent creators.</p><h2>The Long-Term Vision</h2><p>Think of each YouTube video as a salesperson working 24/7. A video uploaded today can generate views, subscribers, and income for the next 5–10 years without any additional work. Build 100 quality videos over 2 years and you could have a passive income machine worth $2,000–$10,000 per month — all without ever showing your face on screen.</p>'
     },
     {
         title: 'Making Money Online in Nigeria 2026 — The Complete Beginner Roadmap',
         image: 'https://images.unsplash.com/photo-1487017159836-4e23ece2e4cf?w=1200',
-        content: '<p>Nigeria has the largest economy in Africa...</p>'
+        content: '<p>Nigeria has the largest economy in Africa, the youngest population on the continent, and one of the fastest-growing internet user bases in the world. These factors create an extraordinary opportunity for Nigerians to earn globally competitive income through digital means. This is your complete beginner roadmap for 2026.</p><h2>Why 2026 Is the Best Time to Start</h2><p>Remote work has become mainstream globally. International companies actively hire Nigerian talent because of strong English proficiency, competitive rates, and time zone compatibility. A Nigerian web developer can earn the exact same hourly rate as an American one — your location is no longer a barrier to premium income. The window is wide open right now.</p><h2>The 3 Paths to Online Income</h2><p><strong>Path 1 — Freelancing (Fastest Results):</strong> Sell your skills on Upwork, Fiverr, or LinkedIn. Income can start within days or weeks. Average income: $500–$5,000/month depending on skill level and consistency. <strong>Path 2 — Affiliate Marketing (Passive Income):</strong> Promote other people\'s products and earn commissions 24/7. Takes 3–6 months to build momentum, but once it works, income continues even when you are not working. <strong>Path 3 — Content Creation (Long-Term):</strong> Build an audience on YouTube, TikTok, or through a blog. Takes 6–12 months to become significant income, but builds a real business asset worth millions over time.</p><h2>Skills You Can Learn for Free Today</h2><p>You do not need to spend money to learn digital skills. 3EESHER Academy (our free library at /library) offers 6 complete courses covering AI, Data Analysis, Web Development, Digital Marketing, Affiliate Marketing, and Freelancing — all free and all focused on practical earning strategies. Other free resources: Google Digital Skills for Africa, freeCodeCamp.org, and YouTube tutorials.</p><h2>Your First 30 Days Action Plan</h2><p>Week 1: Choose ONE income path (freelancing, affiliate, or content). Create profiles on the relevant platforms. Week 2: Start learning core skills using free resources. Spend 1–2 hours daily on consistent practice. Week 3: Take action — apply for your first freelance job, publish your first affiliate content, or upload your first YouTube video. Week 4: Review what worked and what did not. Adjust your approach. Keep going regardless of early results.</p><h2>The Mindset That Makes the Difference</h2><p>The biggest barrier to success is not skills — it is mindset. Stop thinking about finding a job and start thinking about building income streams. Invest time in skills before expecting returns. Show up consistently even when results seem slow. Track progress weekly and celebrate every small win. Nigeria\'s first generation of digital millionaires is being made right now. The only question is whether you will be part of it.</p>'
     }
 ];
+
 cron.schedule('0 8 * * *', () => {
     const data = getData(); if (!data.settings.autoBlogger) return;
     const idx = new Date().getDay() % blogTopics.length;
@@ -952,6 +955,7 @@ cron.schedule('0 8 * * *', () => {
     saveData(data);
     console.log('📝 Morning blog: ' + blog.title);
 });
+
 cron.schedule('0 20 * * *', () => {
     const data = getData(); if (!data.settings.autoBlogger) return;
     const idx = (new Date().getDay() + 4) % blogTopics.length;
@@ -1017,50 +1021,50 @@ cron.schedule('0 */4 * * *', () => {
 const LIBRARY_COURSES = [
     { id:'ai-basics', title:'AI & Machine Learning Basics', description:'Learn how AI works, use AI tools to make money, understand machine learning without coding.', icon:'🤖', level:'Beginner', category:'Technology', duration:'6 lessons', color:'#8b5cf6',
       lessons:[
-        {id:1,title:'What is AI? A Simple Explanation',content:'AI is when computers learn to do tasks that normally require human intelligence...',video:''},
-        {id:2,title:'How to Use ChatGPT to Make Money',content:'ChatGPT is the most powerful AI tool today...',video:'https://www.youtube.com/embed/JTxsNm9IdYU'},
-        {id:3,title:'AI Data Labeling — Get Paid to Train AI',content:'AI companies need humans to label data to train their models...',video:''},
-        {id:4,title:'Machine Learning Without Coding',content:'You do NOT need to be a programmer to work with AI today...',video:''},
-        {id:5,title:'Free AI Tools to Use Every Day',content:'These free AI tools save hours every day...',video:''},
-        {id:6,title:'Building Your First AI Side Business',content:'Step-by-step plan to start an AI side business this week...',video:''}
+        {id:1,title:'What is AI? A Simple Explanation',content:'AI is when computers learn to do tasks that normally require human intelligence. AI is already in your phone, social media feeds, and apps recommending what to buy.\n\n**How AI Makes Money:**\n• Label data on Appen and Remotasks ($2–$10/hour)\n• Use ChatGPT to write content faster\n• Build AI-powered apps with no-code tools\n\n**Key Terms:**\n• Machine Learning: AI that learns from examples\n• Neural Network: AI inspired by the human brain\n• Training Data: Information used to teach AI\n• ChatGPT: An AI chatbot that can write, code, and explain anything',video:''},
+        {id:2,title:'How to Use ChatGPT to Make Money',content:'ChatGPT is the most powerful AI tool today.\n\n**5 Ways to Earn with ChatGPT:**\n1. **Write Blog Posts** — Ask ChatGPT to write articles, publish on Medium for ad revenue\n2. **Create Fiverr Gigs** — Offer AI-powered content writing. Charge $20–$100 per article\n3. **Build Chatbots** — Businesses pay $200–$2,000 for custom chatbots\n4. **Resume Writing** — Charge $20–$50 to write resumes using ChatGPT\n5. **Email Marketing** — Write email sequences for businesses. Charge $100–$500\n\n**Getting Started:** Go to chat.openai.com → Sign up free → Start with: "Write me a 500-word blog post about making money online in Nigeria"',video:'https://www.youtube.com/embed/JTxsNm9IdYU'},
+        {id:3,title:'AI Data Labeling — Get Paid to Train AI',content:'AI companies need humans to label data to train their models. Easiest way to earn with no experience.\n\n**Top Platforms:**\n• **Appen** (appen.com) — $10–$15/hour. Label images, transcribe audio\n• **Remotasks** (remotasks.com) — $2–$8/hour to start. Works from phone\n• **Scale AI** — $15–$30/hour for higher skill tasks\n\n**How to Start:**\n1. Sign up at remotasks.com (easiest for beginners)\n2. Complete the free training tasks\n3. Pass the qualification test\n4. Start earning same day',video:''},
+        {id:4,title:'Machine Learning Without Coding',content:'You do NOT need to be a programmer to work with AI today.\n\n**Top No-Code AI Tools:**\n• **Google AutoML** — Build custom AI models by uploading data\n• **Teachable Machine** (teachablemachine.withgoogle.com) — Train image AI in your browser, free\n• **Lobe** by Microsoft — Train image models with simple drag-and-drop\n\n**Business Ideas:**\n1. Build a plant disease detector for farmers\n2. Create a product photo quality checker for e-commerce\n3. Build a face recognition attendance system for schools',video:''},
+        {id:5,title:'Free AI Tools to Use Every Day',content:'These free AI tools save hours every day:\n\n**Writing:** ChatGPT, Grammarly, Copy.ai\n**Images:** Canva AI, Adobe Firefly, Remove.bg\n**Video:** Runway ML, Pictory\n**Research:** Perplexity AI, NotebookLM\n\n**How to Monetize:** Offer "AI-powered services" on Fiverr. Charge $20–$100 per task that takes you 5 minutes with these tools.',video:''},
+        {id:6,title:'Building Your First AI Side Business',content:'Step-by-step plan to start an AI side business this week:\n\n**Option A: AI Content Agency (Easiest)**\n• Create Fiverr profile: "I write SEO blog posts using AI"\n• Charge $30–$80 per 1,000-word article\n• Use ChatGPT to write in 5 minutes\n• Earn: $300–$1,500/month working 2 hours/day\n\n**Option B: AI Image Business**\n• Offer custom AI-generated images\n• Charge $5–$20 per image\n• Earn: $200–$800/month\n\n**Your Action Plan:**\n1. Today: Sign up on Fiverr and create your AI writing gig\n2. Tomorrow: Sign up on Remotasks for immediate income\n3. This week: Complete all 6 lessons!',video:''}
       ]},
     { id:'data-analysis', title:'Data Analysis & Excel Mastery', description:'Master Excel, Google Sheets, and data analysis skills that pay $40–$80/hour.', icon:'📊', level:'Beginner to Intermediate', category:'Data', duration:'5 lessons', color:'#10b981',
       lessons:[
-        {id:1,title:'Why Data Analysis Pays So Well',content:'Every business has data but most don\'t know what to do with it...',video:''},
-        {id:2,title:'Excel Fundamentals — From Zero to Confident',content:'Essential Excel functions...',video:'https://www.youtube.com/embed/rwbho0CgEAI'},
-        {id:3,title:'Pivot Tables — The Most Powerful Excel Feature',content:'Pivot tables turn thousands of rows into summaries in seconds...',video:''},
-        {id:4,title:'Data Visualization — Charts That Tell Stories',content:'**When to Use Each Chart:**...',video:''},
-        {id:5,title:'Getting Your First Data Client',content:'**Step 1: Build a Portfolio (2 days)**...',video:''}
+        {id:1,title:'Why Data Analysis Pays So Well',content:'Every business has data but most don\'t know what to do with it. That\'s where you come in.\n\n**How Much It Pays:**\n• Freelance data analyst: $25–$80/hour on Upwork\n• Excel expert: $30–$60/hour\n• Business analyst: $50–$100/hour\n\n**Where to Find Jobs:** Upwork, Fiverr, LinkedIn',video:''},
+        {id:2,title:'Excel Fundamentals — From Zero to Confident',content:'Essential Excel functions:\n\n• SUM =SUM(A1:A10)\n• AVERAGE =AVERAGE(A1:A10)\n• IF =IF(A1>100,"Good","Bad")\n• VLOOKUP =VLOOKUP(value,table,column)\n• SUMIF =SUMIF(range,criteria,sum_range)\n\n**Free Practice:** Use Google Sheets (sheets.google.com) — completely free, works in browser.',video:'https://www.youtube.com/embed/rwbho0CgEAI'},
+        {id:3,title:'Pivot Tables — The Most Powerful Excel Feature',content:'Pivot tables turn thousands of rows into summaries in seconds.\n\n**How to Create One:**\n1. Select your data table\n2. Insert → PivotTable\n3. Drag fields into Rows, Columns, Values\n4. Done!\n\n**Job Tip:** Learn pivot tables and charge $25–$40/hour for "data analysis" on Upwork.',video:''},
+        {id:4,title:'Data Visualization — Charts That Tell Stories',content:'**When to Use Each Chart:**\n• Bar Chart: Compare categories\n• Line Chart: Show trends over time\n• Pie Chart: Show proportions\n\n**Portfolio Tip:** Download a free dataset from Kaggle.com, analyze it, create charts, put it on LinkedIn. This gets you clients.',video:''},
+        {id:5,title:'Getting Your First Data Client',content:'**Step 1: Build a Portfolio (2 days)**\n• Go to Kaggle.com → Free Datasets\n• Create 3–5 charts and a pivot table summary\n\n**Step 2: Create Fiverr Profile**\n• Title: "I will analyze your Excel data and create reports"\n• Price: $15–$25 for starter gig\n\n**Step 3: Raise Rates**\nAfter 3 positive reviews, raise to $30–$50/hour.',video:''}
       ]},
     { id:'web-development', title:'Web Development for Beginners', description:'Build real websites with HTML, CSS, JavaScript. Websites sell for $200–$2,000 each.', icon:'💻', level:'Beginner', category:'Technology', duration:'5 lessons', color:'#f59e0b',
       lessons:[
-        {id:1,title:'HTML — The Structure of Every Website',content:'HTML is the skeleton of every website...',video:''},
-        {id:2,title:'CSS — Making Websites Beautiful',content:'CSS makes websites look good...',video:''},
-        {id:3,title:'JavaScript — Making Websites Interactive',content:'JavaScript makes websites do things...',video:''},
-        {id:4,title:'Building a Complete Business Website',content:'**Structure:** Nav bar → Hero section → Services → About → Contact form → Footer...',video:''},
-        {id:5,title:'Getting Paid — Finding Web Clients',content:'**Strategy 1: Local Businesses**...',video:''}
+        {id:1,title:'HTML — The Structure of Every Website',content:'HTML is the skeleton of every website.\n\n```html\n<!DOCTYPE html>\n<html>\n<head><title>My Website</title></head>\n<body>\n    <h1>Hello World!</h1>\n    <p>My first paragraph.</p>\n    <a href="https://google.com">Click here</a>\n</body>\n</html>\n```\n\n**Practice:** Open Notepad → paste code → save as index.html → open in browser. You just made your first website!',video:''},
+        {id:2,title:'CSS — Making Websites Beautiful',content:'CSS makes websites look good.\n\n```css\nbody { background:#0f172a; color:white; font-family:Arial; }\nh1 { color:#10b981; font-size:48px; text-align:center; }\n.btn { background:#10b981; padding:15px 30px; border-radius:8px; color:white; }\n```',video:''},
+        {id:3,title:'JavaScript — Making Websites Interactive',content:'JavaScript makes websites do things.\n\n```javascript\nfunction changeText() {\n    document.getElementById("myText").innerHTML = "Clicked!";\n}\nconst name = document.getElementById("nameInput").value;\nif (name === "") { alert("Please enter name"); }\n```',video:''},
+        {id:4,title:'Building a Complete Business Website',content:'**Structure:** Nav bar → Hero section → Services → About → Contact form → Footer\n\n**Free Hosting:** Netlify (netlify.com) — drag & drop your HTML files\n\n**Pricing:** Simple website (5 pages): $200–$500 | Business website: $500–$1,000',video:''},
+        {id:5,title:'Getting Paid — Finding Web Clients',content:'**Strategy 1: Local Businesses**\nWalk into small shops. Ask "Do you have a website?" Build free mockup from html5up.net templates. Show them. Close the deal for ₦50,000–₦150,000.\n\n**Strategy 2: Fiverr**\nCreate gig: "I will build you a professional business website" — $50–$100 starter.\n\n**Strategy 3: WhatsApp Groups**\nJoin Nigerian entrepreneur groups. Post portfolio.',video:''}
       ]},
     { id:'digital-marketing', title:'Digital Marketing & Social Media', description:'Learn SEO, social media marketing, and email marketing to grow any business.', icon:'📱', level:'Beginner', category:'Marketing', duration:'4 lessons', color:'#ef4444',
       lessons:[
-        {id:1,title:'What is Digital Marketing?',content:'Digital marketing is promoting products using the internet...',video:''},
-        {id:2,title:'SEO — Get Free Traffic from Google',content:'SEO means making your website appear high in Google search results...',video:''},
-        {id:3,title:'Social Media Marketing That Works',content:'**Content Formula:**...',video:''},
-        {id:4,title:'Email Marketing — The Most Profitable Channel',content:'Email has the highest ROI of any marketing...',video:''}
+        {id:1,title:'What is Digital Marketing?',content:'Digital marketing is promoting products using the internet.\n\n**How to Earn:**\n• Social media manager: $300–$1,500/month per client\n• SEO specialist: $500–$3,000/month per client\n• Email marketer: $20–$80/hour\n\n**Best Starting Point:** Social media management. Every small business needs it.',video:''},
+        {id:2,title:'SEO — Get Free Traffic from Google',content:'SEO means making your website appear high in Google search results.\n\n**Basic SEO Steps:**\n1. Research keywords with Ubersuggest.io (free)\n2. Write 1,500+ word articles targeting those keywords\n3. Add keyword in title, first paragraph, headings, URL\n\n**Quick Win:** Write a post titled "How to [solve problem] in [your city]"',video:''},
+        {id:3,title:'Social Media Marketing That Works',content:'**Content Formula:**\n• 3 posts/week: Educational (tips, how-to)\n• 2 posts/week: Inspirational (quotes, stories)\n• 1 post/week: Promotional (what you sell)\n\n**Post at:** 7am–9am, 12pm–1pm, 7pm–9pm\n\n**As Social Media Manager:**\nCharge ₦30,000–₦100,000/month to manage a local business Instagram.',video:''},
+        {id:4,title:'Email Marketing — The Most Profitable Channel',content:'Email has the highest ROI of any marketing — $36 for every $1 spent.\n\n**Email Sequence:**\n• Email 1 (instant): Welcome + free gift\n• Email 2 (day 3): Valuable tip\n• Email 3 (day 5): Success story\n• Email 4 (day 7): Promotional offer\n• Email 5+: Weekly mix of value and promotion\n\n**Free Tools:** Mailchimp (free up to 500 subscribers)',video:''}
       ]},
     { id:'affiliate-marketing', title:'Making Money Online — Affiliate Marketing', description:'Complete guide to affiliate marketing. Choose products, build audiences, earn commissions 24/7.', icon:'💰', level:'Beginner', category:'Income', duration:'5 lessons', color:'#fbbf24',
       lessons:[
-        {id:1,title:'How Affiliate Marketing Really Works',content:'You promote someone else\'s product...',video:''},
-        {id:2,title:'Best Affiliate Programs for Africans',content:'**Tier 1 — Start With These:**...',video:''},
-        {id:3,title:'Building Your Affiliate Traffic Engine',content:'**Method 1: WhatsApp (Fastest for Nigeria)**...',video:''},
-        {id:4,title:'Creating Content That Converts',content:'**Template 1: Review**...',video:''},
-        {id:5,title:'Scaling to $1,000+/Month',content:'**Week 1–2:** Choose niche + sign up for 3 programs...',video:''}
+        {id:1,title:'How Affiliate Marketing Really Works',content:'You promote someone else\'s product. When someone buys through your link, you earn commission. No product creation. No customer service.\n\n**Real Numbers:**\n• $50 product × 50% commission = $25 per sale\n• 10 sales/month = $250/month passive income\n• 100 sales/month = $2,500/month passive income\n\n**Biggest Mistake:** Trying to promote everything to everyone. Pick ONE niche. ONE audience. Stay consistent for 90 days.',video:''},
+        {id:2,title:'Best Affiliate Programs for Africans',content:'**Tier 1 — Start With These:**\n\n🛒 **Jumia NG** — Up to 9% commission. affiliate.jumia.com.ng\n💰 **ClickBank** — 40–75% commission. clickbank.com\n📦 **Amazon Associates** — 3–10%. affiliate-program.amazon.com\n🤝 **ShareASale** — 5–50%. shareasale.com\n\n**Tier 2:**\n• Fiverr Affiliates: $15–$150 per referral\n• Hostinger: 60% commission',video:''},
+        {id:3,title:'Building Your Affiliate Traffic Engine',content:'**Method 1: WhatsApp (Fastest for Nigeria)**\n• Create daily WhatsApp status with a money tip + affiliate link\n• Create broadcast list of interested people\n• Post value 4 days, promote 1 day\n• Earnings: $50–$300/month from WhatsApp alone\n\n**Method 2: TikTok**\n• Post 15–60 second money tip videos\n• Put affiliate link in bio\n• 1 viral video = $100–$1,000 in commissions\n\n**Method 3: Email List**\n• Build subscriber list\n• Weekly emails with tips + affiliate links\n• 500 subscribers = $200–$500/month',video:''},
+        {id:4,title:'Creating Content That Converts',content:'**Template 1: Review**\n"I tried [product] for 30 days. Here\'s what happened..."\n\n**Template 2: Comparison**\n"[Product A] vs [Product B] — Which is ACTUALLY better?"\n\n**Template 3: Problem-Solution**\n"How I paid off my debt in 6 months using this method"\n\n**Key Rule:** Always disclose: "This post contains affiliate links — I earn a small commission if you buy, at no extra cost to you."',video:''},
+        {id:5,title:'Scaling to $1,000+/Month',content:'**Week 1–2:** Choose niche + sign up for 3 programs + create TikTok and WhatsApp profiles\n**Week 3–4:** Post 5 TikToks/week + daily WhatsApp status\n**Month 2:** Keep posting. Track which links convert. Target: first $50.\n**Month 3–4:** Double down on best topics. Start email list. Target: $300–$500/month.\n**Month 6:** Outsource content, invest in ads. Target: $1,000–$2,500/month.\n\n**The Truth:** 80% quit before month 3. The 20% who keep going earn 100% of the money.',video:''}
       ]},
     { id:'freelancing', title:'Freelancing Masterclass', description:'From zero to your first client. Build profile, find jobs, get paid on Fiverr and Upwork.', icon:'🚀', level:'Beginner', category:'Income', duration:'4 lessons', color:'#06b6d4',
       lessons:[
-        {id:1,title:'What Skills Can You Sell Right Now?',content:'**Skills You Can Start TODAY:**...',video:''},
-        {id:2,title:'Creating a Winning Fiverr Profile',content:'**Gig Title Formula:**...',video:''},
-        {id:3,title:'Getting Your First Order on Upwork',content:'**Winning Proposal Formula:**...',video:''},
-        {id:4,title:'Raising Rates — From $5 to $50/Hour',content:'**Stage 1 ($5–$15/hour):**...',video:''}
+        {id:1,title:'What Skills Can You Sell Right Now?',content:'**Skills You Can Start TODAY:**\n• Data entry — $5–$15/hour\n• Social media management — $150–$500/month\n• Virtual assistant — $10–$25/hour\n• Canva graphic design — $15–$50 per design\n• English-Arabic translation — $10–$25/hour\n\n**Worth Learning (1–4 weeks):**\n• Excel/data analysis — $20–$60/hour\n• Video editing (CapCut is free) — $20–$100 per video\n• WordPress website building — $200–$500 per site\n\n**First Step:** Pick ONE from "start today" list. Create a Fiverr gig tomorrow.',video:''},
+        {id:2,title:'Creating a Winning Fiverr Profile',content:'**Gig Title Formula:** "I will [specific outcome] for [specific customer]"\nExamples:\n• "I will manage your Instagram account for 30 days"\n• "I will design a professional logo in 24 hours"\n\n**Pricing:**\n• Basic: $5–$15\n• Standard: $15–$35\n• Premium: $35–$75\n\nAfter 5 Reviews: Raise all prices by 50–100%.',video:''},
+        {id:3,title:'Getting Your First Order on Upwork',content:'**Winning Proposal Formula:**\n1. Show you read the job: "I noticed you need [specific thing]..."\n2. Show experience: "I have done similar work for [type of client]..."\n3. Show approach: "I would solve this by..."\n4. CTA: "I\'d love to discuss. Available for a quick call?"\n5. Keep under 150 words\n\n**Getting First Review:** Apply to $5–$20 jobs. Over-deliver. Ask for 5-star review.',video:''},
+        {id:4,title:'Raising Rates — From $5 to $50/Hour',content:'**Stage 1 ($5–$15/hour):** Get 5–10 five-star reviews. Accept almost any job. Over-deliver.\n\n**Stage 2 ($15–$35/hour):** Specialize in ONE skill. Raise all prices.\n\n**Stage 3 ($35–$75/hour):** Target businesses not individuals. Show ROI. Offer packages.\n\n**Rate Raise Script:** "Starting next month I\'m increasing my rates to $[new rate]. Because I value our relationship, I\'ll keep your rate for 2 more months."',video:''}
       ]}
 ];
 
@@ -1404,7 +1408,6 @@ app.get('/', (req, res) => {
             <div class="full-story" id="story-${story.id}" style="display:none">${escapeHtml(story.fullStory || story.story)}</div>
         </div>`).join('');
 
-    // ONLY AMERICAN VIDEOS
     const americanVideos = data.videos.filter(v => v.region === 'american').map(video => `
         <div class="video-card" onclick="playVideo('${video.videoUrl}')">
             <div class="video-thumb" style="background-image:url('${video.thumbnail}')">
@@ -1447,14 +1450,14 @@ app.get('/', (req, res) => {
 
         /* BIGGER LOGO */
         .nav-logo {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: 900;
             color: var(--green);
             text-decoration: none;
             display: flex;
             align-items: center;
             gap: 12px;
-            letter-spacing: -0.5px;
+            letter-spacing: -1px;
             text-transform: uppercase;
             background: linear-gradient(135deg, #10b981, #fbbf24);
             -webkit-background-clip: text;
@@ -1480,7 +1483,6 @@ app.get('/', (req, res) => {
         .mobile-menu .mm-lib{color:#a78bfa;}
         .mobile-menu .mm-cta{background:rgba(16,185,129,0.1);color:var(--green);font-weight:700;margin-top:4px;}
 
-        /* REST OF YOUR CSS REMAINS EXACTLY THE SAME */
         .hero{position:relative;padding:96px 5% 76px;text-align:center;overflow:hidden;}
         .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% -10%,rgba(16,185,129,0.2) 0%,transparent 58%);pointer-events:none;}
         .hero::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 60%,rgba(139,92,246,0.08) 0%,transparent 50%);pointer-events:none;}
@@ -1502,7 +1504,6 @@ app.get('/', (req, res) => {
         .hero-stat .num{font-size:28px;font-weight:800;color:var(--green);}
         .hero-stat .lbl{font-size:12px;color:var(--muted);margin-top:3px;}
 
-        /* All your other CSS remains exactly the same */
         .lib-promo{background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(16,185,129,0.05));border:1px solid rgba(139,92,246,0.2);border-radius:20px;padding:36px;margin:36px 0;display:grid;grid-template-columns:1fr auto;gap:32px;align-items:center;}
         .lib-promo h2{font-size:22px;font-weight:800;color:var(--text);margin-bottom:10px;}
         .lib-promo p{color:#94a3b8;font-size:14px;line-height:1.7;margin-bottom:20px;}
@@ -1713,16 +1714,7 @@ app.get('/', (req, res) => {
         .test-form-box input:focus,.test-form-box textarea:focus{outline:none;border-color:var(--green);}
         .test-submit{background:var(--green);color:#0a0f1e;padding:11px 22px;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;font-size:14px;margin-top:10px;}
 
-        .blog-search-wrap{position:relative;max-width:500px;margin-bottom:24px;}
-        .blog-search-wrap input{width:100%;padding:12px 44px 12px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;}
-        .blog-search-wrap input:focus{outline:none;border-color:var(--green);}
-        .blog-search-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px;pointer-events:none;}
-        .blog-search-results{display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-top:4px;z-index:100;max-height:320px;overflow-y:auto;}
-        .bsr-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:0.15s;}
-        .bsr-item:last-child{border-bottom:none;}
-        .bsr-item:hover{background:var(--card2);}
-        .bsr-title{font-size:14px;font-weight:600;color:var(--text);}
-        .bsr-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+        .blog-search-wrap{display:none;} /* REMOVED BLOG SEARCH */
 
         .theme-toggle{position:fixed;top:80px;right:16px;width:42px;height:42px;background:var(--card);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:998;font-size:18px;transition:0.2s;}
         .theme-toggle:hover{border-color:var(--green);}
@@ -1908,15 +1900,10 @@ app.get('/', (req, res) => {
             </div>
         </div>
 
-        <!-- BLOG POSTS -->
+        <!-- BLOG POSTS (NO SEARCH) -->
         <div class="section" id="blog">
             <div class="section-header">
                 <div class="section-title">📝 Latest Blog Posts</div>
-            </div>
-            <div class="blog-search-wrap">
-                <input type="text" id="blogSearch" placeholder="🔍 Search blog posts..." oninput="searchBlogs(this.value)">
-                <span class="blog-search-icon">🔍</span>
-                <div class="blog-search-results" id="blogSearchResults"></div>
             </div>
             <div class="blog-grid">
                 ${postsHtml || '<p style="color:var(--muted)">Bot posts automatically at 8am & 8pm daily.</p>'}
@@ -2003,13 +1990,11 @@ app.get('/', (req, res) => {
                 <div class="section-title">⭐ Member Reviews</div>
             </div>
             <div class="test-grid" id="testGrid">
-                <!-- Default reviews shown before any are submitted -->
                 <div class="test-card"><div class="test-stars">★★★★★</div><div class="test-text">I was skeptical at first but after following the Jumia affiliate guide I made my first ₦15,000 in 2 weeks. This platform is real and it works!</div><div class="test-author"><div class="test-av">C</div><div><div class="test-name">Chidera O.</div><div class="test-country">📍 Enugu, Nigeria</div></div></div></div>
                 <div class="test-card"><div class="test-stars">★★★★★</div><div class="test-text">The free library courses are amazing. I completed the Freelancing course and got my first Upwork client within 3 weeks. Cannot believe this is free.</div><div class="test-author"><div class="test-av">Y</div><div><div class="test-name">Yusuf A.</div><div class="test-country">📍 Kano, Nigeria</div></div></div></div>
                 <div class="test-card"><div class="test-stars">★★★★★</div><div class="test-text">The AI course completely changed how I work. I now use ChatGPT to write content for clients on Fiverr and earn $500/month working just 2 hours daily.</div><div class="test-author"><div class="test-av">A</div><div><div class="test-name">Amira K.</div><div class="test-country">📍 Cairo, Egypt</div></div></div></div>
                 <div class="test-card"><div class="test-stars">★★★★☆</div><div class="test-text">Started following the ClickBank guide 2 months ago. Slow at first but now earning $180/month from affiliate commissions. Growing every week!</div><div class="test-author"><div class="test-av">K</div><div><div class="test-name">Kwame B.</div><div class="test-country">📍 Accra, Ghana</div></div></div></div>
             </div>
-            <!-- Leave Review Form -->
             <div class="test-form-box">
                 <h4>✍️ Share Your Experience</h4>
                 <div class="test-form-grid">
@@ -2123,10 +2108,8 @@ app.get('/', (req, res) => {
     <a href="/admin" class="admin-btn">🔐 Admin</a>
 
     <script>
-        // ── Navbar mobile
         function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open');}
 
-        // ── Video modal
         function playVideo(url){
             document.getElementById('videoModal').style.display='flex';
             document.getElementById('videoPlayer').src=url;
@@ -2134,10 +2117,8 @@ app.get('/', (req, res) => {
         function closeVideoModal(){document.getElementById('videoModal').style.display='none';document.getElementById('videoPlayer').src='';}
         document.addEventListener('keydown',e=>{if(e.key==='Escape')closeVideoModal();});
 
-        // ── Track clicks
         function trackClick(n,t){fetch('/api/track-click',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({linkName:n,type:t})});}
 
-        // ── Story toggle
         function toggleStory(id){
             const el=document.getElementById('story-'+id);
             const btn=event.target;
@@ -2145,7 +2126,6 @@ app.get('/', (req, res) => {
             else{el.style.display='none';btn.textContent='Read Full Story ▼';}
         }
 
-        // ── Newsletter
         async function subscribeNewsletter(){
             const email=document.getElementById('nlEmail').value;
             if(!email||!email.includes('@')){alert('Enter a valid email');return;}
@@ -2154,7 +2134,6 @@ app.get('/', (req, res) => {
             document.getElementById('nlEmail').value='';
         }
 
-        // ── Ad Engine: Load ads on page load
         async function loadAds(){
             const slots = [
                 {slot:'Top', img:'adImgTop', title:'adTitleTop', desc:'adDescTop', cta:'adCtaTop', content:'adContentTop', placeholder:'adPlaceholderTop'},
@@ -2182,14 +2161,12 @@ app.get('/', (req, res) => {
         }
         loadAds();
 
-        // ── VISITOR COUNTER ──
         async function updateVisitorCount(){
             try{const r=await fetch('/api/visitors');const d=await r.json();document.getElementById('liveCount').textContent=d.count;}catch(e){}
         }
         updateVisitorCount();
         setInterval(updateVisitorCount, 30000);
 
-        // ── COUNTDOWN TIMER (resets daily) ──
         function updateTimer(){
             const now=new Date();
             const end=new Date(now);
@@ -2208,25 +2185,6 @@ app.get('/', (req, res) => {
         updateTimer();
         setInterval(updateTimer,1000);
 
-        // ── BLOG SEARCH ──
-        let searchTimeout=null;
-        async function searchBlogs(q){
-            const res=document.getElementById('blogSearchResults');
-            if(!q||q.length<2){res.style.display='none';return;}
-            clearTimeout(searchTimeout);
-            searchTimeout=setTimeout(async()=>{
-                try{
-                    const r=await fetch('/api/blog/search?q='+encodeURIComponent(q));
-                    const d=await r.json();
-                    if(d.posts.length===0){res.innerHTML='<div class="bsr-item" style="color:var(--muted)">No results found</div>';}
-                    else{res.innerHTML=d.posts.map(p=>\`<div class="bsr-item" onclick="window.location='/blog/\${p.id}'"><div class="bsr-title">\${p.title}</div><div class="bsr-meta">\${new Date(p.date).toLocaleDateString()} • \${p.views} views</div></div>\`).join('');}
-                    res.style.display='block';
-                }catch(e){}
-            },300);
-        }
-        document.addEventListener('click',e=>{if(!e.target.closest('.blog-search-wrap'))document.getElementById('blogSearchResults').style.display='none';});
-
-        // ── TESTIMONIALS ──
         async function submitReview(){
             const name=document.getElementById('tName').value;
             const text=document.getElementById('tText').value;
@@ -2242,7 +2200,6 @@ app.get('/', (req, res) => {
             }catch(e){res.textContent='Server error. Try again.';res.style.color='#ef4444';}
         }
 
-        // ── DARK/LIGHT MODE ──
         const savedTheme=localStorage.getItem('theme');
         if(savedTheme==='light')document.body.classList.add('light-mode');
         function toggleTheme(){
@@ -2251,14 +2208,12 @@ app.get('/', (req, res) => {
             document.getElementById('themeIcon').textContent=document.body.classList.contains('light-mode')?'🌙':'☀️';
         }
 
-        // ── COOKIE BANNER ──
         if(!localStorage.getItem('cookieAccepted')){
             document.getElementById('cookieBanner').style.display='flex';
         }
         function acceptCookie(){localStorage.setItem('cookieAccepted','1');document.getElementById('cookieBanner').style.display='none';}
         function declineCookie(){document.getElementById('cookieBanner').style.display='none';}
 
-        // ── POPUP SUBSCRIBE (after 35 seconds, max once per session) ──
         if(!sessionStorage.getItem('popupShown')){
             setTimeout(()=>{
                 const popup=document.getElementById('subscribePopup');
@@ -2279,6 +2234,594 @@ app.get('/', (req, res) => {
     ${injections.bodyEnd || ''}
     ${socialPixels.customBody || ''}
     ${socialPixels.customJS ? `<script>${socialPixels.customJS}</script>` : ''}
+</body>
+</html>`);
+});
+
+// ==================== ADMIN PAGE (MUST BE INCLUDED!) ====================
+app.get('/admin', (req, res) => {
+    if (!checkAdmin(req)) {
+        return res.send(`<!DOCTYPE html><html><head><title>Admin Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Space Grotesk',sans-serif;background:#0a0f1e;color:white;display:flex;justify-content:center;align-items:center;height:100vh;}
+.box{background:#131c31;padding:40px;border-radius:16px;width:360px;border:1px solid rgba(16,185,129,0.2);}
+h2{color:#fbbf24;text-align:center;margin-bottom:30px;font-size:22px;}
+input{width:100%;padding:14px;margin:8px 0;background:#0a0f1e;border:1px solid #334155;color:white;border-radius:8px;font-family:inherit;font-size:15px;}
+button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;color:#0a0f1e;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;}</style></head>
+<body><div class="box"><h2>🔐 3EESHER Admin</h2>
+<input type="text" id="u" placeholder="Username"><input type="password" id="p" placeholder="Password">
+<button onclick="login()">Login</button></div>
+<script>async function login(){const u=document.getElementById('u').value,p=document.getElementById('p').value;if(!u||!p){alert('Fill both fields');return;}const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});if(r.ok)location.reload();else alert('Invalid credentials');}</script>
+</body></html>`);
+    }
+
+    const data = getData();
+
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Admin Dashboard — 3EESHER</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Space Grotesk',sans-serif;background:#0a0f1e;color:#e2e8f0;padding:20px;}
+        .container{max-width:1400px;margin:0 auto;}
+        .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid #10b981;}
+        .topbar h1{color:#fbbf24;font-size:22px;}
+        .tabs{display:flex;gap:8px;margin:0 0 24px;flex-wrap:wrap;}
+        .tab-btn{padding:10px 18px;background:#131c31;border:1px solid #1e293b;color:#94a3b8;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:0.2s;}
+        .tab-btn:hover,.tab-btn.active{background:#10b981;color:#0a0f1e;border-color:#10b981;font-weight:700;}
+        .section{display:none;background:#131c31;padding:28px;border-radius:16px;border:1px solid #1e293b;}
+        .section.active{display:block;}
+        input,textarea,select{width:100%;padding:11px 14px;margin:8px 0;background:#0a0f1e;border:1px solid #1e293b;color:#e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;}
+        input:focus,textarea:focus,select:focus{outline:none;border-color:#10b981;}
+        button{background:#10b981;color:#0a0f1e;padding:11px 22px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;margin:4px;}
+        .del{background:#ef4444;color:white;}
+        .approve{background:#f59e0b;color:#0a0f1e;}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;}
+        .stat-card{background:#0a0f1e;padding:20px;border-radius:12px;border-left:4px solid #10b981;}
+        .stat-card h3{color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
+        .stat-value{font-size:28px;font-weight:800;color:#fbbf24;margin-top:6px;}
+        .item{background:#0a0f1e;padding:14px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+        .item-info{flex:1;}
+        .ad-card{background:#0a0f1e;padding:16px;margin:10px 0;border-radius:10px;border-left:4px solid #8b5cf6;}
+        .ad-card.active{border-color:#10b981;}
+        .ad-card.pending{border-color:#f59e0b;}
+        .badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+        .badge.active{background:rgba(16,185,129,0.15);color:#10b981;}
+        .badge.pending{background:rgba(245,158,11,0.15);color:#f59e0b;}
+        .badge.expired{background:rgba(239,68,68,0.15);color:#ef4444;}
+        .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="topbar">
+        <h1>☁️ 3EESHER Admin Dashboard</h1>
+        <button onclick="logout()" style="background:#ef4444;color:white;">Logout</button>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('dashboard', this)">📊 Dashboard</button>
+        <button class="tab-btn" onclick="showTab('ads', this)">🎯 Ads Engine</button>
+        <button class="tab-btn" onclick="showTab('earnings', this)">💰 Earnings</button>
+        <button class="tab-btn" onclick="showTab('email', this)">📧 Email Blast</button>
+        <button class="tab-btn" onclick="showTab('moneylinks', this)">🔗 Money Links</button>
+        <button class="tab-btn" onclick="showTab('stores', this)">🏪 Stores</button>
+        <button class="tab-btn" onclick="showTab('blogs', this)">📝 Blogs</button>
+        <button class="tab-btn" onclick="showTab('videos', this)">🎬 Videos</button>
+        <button class="tab-btn" onclick="showTab('upload', this)">📁 Upload</button>
+        <button class="tab-btn" onclick="showTab('social', this)">📱 Social</button>
+        <button class="tab-btn" onclick="showTab('target', this)">🎯 Target</button>
+        <button class="tab-btn" onclick="showTab('inject', this)">🔌 Inject</button>
+        <button class="tab-btn" onclick="showTab('testimonials', this)">⭐ Reviews</button>
+        <button class="tab-btn" onclick="showTab('settings', this)">⚙️ Settings</button>
+        <button class="tab-btn" onclick="showTab('command', this)">🤖 Command</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="section active">
+        <div class="stats-grid">
+            <div class="stat-card"><h3>Total Earnings</h3><div class="stat-value">$${data.earnings.total.toFixed(2)}</div></div>
+            <div class="stat-card"><h3>Today</h3><div class="stat-value">$${data.earnings.today.toFixed(2)}</div></div>
+            <div class="stat-card" style="border-color:#8b5cf6"><h3>Ad Revenue</h3><div class="stat-value">$${(data.adStats?.totalRevenue || 0).toFixed(2)}</div></div>
+            <div class="stat-card" style="border-color:#f59e0b"><h3>Active Ads</h3><div class="stat-value">${(data.ads || []).filter(a => a.active).length}</div></div>
+            <div class="stat-card"><h3>Subscribers</h3><div class="stat-value">${data.subscribers.length}</div></div>
+            <div class="stat-card"><h3>Total Clicks</h3><div class="stat-value">${data.moneyLinks.reduce((s,l)=>s+(l.clicks||0),0)+data.storeLinks.reduce((s,l)=>s+(l.clicks||0),0)}</div></div>
+        </div>
+        <div style="background:#0a0f1e;padding:20px;border-radius:10px;">
+            <h3 style="color:#fbbf24;margin-bottom:12px;">🤖 Bot Status</h3>
+            <div>✅ Auto Money Maker: ${data.settings.autoMoneyMaker ? 'Running (every hour)' : '⏸️ Paused'}</div>
+            <div>✅ Auto Blogger: ${data.settings.autoBlogger ? data.settings.blogFrequency + 'x daily' : '⏸️ Paused'}</div>
+            <div>✅ Auto Targeting: ${data.settings.autoTargeting ? 'Running (every 30 min)' : '⏸️ Paused'}</div>
+        </div>
+    </div>
+
+    <!-- ADS ENGINE -->
+    <div id="ads" class="section">
+        <h2 style="color:#fbbf24;margin-bottom:20px;">🎯 Ad Engine</h2>
+        <div class="stats-grid">
+            <div class="stat-card" style="border-color:#8b5cf6"><h3>Ad Revenue</h3><div class="stat-value">$${(data.adStats?.totalRevenue || 0).toFixed(2)}</div></div>
+            <div class="stat-card"><h3>Impressions</h3><div class="stat-value">${data.adStats?.totalImpressions || 0}</div></div>
+            <div class="stat-card"><h3>Ad Clicks</h3><div class="stat-value">${data.adStats?.totalClicks || 0}</div></div>
+            <div class="stat-card" style="border-color:#f59e0b"><h3>Pending Approval</h3><div class="stat-value">${(data.ads || []).filter(a => !a.active).length}</div></div>
+        </div>
+
+        <h3 style="margin:20px 0 12px;color:#e2e8f0;">All Submitted Ads</h3>
+        ${(data.ads || []).length === 0 ? '<p style="color:#64748b">No ads yet. Share /advertise page to get clients!</p>' : ''}
+        ${(data.ads || []).map(ad => `
+        <div class="ad-card ${ad.active ? 'active' : 'pending'}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <strong>${escapeHtml(ad.title)}</strong>
+                    <span class="badge ${ad.active ? 'active' : 'pending'}" style="margin-left:8px;">${ad.active ? '✅ Active' : '⏳ Pending'}</span>
+                    <div style="color:#64748b;font-size:13px;margin-top:6px;">
+                        Advertiser: ${escapeHtml(ad.advertiserName)} (${escapeHtml(ad.advertiserEmail)}) •
+                        Package: ${ad.package} ($${ad.price}) •
+                        ${ad.impressionsUsed || 0}/${ad.impressionsTotal} impressions •
+                        ${ad.clicks || 0} clicks
+                    </div>
+                    <div style="color:#64748b;font-size:12px;margin-top:4px;">
+                        Targeting — IPs: ${(ad.targeting?.ips || []).map(escapeHtml).join(', ') || 'None'} |
+                        Phones: ${(ad.targeting?.phones || []).map(escapeHtml).join(', ') || 'None'} |
+                        IMEIs: ${(ad.targeting?.imeis || []).map(escapeHtml).join(', ') || 'None'}
+                    </div>
+                    <div style="color:#64748b;font-size:12px;">URL: <a href="${ad.url}" target="_blank" style="color:#10b981;">${escapeHtml(ad.url)}</a></div>
+                </div>
+                <div>
+                    ${!ad.active ? `<button class="approve" onclick="approveAd(${ad.id})">✅ Approve</button>` : ''}
+                    <button class="del" onclick="deleteAd(${ad.id})">Delete</button>
+                </div>
+            </div>
+        </div>`).join('')}
+
+        <h3 style="margin:30px 0 12px;color:#e2e8f0;">➕ Create Ad Directly (Admin)</h3>
+        <div class="two-col">
+            <input type="text" id="adTitle" placeholder="Ad Title">
+            <input type="text" id="adAdvertiser" placeholder="Advertiser Name">
+            <input type="url" id="adUrl" placeholder="Destination URL">
+            <input type="url" id="adImage" placeholder="Ad Image URL">
+            <input type="text" id="adDesc" placeholder="Description">
+            <input type="text" id="adCta" placeholder="CTA Text (e.g. Shop Now)">
+            <input type="number" id="adImpressions" placeholder="Total Impressions (e.g. 5000)" value="5000">
+            <input type="number" id="adDays" placeholder="Duration in days" value="30">
+            <input type="number" id="adPrice" placeholder="Price paid ($)" value="25">
+        </div>
+        <input type="text" id="adTargetIps" placeholder="Target IPs (comma separated, optional)">
+        <input type="text" id="adTargetPhones" placeholder="Target Phones (comma separated, optional)">
+        <input type="text" id="adTargetImeis" placeholder="Target IMEIs (comma separated, optional)">
+        <button onclick="createAdDirectly()">Create & Activate Ad</button>
+    </div>
+
+    <!-- EARNINGS -->
+    <div id="earnings" class="section">
+        <h3>Add Earning</h3>
+        <input type="number" id="amount" placeholder="Amount ($)">
+        <input type="text" id="source" placeholder="Source (e.g. Jumia Commission)">
+        <input type="text" id="link" placeholder="Link name">
+        <button onclick="addEarning()">Add Earning</button>
+        <h3 style="margin-top:20px;">Withdraw</h3>
+        <input type="number" id="withdrawAmount" placeholder="Amount">
+        <select id="withdrawMethod"><option value="bank">Bank Transfer</option><option value="card">Mastercard</option><option value="crypto">Cryptocurrency</option></select>
+        <button onclick="withdraw()">Withdraw</button>
+    </div>
+
+    <!-- EMAIL BLAST -->
+    <div id="email" class="section">
+        <h2 style="color:#fbbf24;margin-bottom:16px;">📧 Email Blast</h2>
+        <div style="background:#0a0f1e;padding:16px;border-radius:8px;margin-bottom:20px;">
+            <strong style="color:#10b981;">Total Subscribers: ${data.subscribers.length}</strong>
+            <span style="color:#64748b;margin-left:20px;">Last campaigns: ${(data.emailCampaigns || []).length}</span>
+        </div>
+        <h3 style="margin-bottom:10px;">Quick Blast (Choose Campaign)</h3>
+        <select id="campaignIndex" style="margin-bottom:10px;">
+            <option value="0">💰 3 Ways to Make $500 This Week</option>
+            <option value="1">🛒 Jumia Affiliate — $1,200/Month</option>
+            <option value="2">🤖 AI Tools to Make Money</option>
+            <option value="3">📚 Free Library Access</option>
+            <option value="4">🚀 5 Platforms to Start Today</option>
+        </select>
+        <button onclick="sendQuickBlast(this)">🚀 Send This Campaign to All Subscribers</button>
+        <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
+        <h3 style="margin-bottom:10px;">Custom Email Blast</h3>
+        <input type="text" id="blastSubject" placeholder="Email Subject Line">
+        <textarea id="blastHtml" rows="6" placeholder="HTML email body (leave empty to use default template)"></textarea>
+        <button onclick="sendCustomBlast(this)">📨 Send Custom Blast to All Subscribers</button>
+        <div id="blastResult" style="margin-top:12px;font-size:14px;padding:10px;border-radius:6px;display:none;"></div>
+        <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
+        <h3 style="margin-bottom:10px;">Recent Campaigns</h3>
+        <div style="max-height:300px;overflow-y:auto;">
+            ${(data.emailCampaigns || []).slice(0,10).map(c => `<div class="item"><span><strong>${escapeHtml(c.subject.substring(0,50))}</strong> — ${c.sent}/${c.total} sent on ${new Date(c.date).toLocaleDateString()}</span></div>`).join('') || '<p style="color:#64748b">No campaigns sent yet.</p>'}
+        </div>
+    </div>
+
+    <!-- MONEY LINKS -->
+    <div id="moneylinks" class="section">
+        <h3>Money Making Links (${data.moneyLinks.length})</h3>
+        <div style="max-height:350px;overflow-y:auto;">
+            ${data.moneyLinks.map(l => `<div class="item"><span><strong>${escapeHtml(l.name)}</strong> — ${l.clicks || 0} clicks, $${(l.earnings || 0).toFixed(2)}</span></div>`).join('')}
+        </div>
+        <h3 style="margin-top:20px;">Add Custom Money Link</h3>
+        <input type="text" id="moneyName" placeholder="Name">
+        <input type="text" id="moneyUrl" placeholder="URL">
+        <select id="moneyCategory"><option value="freelance">Freelance</option><option value="affiliate">Affiliate</option><option value="courses">Courses</option><option value="social">Social</option></select>
+        <button onclick="addMoneyLink()">Add Link</button>
+    </div>
+
+    <!-- STORES -->
+    <div id="stores" class="section">
+        <h3>Stores (Add Affiliate IDs)</h3>
+        <div style="max-height:300px;overflow-y:auto;">
+            ${data.storeLinks.map(l => `<div class="item"><span><strong>${escapeHtml(l.name)}</strong> — ID: ${l.id ? escapeHtml(l.id) : 'Not set'} (${l.clicks || 0} clicks)</span></div>`).join('')}
+        </div>
+        <h3 style="margin-top:20px;">Add Store Affiliate ID</h3>
+        <input type="text" id="storeName" placeholder="Store name (e.g. Jumia)">
+        <input type="text" id="storeId" placeholder="Affiliate ID">
+        <button onclick="addStoreId()">Add ID</button>
+    </div>
+
+    <!-- BLOGS -->
+    <div id="blogs" class="section">
+        <h3>Recent Blogs</h3>
+        <div style="max-height:300px;overflow-y:auto;">
+            ${data.blogPosts.map(b => `<div class="item"><span><strong>${escapeHtml(b.title)}</strong> — ${new Date(b.date).toLocaleDateString()} • ${b.views} views</span><button class="del" onclick="deleteBlog(${b.id})">Delete</button></div>`).join('')}
+        </div>
+        <h3 style="margin-top:20px;">Create Manual Blog</h3>
+        <input type="text" id="blogTitle" placeholder="Title">
+        <textarea id="blogContent" rows="4" placeholder="Content (HTML allowed)"></textarea>
+        <input type="file" id="blogImage" accept="image/*">
+        <button onclick="createBlog()">Publish Blog</button>
+    </div>
+
+    <!-- VIDEOS -->
+    <div id="videos" class="section">
+        <h3>Videos (${data.videos.length})</h3>
+        <div style="max-height:300px;overflow-y:auto;">
+            ${data.videos.map(v => `<div class="item"><span><strong>${escapeHtml(v.title)}</strong> — ${v.region}</span><button class="del" onclick="deleteVideo(${v.id})">Delete</button></div>`).join('')}
+        </div>
+    </div>
+
+    <!-- UPLOAD -->
+    <div id="upload" class="section">
+        <h3>Upload Video</h3>
+        <input type="text" id="videoTitle" placeholder="Video title">
+        <input type="file" id="videoFile" accept="video/*">
+        <button onclick="uploadVideo()">Upload Video</button>
+        <h3 style="margin-top:20px;">Upload Image</h3>
+        <input type="file" id="imageFile" accept="image/*">
+        <button onclick="uploadImage()">Upload Image</button>
+    </div>
+
+    <!-- SOCIAL -->
+    <div id="social" class="section">
+        <h3>Facebook Pixel</h3>
+        <textarea id="fbPixel" rows="3">${escapeHtml(data.socialPixels?.facebook || '')}</textarea>
+        <button onclick="saveSocial('facebook')">Save Facebook</button>
+        <h3>TikTok Pixel</h3>
+        <textarea id="ttPixel" rows="3">${escapeHtml(data.socialPixels?.tiktok || '')}</textarea>
+        <button onclick="saveSocial('tiktok')">Save TikTok</button>
+        <h3>WhatsApp</h3>
+        <textarea id="waPixel" rows="3">${escapeHtml(data.socialPixels?.whatsapp || '')}</textarea>
+        <button onclick="saveSocial('whatsapp')">Save WhatsApp</button>
+        <h3>Telegram</h3>
+        <textarea id="tgPixel" rows="3">${escapeHtml(data.socialPixels?.telegram || '')}</textarea>
+        <button onclick="saveSocial('telegram')">Save Telegram</button>
+    </div>
+
+    <!-- TARGET -->
+    <div id="target" class="section">
+        <h3>Add Phone Numbers</h3>
+        <textarea id="phones" rows="4" placeholder="+2348012345678 (one per line)"></textarea>
+        <button onclick="addPhones()">Add Phones</button>
+        <p style="color:#64748b;font-size:12px;margin-top:4px;">Total: ${data.targeting.phones.length} phones</p>
+        <h3 style="margin-top:20px;">Add IMEI Numbers</h3>
+        <textarea id="imeis" rows="4" placeholder="356789012345678 (one per line)"></textarea>
+        <button onclick="addIMEIs()">Add IMEIs</button>
+        <p style="color:#64748b;font-size:12px;margin-top:4px;">Total: ${data.targeting.imeis.length} IMEIs</p>
+    </div>
+
+    <!-- INJECT -->
+    <div id="inject" class="section">
+        <h3>Universal Injector (HTML, CSS, JS)</h3>
+        <select id="injectLocation">
+            <option value="head">Head (HTML)</option>
+            <option value="bodyStart">Body Start (HTML)</option>
+            <option value="bodyEnd">Body End (HTML)</option>
+            <option value="css">CSS</option>
+            <option value="js">JavaScript</option>
+        </select>
+        <textarea id="injectCode" rows="6" placeholder="Paste your code here..."></textarea>
+        <button onclick="injectCode()">Inject Code</button>
+    </div>
+
+    <!-- TESTIMONIALS MANAGEMENT -->
+    <div id="testimonials" class="section">
+        <h2 style="color:#fbbf24;margin-bottom:16px;">⭐ Reviews & Testimonials</h2>
+        <div style="background:#0a0f1e;padding:14px;border-radius:8px;margin-bottom:16px;">
+            <strong style="color:#10b981;">Total Reviews: ${(data.testimonials || []).length}</strong>
+            <span style="color:#64748b;margin-left:16px;">Approved: ${(data.testimonials || []).filter(t=>t.approved).length}</span>
+            <span style="color:#f59e0b;margin-left:16px;">Pending: ${(data.testimonials || []).filter(t=>!t.approved).length}</span>
+        </div>
+        <div id="testimonialsListAdmin">
+            ${(data.testimonials || []).length === 0 ? '<p style="color:#64748b">No testimonials submitted yet.</p>' : ''}
+            ${(data.testimonials || []).map(t => `
+            <div class="item" style="flex-direction:column;align-items:flex-start;gap:8px;">
+                <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+                    <strong>${escapeHtml(t.name)} ${t.country ? '📍 '+escapeHtml(t.country) : ''} ${'★'.repeat(t.rating||5)}</strong>
+                    <span class="badge ${t.approved?'active':'pending'}">${t.approved?'✅ Approved':'⏳ Pending'}</span>
+                </div>
+                <p style="color:#94a3b8;font-size:13px;">${escapeHtml(t.text)}</p>
+                <div style="display:flex;gap:8px;">
+                    ${!t.approved ? `<button class="approve" onclick="approveTestimonial(${t.id})">✅ Approve</button>` : ''}
+                    <button class="del" onclick="deleteTestimonial(${t.id})">Delete</button>
+                </div>
+            </div>`).join('')}
+        </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="settings" class="section">
+        <h3>Change Password</h3>
+        <input type="password" id="currentPass" placeholder="Current password">
+        <input type="password" id="newPass" placeholder="New password (min 6 chars)">
+        <input type="password" id="confirmPass" placeholder="Confirm new password">
+        <button onclick="changePassword()">Change Password</button>
+        <h3 style="margin-top:20px;">Auto Tasks</h3>
+        <label><input type="checkbox" id="autoMoney" ${data.settings.autoMoneyMaker ? 'checked' : ''}> Auto Money Maker (every hour)</label><br>
+        <label style="margin-top:8px;display:block;"><input type="checkbox" id="autoBlog" ${data.settings.autoBlogger ? 'checked' : ''}> Auto Blogger (2x daily)</label><br>
+        <label style="margin-top:8px;display:block;"><input type="checkbox" id="autoTarget" ${data.settings.autoTargeting ? 'checked' : ''}> Auto Targeting (every 30 min)</label><br>
+        <button onclick="saveSettings()" style="margin-top:12px;">Save Settings</button>
+    </div>
+
+    <!-- COMMAND -->
+    <div id="command" class="section">
+        <h3>🤖 Bot Command Terminal</h3>
+        <textarea id="commandInput" rows="3" placeholder="Type command... e.g. help, show ads, show earnings, status"></textarea>
+        <button onclick="sendCommand()">Send Command</button>
+        <div id="response" style="background:#0a0f1e;padding:16px;margin-top:16px;border-radius:8px;white-space:pre-wrap;font-family:monospace;font-size:13px;min-height:80px;border:1px solid #1e293b;"></div>
+    </div>
+
+</div>
+
+<script>
+    function showTab(tab, btn) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        const el = document.getElementById(tab);
+        if (el) el.classList.add('active');
+    }
+
+    async function api(url, opts = {}) {
+        try {
+            const r = await fetch(url, opts);
+            if (r.status === 403) {
+                alert('⚠️ Session expired. Please log in again.');
+                location.href = '/admin';
+                return null;
+            }
+            const d = await r.json();
+            return d;
+        } catch (e) {
+            alert('❌ Network error: ' + e.message);
+            return null;
+        }
+    }
+
+    window.addEventListener('load', async () => {
+        const r = await fetch('/api/earnings');
+        if (r.status === 403) { location.href = '/admin'; }
+    });
+
+    function logout() { window.location.href = '/logout'; }
+
+    async function approveAd(id) {
+        const d = await api('/api/ads/approve/' + id, { method: 'POST' });
+        if (d && d.success) { alert('✅ Ad approved and activated!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function deleteAd(id) {
+        if (!confirm('Delete this ad?')) return;
+        const d = await api('/api/ads/' + id, { method: 'DELETE' });
+        if (d) location.reload();
+    }
+    async function createAdDirectly() {
+        const title = document.getElementById('adTitle').value.trim();
+        const url = document.getElementById('adUrl').value.trim();
+        if (!title || !url) { alert('❌ Title and URL are required'); return; }
+        const body = {
+            advertiserName: document.getElementById('adAdvertiser').value || 'Admin',
+            advertiserEmail: '${GMAIL_USER}',
+            title, url,
+            description: document.getElementById('adDesc').value,
+            image: document.getElementById('adImage').value,
+            cta: document.getElementById('adCta').value || 'Learn More',
+            package: 'enterprise',
+            targetIps: document.getElementById('adTargetIps').value,
+            targetPhones: document.getElementById('adTargetPhones').value,
+            targetImeis: document.getElementById('adTargetImeis').value
+        };
+        const d = await api('/api/ads/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!d || !d.success) { alert('❌ ' + (d ? d.error : 'Failed')); return; }
+        const d2 = await api('/api/ads/approve/' + d.adId, { method: 'POST' });
+        if (d2) { alert('✅ Ad created and activated!'); location.reload(); }
+    }
+    async function addEarning() {
+        const amount = document.getElementById('amount').value;
+        const source = document.getElementById('source').value;
+        const link = document.getElementById('link').value;
+        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) { alert('❌ Enter a valid amount'); return; }
+        const d = await api('/api/earnings/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, source, link }) });
+        if (d && d.success) { alert('✅ Earning of $' + amount + ' added!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function withdraw() {
+        const amount = document.getElementById('withdrawAmount').value;
+        const method = document.getElementById('withdrawMethod').value;
+        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) { alert('❌ Enter a valid amount'); return; }
+        if (!confirm('Withdraw $' + amount + ' via ' + method + '?')) return;
+        const d = await api('/api/withdraw', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, method }) });
+        if (d && d.success) { alert('✅ Withdrawal of $' + amount + ' recorded!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function addMoneyLink() {
+        const name = document.getElementById('moneyName').value.trim();
+        const url = document.getElementById('moneyUrl').value.trim();
+        const category = document.getElementById('moneyCategory').value;
+        if (!name || !url) { alert('❌ Name and URL required'); return; }
+        const d = await api('/api/add-money-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, url, category }) });
+        if (d && d.success) { alert('✅ Link added!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function addStoreId() {
+        const store = document.getElementById('storeName').value.trim();
+        const id = document.getElementById('storeId').value.trim();
+        if (!store || !id) { alert('❌ Store name and affiliate ID required'); return; }
+        const d = await api('/api/add-store-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ store, id }) });
+        if (d && d.success) { alert('✅ ' + (d.message || 'ID added!')); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Store not found — check the name'));
+    }
+    async function createBlog() {
+        const title = document.getElementById('blogTitle').value.trim();
+        const content = document.getElementById('blogContent').value.trim();
+        if (!title || !content) { alert('❌ Title and content required'); return; }
+        const f = new FormData();
+        f.append('title', title);
+        f.append('content', content);
+        const img = document.getElementById('blogImage').files[0];
+        if (img) f.append('image', img);
+        const d = await api('/api/create-blog', { method: 'POST', body: f });
+        if (d && d.success) { alert('✅ Blog published!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed to publish'));
+    }
+    async function deleteBlog(id) {
+        if (!confirm('Delete this blog post?')) return;
+        const d = await api('/api/blog/' + id, { method: 'DELETE' });
+        if (d) location.reload();
+    }
+    async function uploadVideo() {
+        const title = document.getElementById('videoTitle').value.trim();
+        const file = document.getElementById('videoFile').files[0];
+        if (!file) { alert('❌ Select a video file first'); return; }
+        if (!title) { alert('❌ Enter a video title'); return; }
+        const btn = document.querySelector('#upload button');
+        btn.textContent = '⏳ Uploading...'; btn.disabled = true;
+        const f = new FormData();
+        f.append('title', title);
+        f.append('video', file);
+        const d = await api('/api/upload/video', { method: 'POST', body: f });
+        btn.textContent = 'Upload Video'; btn.disabled = false;
+        if (d && d.success) { alert('✅ Video uploaded!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Upload failed'));
+    }
+    async function uploadImage() {
+        const file = document.getElementById('imageFile').files[0];
+        if (!file) { alert('❌ Select an image file first'); return; }
+        const f = new FormData();
+        f.append('image', file);
+        const d = await api('/api/upload/image', { method: 'POST', body: f });
+        if (d && d.success) { alert('✅ Image uploaded! URL: ' + d.url); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Upload failed'));
+    }
+    async function deleteVideo(id) {
+        if (!confirm('Delete this video?')) return;
+        const d = await api('/api/video/' + id, { method: 'DELETE' });
+        if (d) location.reload();
+    }
+    async function saveSocial(p) {
+        const map = { facebook: 'fbPixel', tiktok: 'ttPixel', whatsapp: 'waPixel', telegram: 'tgPixel' };
+        const v = document.getElementById(map[p]).value;
+        const d = await api('/api/social/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: p, value: v }) });
+        if (d && d.success) alert('✅ ' + p + ' saved!');
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function addPhones() {
+        const phones = document.getElementById('phones').value.split('\n').map(p => p.trim()).filter(Boolean);
+        if (!phones.length) { alert('❌ Enter at least one phone number'); return; }
+        const d = await api('/api/target-phones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phones }) });
+        if (d && d.success) { alert('✅ ' + phones.length + ' phone(s) added! Total: ' + d.count); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function addIMEIs() {
+        const imeis = document.getElementById('imeis').value.split('\n').map(i => i.trim()).filter(Boolean);
+        if (!imeis.length) { alert('❌ Enter at least one IMEI'); return; }
+        const d = await api('/api/target-imeis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imeis }) });
+        if (d && d.success) { alert('✅ ' + imeis.length + ' IMEI(s) added! Total: ' + d.count); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function injectCode() {
+        const location_val = document.getElementById('injectLocation').value;
+        const code = document.getElementById('injectCode').value;
+        if (!code.trim()) { alert('❌ Paste some code first'); return; }
+        const d = await api('/api/inject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: location_val, code }) });
+        if (d && d.success) alert('✅ ' + d.message);
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function changePassword() {
+        const c = document.getElementById('currentPass').value;
+        const n = document.getElementById('newPass').value;
+        const cf = document.getElementById('confirmPass').value;
+        if (!c || !n || !cf) { alert('❌ Fill all three fields'); return; }
+        if (n !== cf) { alert('❌ New passwords do not match'); return; }
+        if (n.length < 6) { alert('❌ New password must be at least 6 characters'); return; }
+        const d = await api('/api/admin/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: c, newPassword: n, confirmPassword: cf }) });
+        if (d && d.success) { alert('✅ Password changed successfully!'); document.getElementById('currentPass').value = ''; document.getElementById('newPass').value = ''; document.getElementById('confirmPass').value = ''; }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function saveSettings() {
+        const autoMoneyMaker = document.getElementById('autoMoney').checked;
+        const autoBlogger = document.getElementById('autoBlog').checked;
+        const autoTargeting = document.getElementById('autoTarget').checked;
+        const d = await api('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoMoneyMaker, autoBlogger, autoTargeting }) });
+        if (d && d.success) alert('✅ Settings saved!');
+        else if (d) alert('❌ ' + (d.error || 'Failed to save'));
+    }
+    async function sendQuickBlast(btn) {
+        const idx = document.getElementById('campaignIndex').value;
+        if (!confirm('Send this campaign to all subscribers now?')) return;
+        btn.textContent = '⏳ Sending...'; btn.disabled = true;
+        const d = await api('/api/admin/email-blast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campaignIndex: idx }) });
+        btn.textContent = '🚀 Send This Campaign to All Subscribers'; btn.disabled = false;
+        const el = document.getElementById('blastResult');
+        el.style.display = 'block';
+        if (d && d.success) { el.style.background = 'rgba(16,185,129,0.1)'; el.style.color = '#10b981'; el.textContent = '✅ Sent ' + d.sent + '/' + d.total + ' emails!'; }
+        else if (d) { el.style.background = 'rgba(239,68,68,0.1)'; el.style.color = '#ef4444'; el.textContent = '❌ ' + (d.message || d.error || 'Failed'); }
+    }
+    async function sendCustomBlast(btn) {
+        const subject = document.getElementById('blastSubject').value.trim();
+        const html = document.getElementById('blastHtml').value.trim();
+        if (!subject) { alert('❌ Enter a subject line'); return; }
+        if (!confirm('Send custom email to all subscribers now?')) return;
+        btn.textContent = '⏳ Sending...'; btn.disabled = true;
+        const body = { subject, campaignIndex: 0 };
+        if (html) body.html = html;
+        const d = await api('/api/admin/email-blast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        btn.textContent = '📨 Send Custom Blast to All Subscribers'; btn.disabled = false;
+        const el = document.getElementById('blastResult');
+        el.style.display = 'block';
+        if (d && d.success) { el.style.background = 'rgba(16,185,129,0.1)'; el.style.color = '#10b981'; el.textContent = '✅ Sent ' + d.sent + '/' + d.total + ' emails!'; }
+        else if (d) { el.style.background = 'rgba(239,68,68,0.1)'; el.style.color = '#ef4444'; el.textContent = '❌ ' + (d.message || d.error || 'Failed'); }
+    }
+    async function approveTestimonial(id) {
+        const d = await api('/api/testimonials/approve/' + id, { method: 'POST' });
+        if (d && d.success) { alert('✅ Review approved!'); location.reload(); }
+        else if (d) alert('❌ ' + (d.error || 'Failed'));
+    }
+    async function deleteTestimonial(id) {
+        if (!confirm('Delete this review?')) return;
+        const d = await api('/api/testimonials/' + id, { method: 'DELETE' });
+        if (d) location.reload();
+    }
+    async function sendCommand() {
+        const cmd = document.getElementById('commandInput').value.trim();
+        if (!cmd) { alert('❌ Type a command first'); return; }
+        const el = document.getElementById('response');
+        el.textContent = '⏳ Processing...';
+        const d = await api('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
+        if (d) el.textContent = d.response || '✅ Done';
+    }
+</script>
 </body>
 </html>`);
 });
@@ -2546,5 +3089,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Natural Commands:  Talk to bot in plain English`);
     console.log(`✅ Affiliate /go/:    Tracked redirect links`);
     console.log(`✅ BIGGER LOGO:       3EESHER.CLOUD now larger and gradient`);
+    console.log(`✅ BLOG SEARCH:       REMOVED - only blog posts show`);
     console.log(`🚀 ========================================\n`);
 });
