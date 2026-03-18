@@ -46,9 +46,7 @@ function getData() {
         if (fs.existsSync(DATA_FILE)) {
             const saved = JSON.parse(fs.readFileSync(DATA_FILE));
             const defaults = getDefaultData();
-            // Deep merge: saved data wins, missing fields filled from defaults
             const merged = Object.assign({}, defaults, saved);
-            // Ensure nested objects get defaults
             merged.earnings     = Object.assign({}, defaults.earnings,     saved.earnings     || {});
             merged.settings     = Object.assign({}, defaults.settings,     saved.settings     || {});
             merged.targeting    = Object.assign({}, defaults.targeting,    saved.targeting    || {});
@@ -56,31 +54,34 @@ function getData() {
             merged.socialPixels = Object.assign({}, defaults.socialPixels, saved.socialPixels || {});
             merged.adStats      = Object.assign({}, defaults.adStats,      saved.adStats      || {});
             merged.visitors     = Object.assign({}, defaults.visitors,     saved.visitors     || {});
-            // Ensure ALL arrays exist and fall back to defaults if empty/missing
-            if (!Array.isArray(merged.ads)            || merged.ads === undefined)            merged.ads = [];
-            if (!Array.isArray(merged.blogPosts)      || merged.blogPosts === undefined)      merged.blogPosts = [];
-            if (!Array.isArray(merged.subscribers)    || merged.subscribers === undefined)    merged.subscribers = [];
-            if (!Array.isArray(merged.images)         || merged.images === undefined)         merged.images = [];
-            if (!Array.isArray(merged.emailCampaigns) || merged.emailCampaigns === undefined) merged.emailCampaigns = [];
-            if (!Array.isArray(merged.testimonials)   || merged.testimonials === undefined)   merged.testimonials = [];
-            if (!Array.isArray(merged.libraryUsers)   || merged.libraryUsers === undefined)   merged.libraryUsers = [];
-            if (!Array.isArray(merged.customLinks)    || merged.customLinks === undefined)    merged.customLinks = [];
-            // Critical: moneyLinks, storeLinks, videos must ALWAYS have data
-            if (!Array.isArray(merged.moneyLinks)  || merged.moneyLinks.length  === 0) merged.moneyLinks  = defaults.moneyLinks;
-            if (!Array.isArray(merged.storeLinks)  || merged.storeLinks.length  === 0) merged.storeLinks  = defaults.storeLinks;
-            if (!Array.isArray(merged.videos)      || merged.videos.length      === 0) merged.videos      = defaults.videos;
-            if (!Array.isArray(merged.successStories) || merged.successStories.length === 0) merged.successStories = defaults.successStories;
-            if (!Array.isArray(merged.adPackages)  || merged.adPackages.length  === 0) merged.adPackages  = defaults.adPackages;
+            if (!Array.isArray(merged.ads))            merged.ads = [];
+            if (!Array.isArray(merged.blogPosts))      merged.blogPosts = [];
+            if (!Array.isArray(merged.subscribers))    merged.subscribers = [];
+            if (!Array.isArray(merged.images))         merged.images = [];
+            if (!Array.isArray(merged.emailCampaigns)) merged.emailCampaigns = [];
+            if (!Array.isArray(merged.testimonials))   merged.testimonials = [];
+            if (!Array.isArray(merged.libraryUsers))   merged.libraryUsers = [];
+            if (!Array.isArray(merged.customLinks))    merged.customLinks = [];
+            if (!Array.isArray(merged.moneyLinks)  || !merged.moneyLinks.length)  merged.moneyLinks  = defaults.moneyLinks;
+            if (!Array.isArray(merged.storeLinks)  || !merged.storeLinks.length)  merged.storeLinks  = defaults.storeLinks;
+            if (!Array.isArray(merged.videos)      || !merged.videos.length)      merged.videos      = defaults.videos;
+            if (!Array.isArray(merged.successStories) || !merged.successStories.length) merged.successStories = defaults.successStories;
+            if (!Array.isArray(merged.adPackages)  || !merged.adPackages.length)  merged.adPackages  = defaults.adPackages;
             if (!merged.aboutContent)   merged.aboutContent   = defaults.aboutContent;
             if (!merged.privacyContent) merged.privacyContent = defaults.privacyContent;
             if (!merged.contact)        merged.contact        = defaults.contact;
             return merged;
         }
-    } catch (e) { console.error('getData error:', e.message); }
+    } catch(e) { console.error('getData error:', e.message); }
     return getDefaultData();
 }
 
-function saveData(data) { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
+function saveData(data) {
+    try { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
+    catch(e) { console.error('saveData error:', e.message); }
+}
+
+
 
 function getDefaultData() {
     return {
@@ -259,6 +260,8 @@ app.use((req, res, next) => {
 // ==================== ADMIN AUTH ====================
 const ADMIN_USER = 'admin216';
 let ADMIN_HASH = bcrypt.hashSync('admin1234', 10);
+// PERMANENT secret — hardcoded, never stored in data.json, survives ALL Render restarts
+const ADMIN_SECRET = process.env.ADMIN_SECRET || '3eesher_admin_secret_2026_permanent_xyz';
 
 function getCookie(req, name) {
     const cookies = req.headers.cookie || '';
@@ -267,15 +270,12 @@ function getCookie(req, name) {
 }
 
 function checkAdmin(req) {
-    if (req.session.isAdmin) return true;
-    // Restore session from persistent cookie (survives Render restarts)
+    if (req.session && req.session.isAdmin) return true;
+    // Check permanent cookie — uses hardcoded secret, never wiped by Render restarts
     const token = getCookie(req, 'adminToken');
-    if (token) {
-        const data = getData();
-        if (data.adminToken && data.adminToken === token) {
-            req.session.isAdmin = true;
-            return true;
-        }
+    if (token && token === ADMIN_SECRET) {
+        if (req.session) req.session.isAdmin = true;
+        return true;
     }
     return false;
 }
@@ -284,17 +284,16 @@ app.post('/login', (req, res) => {
     const { username, password } = req.body;
     if (username === ADMIN_USER && bcrypt.compareSync(password, ADMIN_HASH)) {
         req.session.isAdmin = true;
-        // Persistent token so session survives Render restarts
-        const crypto = require('crypto');
-        const token = crypto.randomBytes(32).toString('hex');
-        const data = getData();
-        data.adminToken = token;
-        saveData(data);
-        res.setHeader('Set-Cookie', `adminToken=${token}; HttpOnly; Path=/; Max-Age=${30*24*60*60}`);
+        // Set permanent cookie with hardcoded secret — survives all restarts
+        res.setHeader('Set-Cookie', `adminToken=${ADMIN_SECRET}; HttpOnly; Path=/; Max-Age=${365*24*60*60}`);
         res.json({ success: true });
     } else res.status(401).json({ error: 'Invalid credentials' });
 });
-app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
+app.get('/logout', (req, res) => {
+    req.session.destroy();
+    res.setHeader('Set-Cookie', 'adminToken=; HttpOnly; Path=/; Max-Age=0');
+    res.redirect('/');
+});
 
 app.post('/api/admin/change-password', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
@@ -2528,6 +2527,7 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <button class="tab-btn" onclick="showTab('testimonials', this)">⭐ Reviews</button>
         <button class="tab-btn" onclick="showTab('settings', this)">⚙️ Settings</button>
         <button class="tab-btn" onclick="showTab('command', this)">🤖 Command</button>
+        <button class="tab-btn" onclick="showTab('database', this)">💾 Database</button>
     </div>
 
     <!-- DASHBOARD -->
@@ -2792,6 +2792,101 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <div id="response" style="background:#0a0f1e;padding:16px;margin-top:16px;border-radius:8px;white-space:pre-wrap;font-family:monospace;font-size:13px;min-height:80px;border:1px solid #1e293b;"></div>
     </div>
 
+    <!-- DATABASE -->
+    <div id="database" class="section">
+        <h2 style="color:#fbbf24;margin-bottom:6px;">💾 Database Manager</h2>
+        <p style="color:#64748b;font-size:13px;margin-bottom:20px;">Switch between databases anytime. Your data syncs automatically. Set credentials in Render → Environment Variables.</p>
+
+        <div id="dbStatusBox" style="background:#0a0f1e;padding:16px;border-radius:10px;border:1px solid #1e293b;margin-bottom:24px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <span style="font-size:20px;">💾</span>
+                <strong style="color:#10b981;">Loading DB status...</strong>
+            </div>
+        </div>
+
+        <h3 style="margin-bottom:14px;color:#e2e8f0;">Available Databases</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:24px;">
+
+            <div style="background:#0a0f1e;border:1px solid #1e293b;border-radius:12px;padding:18px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:24px;">🍃</span>
+                    <div><strong style="color:#10b981;">MongoDB Atlas</strong><div style="color:#64748b;font-size:12px;">Free 512MB — Best for this app</div></div>
+                </div>
+                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
+                    1. Go to <strong>mongodb.com/atlas</strong> → Free cluster<br>
+                    2. Create DB user → Get connection string<br>
+                    3. Add to Render: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">MONGODB_URI</code>
+                </div>
+                <button onclick="switchDB('mongodb')" style="background:#10b981;border:none;color:#0a0f1e;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Switch to MongoDB</button>
+            </div>
+
+            <div style="background:#0a0f1e;border:1px solid #1e293b;border-radius:12px;padding:18px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:24px;">⚡</span>
+                    <div><strong style="color:#3ecf8e;">Supabase</strong><div style="color:#64748b;font-size:12px;">Free 500MB PostgreSQL</div></div>
+                </div>
+                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
+                    1. Go to <strong>supabase.com</strong> → New project<br>
+                    2. SQL Editor → run: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">CREATE TABLE sitedata (id text PRIMARY KEY, payload text, updated_at text);</code><br>
+                    3. Add to Render: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">SUPABASE_URL</code> + <code style="background:#131c31;padding:2px 6px;border-radius:4px;">SUPABASE_KEY</code>
+                </div>
+                <button onclick="switchDB('supabase')" style="background:#3ecf8e;border:none;color:#0a0f1e;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Switch to Supabase</button>
+            </div>
+
+            <div style="background:#0a0f1e;border:1px solid #1e293b;border-radius:12px;padding:18px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:24px;">🔥</span>
+                    <div><strong style="color:#f59e0b;">Firebase Firestore</strong><div style="color:#64748b;font-size:12px;">Free 1GB — Google's DB</div></div>
+                </div>
+                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
+                    1. Go to <strong>console.firebase.google.com</strong><br>
+                    2. New project → Firestore → Service Account JSON<br>
+                    3. Add to Render: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">FIREBASE_CREDENTIAL</code> (paste full JSON)
+                </div>
+                <button onclick="switchDB('firebase')" style="background:#f59e0b;border:none;color:#0a0f1e;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Switch to Firebase</button>
+            </div>
+
+            <div style="background:#0a0f1e;border:1px solid #1e293b;border-radius:12px;padding:18px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:24px;">☁️</span>
+                    <div><strong style="color:#f59e0b;">AWS DynamoDB</strong><div style="color:#64748b;font-size:12px;">Free 25GB — Amazon</div></div>
+                </div>
+                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
+                    1. Go to <strong>aws.amazon.com</strong> → DynamoDB<br>
+                    2. Create table: name=<code style="background:#131c31;padding:2px 6px;border-radius:4px;">3eesher-data</code>, key=<code style="background:#131c31;padding:2px 6px;border-radius:4px;">id</code><br>
+                    3. Add to Render: <code style="background:#131c31;padding:2px 6px;border-radius:4px;">AWS_ACCESS_KEY_ID</code> + <code style="background:#131c31;padding:2px 6px;border-radius:4px;">AWS_SECRET_ACCESS_KEY</code> + <code style="background:#131c31;padding:2px 6px;border-radius:4px;">AWS_REGION</code>
+                </div>
+                <button onclick="switchDB('aws')" style="background:#f59e0b;border:none;color:#0a0f1e;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Switch to AWS</button>
+            </div>
+
+            <div style="background:#0a0f1e;border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:18px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:24px;">📁</span>
+                    <div><strong style="color:#ef4444;">Local File</strong><div style="color:#64748b;font-size:12px;">⚠️ Data lost on restart</div></div>
+                </div>
+                <div style="color:#94a3b8;font-size:12px;margin-bottom:12px;">
+                    Uses data.json on server disk.<br>
+                    <strong style="color:#ef4444;">WARNING:</strong> Render free tier wipes this on every restart. Only use for testing.
+                </div>
+                <button onclick="switchDB('file')" style="background:#ef4444;border:none;color:white;padding:8px 16px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;width:100%;">Use File Only</button>
+            </div>
+
+        </div>
+
+        <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:10px;padding:16px;">
+            <h4 style="color:#10b981;margin-bottom:8px;">💡 How to add Environment Variables on Render:</h4>
+            <p style="color:#94a3b8;font-size:13px;line-height:1.7;">
+                1. Go to <strong style="color:#e2e8f0;">render.com</strong> → Your service → <strong style="color:#e2e8f0;">Environment</strong> tab<br>
+                2. Click <strong style="color:#e2e8f0;">Add Environment Variable</strong><br>
+                3. Set <code style="background:#0a0f1e;padding:2px 8px;border-radius:4px;">DB_PROVIDER</code> = <code style="background:#0a0f1e;padding:2px 8px;border-radius:4px;">mongodb</code> (or supabase / firebase / aws)<br>
+                4. Add the credentials for your chosen DB<br>
+                5. Click <strong style="color:#e2e8f0;">Save Changes</strong> → Render redeploys automatically<br>
+                6. Come back here and click the Switch button above ✅
+            </p>
+        </div>
+        <div id="dbSwitchResult" style="margin-top:14px;padding:12px;border-radius:8px;display:none;font-size:14px;"></div>
+    </div>
+
 </div>
 
 <script>
@@ -3034,6 +3129,48 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         const d = await api('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
         if (d) el.textContent = d.response || '✅ Done';
     }
+
+    // ── DATABASE MANAGER ──
+    async function loadDBStatus() {
+        const d = await api('/api/admin/db-status');
+        if (!d) return;
+        const box = document.getElementById('dbStatusBox');
+        const providerLabels = { mongodb: '🍃 MongoDB Atlas', supabase: '⚡ Supabase', firebase: '🔥 Firebase', aws: '☁️ AWS DynamoDB', file: '📁 Local File' };
+        const isCloud = d.activeDB !== 'file';
+        box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+            + '<span style="font-size:24px;">' + (isCloud ? '✅' : '⚠️') + '</span>'
+            + '<div><strong style="color:' + (isCloud ? '#10b981' : '#ef4444') + ';font-size:16px;">Active: ' + (providerLabels[d.activeDB] || d.activeDB) + '</strong>'
+            + '<div style="color:#64748b;font-size:12px;">' + (isCloud ? 'Data saved permanently ✅' : '⚠️ Data lost on restart — set up a cloud DB!') + '</div></div></div>'
+            + (d.lastSave ? '<div style="color:#64748b;font-size:12px;">Last saved: ' + new Date(d.lastSave).toLocaleString() + '</div>' : '')
+            + (d.lastError ? '<div style="color:#ef4444;font-size:12px;margin-top:4px;">Last error: ' + d.lastError + '</div>' : '')
+            + '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">'
+            + Object.entries(d.providers).map(([key, p]) =>
+                '<span style="background:' + (p.configured ? 'rgba(16,185,129,0.1)' : 'rgba(100,116,139,0.1)') + ';border:1px solid ' + (p.configured ? 'rgba(16,185,129,0.3)' : 'rgba(100,116,139,0.2)') + ';color:' + (p.configured ? '#10b981' : '#64748b') + ';padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;">'
+                + (p.configured ? '✅' : '⭕') + ' ' + p.label + '</span>'
+            ).join('') + '</div>';
+    }
+
+    async function switchDB(provider) {
+        const el = document.getElementById('dbSwitchResult');
+        el.style.display = 'block';
+        el.style.background = 'rgba(251,191,36,0.1)';
+        el.style.color = '#fbbf24';
+        el.textContent = '⏳ Connecting to ' + provider + ' and syncing data...';
+        const d = await api('/api/admin/switch-db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider }) });
+        if (d && d.success) {
+            el.style.background = 'rgba(16,185,129,0.1)';
+            el.style.color = '#10b981';
+            el.textContent = d.message;
+            loadDBStatus();
+        } else if (d) {
+            el.style.background = 'rgba(239,68,68,0.1)';
+            el.style.color = '#ef4444';
+            el.textContent = '❌ ' + (d.error || 'Failed — check your credentials in Render Environment Variables');
+        }
+    }
+
+    // Load DB status when database tab is opened
+    document.querySelector('[onclick*="database"]').addEventListener('click', loadDBStatus);
 </script>
 </body>
 </html>`);
@@ -3275,31 +3412,14 @@ app.get('/feed.xml', (req, res) => {
     res.header('Content-Type', 'application/rss+xml').send(rss);
 });
 
+
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send('User-agent: *\nAllow: /\nDisallow: /admin\nSitemap: https://3eesher-cloud.onrender.com/sitemap.xml');
 });
 
 // ==================== SERVER START ====================
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 ========================================`);
-    console.log(`🚀  3EESHER-CLOUD IS RUNNING`);
-    console.log(`🚀 ========================================`);
-    console.log(`📍 Main Page:  http://localhost:${PORT}`);
-    console.log(`📚 Library:    http://localhost:${PORT}/library`);
-    console.log(`🔐 Admin:      http://localhost:${PORT}/admin`);
-    console.log(`🎯 Advertise:  http://localhost:${PORT}/advertise`);
-    console.log(`👤 Login:      admin216 / admin1234  ← CHANGE IN SETTINGS!`);
-    console.log(`📧 Gmail:      ${GMAIL_USER}`);
-    console.log(`📊 Analytics:  G-HD01MF5SL9`);
-    console.log(`🚀 ========================================`);
-    console.log(`✅ Auto Money Maker:  Every hour`);
-    console.log(`✅ Auto Blogger:      8am & 8pm`);
-    console.log(`✅ Email Bot:         9am & 9pm → all subscribers`);
-    console.log(`✅ Self-Report:       Every 4 hours to your Gmail`);
-    console.log(`✅ Ad Engine:         IP/Phone/IMEI targeting`);
-    console.log(`✅ Library:           6 free courses, member registration`);
-    console.log(`✅ Universal Inject:  CSS/JS/HTML all work, saved to injections.json`);
-    console.log(`✅ Natural Commands:  Talk to bot in plain English`);
-    console.log(`✅ Affiliate /go/:    Tracked redirect links`);
-    console.log(`🚀 ========================================\n`);
+    console.log(`\n🚀 3EESHER-CLOUD RUNNING on port ${PORT}`);
+    console.log(`🔐 Admin: /admin — Login: admin216 / admin1234`);
+    console.log(`📧 Gmail: ${GMAIL_USER}`);
 });
