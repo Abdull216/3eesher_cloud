@@ -571,80 +571,6 @@ function getInjections() {
 
 app.get('/api/injections', (req, res) => { res.json(getInjections()); });
 
-// ==================== MISSING API ROUTES ====================
-
-// Visitor counter
-app.get('/api/visitors', (req, res) => {
-    const data = getData();
-    if (!data.visitors) data.visitors = { total: 0, today: 0, lastReset: new Date().toDateString() };
-    const today = new Date().toDateString();
-    if (data.visitors.lastReset !== today) { data.visitors.today = 0; data.visitors.lastReset = today; }
-    data.visitors.total = (data.visitors.total || 0) + 1;
-    data.visitors.today = (data.visitors.today || 0) + 1;
-    saveData(data);
-    res.json({ count: data.visitors.total, today: data.visitors.today });
-});
-
-// Blog search
-app.get('/api/blog/search', (req, res) => {
-    const q = (req.query.q || '').toLowerCase().trim();
-    const data = getData();
-    if (!q || q.length < 2) return res.json({ posts: [] });
-    const posts = (data.blogPosts || []).filter(p =>
-        p.title.toLowerCase().includes(q) || (p.content || '').toLowerCase().includes(q)
-    ).slice(0, 8).map(p => ({ id: p.id, title: p.title, date: p.date, views: p.views || 0 }));
-    res.json({ posts });
-});
-
-// Testimonials — add
-app.post('/api/testimonials/add', (req, res) => {
-    const { name, country, rating, text } = req.body;
-    if (!name || !text) return res.status(400).json({ error: 'Name and review required' });
-    const data = getData();
-    if (!data.testimonials) data.testimonials = [];
-    data.testimonials.push({ id: Date.now(), name, country: country || '', rating: parseInt(rating) || 5, text, approved: false, createdAt: new Date().toISOString() });
-    saveData(data);
-    res.json({ success: true });
-});
-
-// Testimonials — list all (admin)
-app.get('/api/testimonials/all', (req, res) => {
-    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
-    const data = getData();
-    res.json({ testimonials: data.testimonials || [] });
-});
-
-// Testimonials — approve
-app.post('/api/testimonials/approve/:id', (req, res) => {
-    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
-    const data = getData();
-    const t = (data.testimonials || []).find(t => t.id == req.params.id);
-    if (t) { t.approved = true; saveData(data); res.json({ success: true }); }
-    else res.status(404).json({ error: 'Not found' });
-});
-
-// Testimonials — delete
-app.delete('/api/testimonials/:id', (req, res) => {
-    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
-    const data = getData();
-    data.testimonials = (data.testimonials || []).filter(t => t.id != req.params.id);
-    saveData(data);
-    res.json({ success: true });
-});
-
-// Save admin settings (auto tasks)
-app.post('/api/admin/settings', (req, res) => {
-    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
-    const { autoMoneyMaker, autoBlogger, autoTargeting } = req.body;
-    const data = getData();
-    if (!data.settings) data.settings = {};
-    data.settings.autoMoneyMaker = !!autoMoneyMaker;
-    data.settings.autoBlogger = !!autoBlogger;
-    data.settings.autoTargeting = !!autoTargeting;
-    saveData(data);
-    res.json({ success: true, message: 'Settings saved!' });
-});
-
 // ==================== AD ENGINE ====================
 app.get('/api/ads/serve', (req, res) => {
     const data = getData(); const now = new Date(); const ip = req.visitorIP;
@@ -924,6 +850,24 @@ app.get('/api/testimonials', (req, res) => {
     const data = getData();
     const approved = (data.testimonials || []).filter(t => t.approved);
     res.json({ testimonials: approved });
+});
+// Admin — list ALL testimonials (approved + pending)
+app.get('/api/testimonials/all', (req, res) => {
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
+    const data = getData();
+    res.json({ testimonials: data.testimonials || [] });
+});
+// Admin — save settings
+app.post('/api/admin/settings', (req, res) => {
+    if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
+    const { autoMoneyMaker, autoBlogger, autoTargeting } = req.body;
+    const data = getData();
+    if (!data.settings) data.settings = {};
+    data.settings.autoMoneyMaker = !!autoMoneyMaker;
+    data.settings.autoBlogger = !!autoBlogger;
+    data.settings.autoTargeting = !!autoTargeting;
+    saveData(data);
+    res.json({ success: true, message: 'Settings saved!' });
 });
 
 // ==================== FEATURE: BLOG SEARCH ====================
@@ -1610,12 +1554,13 @@ app.get('/', (req, res) => {
 
         /* ── VIDEOS ── */
         .video-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
-        .video-card{background:var(--card);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.25s;border:1px solid var(--border);}
+        .video-card{background:var(--card);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.25s;border:1px solid var(--border);-webkit-tap-highlight-color:transparent;}
         .video-card:hover{transform:translateY(-4px);border-color:var(--green);box-shadow:0 12px 30px rgba(16,185,129,0.15);}
+        .video-card:active{transform:scale(0.97);}
         .video-thumb{height:126px;background-size:cover;background-position:center;position:relative;}
-        .video-thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.5),transparent);border-radius:0;}
-        .play-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;background:rgba(16,185,129,0.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;backdrop-filter:blur(4px);transition:0.2s;}
-        .video-card:hover .play-btn{transform:translate(-50%,-50%) scale(1.12);}
+        .video-thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.5),transparent);}
+        .play-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;background:rgba(16,185,129,0.95);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;backdrop-filter:blur(4px);transition:0.2s;box-shadow:0 4px 16px rgba(16,185,129,0.5);}
+        .video-card:hover .play-btn{transform:translate(-50%,-50%) scale(1.15);}
         .video-title{padding:10px 12px;font-size:11px;color:var(--muted);line-height:1.4;}
 
         /* ── STORIES ── */
@@ -1693,9 +1638,11 @@ app.get('/', (req, res) => {
         .admin-btn{position:fixed;bottom:20px;right:20px;background:var(--green);color:#0a0f1e;padding:11px 18px;border-radius:40px;text-decoration:none;z-index:1000;font-weight:700;font-size:13px;box-shadow:0 4px 14px rgba(16,185,129,0.35);}
 
         /* ── VIDEO MODAL ── */
-        #videoModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:10000;justify-content:center;align-items:center;}
-        .modal-content{position:relative;width:90%;max-width:860px;}
-        .close-modal{position:absolute;top:-44px;right:0;background:none;border:none;color:white;font-size:32px;cursor:pointer;}
+        #videoModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.97);z-index:10000;justify-content:center;align-items:center;cursor:pointer;}
+        .modal-content{position:relative;width:95%;max-width:900px;cursor:default;border-radius:12px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.8);}
+        .modal-content iframe{display:block;width:100%;aspect-ratio:16/9;height:auto;min-height:220px;border-radius:0;}
+        .close-modal{position:absolute;top:-48px;right:0;background:rgba(255,255,255,0.15);border:none;color:white;font-size:26px;cursor:pointer;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:0.2s;}
+        .close-modal:hover{background:rgba(239,68,68,0.8);}
 
         /* ── RESPONSIVE ── */
         @media(max-width:1024px){
@@ -1844,7 +1791,9 @@ app.get('/', (req, res) => {
     <div id="videoModal">
         <div class="modal-content">
             <button class="close-modal" onclick="closeVideoModal()">✕</button>
-            <iframe id="videoPlayer" width="100%" height="480" frameborder="0" allowfullscreen></iframe>
+            <iframe id="videoPlayer" width="100%" height="480" frameborder="0"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowfullscreen></iframe>
         </div>
     </div>
 
@@ -2217,9 +2166,23 @@ app.get('/', (req, res) => {
         function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open');}
 
         // ── Video modal
-        function playVideo(url){document.getElementById('videoModal').style.display='flex';document.getElementById('videoPlayer').src=url;}
-        function closeVideoModal(){document.getElementById('videoModal').style.display='none';document.getElementById('videoPlayer').src='';}
-        document.addEventListener('keydown',e=>{if(e.key==='Escape')closeVideoModal();});
+        function playVideo(url){
+            // autoplay=1 starts immediately, rel=0 hides related videos, modestbranding=1 hides YouTube logo
+            const src = url + (url.includes('?') ? '&' : '?') + 'autoplay=1&rel=0&modestbranding=1';
+            document.getElementById('videoPlayer').src = src;
+            document.getElementById('videoModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+        function closeVideoModal(){
+            document.getElementById('videoPlayer').src = ''; // stops audio/video immediately
+            document.getElementById('videoModal').style.display = 'none';
+            document.body.style.overflow = '';
+        }
+        // Click dark backdrop to close
+        document.getElementById('videoModal').addEventListener('click', function(e){
+            if (e.target === this) closeVideoModal();
+        });
+        document.addEventListener('keydown', e => { if(e.key === 'Escape') closeVideoModal(); });
 
         // ── Track clicks
         function trackClick(n,t){fetch('/api/track-click',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({linkName:n,type:t})});}
