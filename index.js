@@ -209,7 +209,9 @@ function getDefaultData() {
             changes: 'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page with an updated effective date. In some cases, we may provide additional notice (such as adding a statement to our homepage or sending you an email notification). You are advised to review this Privacy Policy periodically for any changes.'
         },
         contact: { email: 'abdullahharuna216@gmail.com', whatsapp: '+2348123456789', telegram: '@abdullah216' },
-        settings: { autoBlogger: true, autoMoneyMaker: true, autoTargeting: true, blogFrequency: 2, theme: 'dark', notifications: true, adminPassword: 'admin1234' }
+        testimonials: [],
+        settings: { autoBlogger: true, autoMoneyMaker: true, autoTargeting: true, blogFrequency: 2, theme: 'dark', notifications: true, adminPassword: 'admin1234' },
+        visitors: { total: 0, today: 0, lastReset: new Date().toDateString() }
     };
 }
 
@@ -541,6 +543,80 @@ function getInjections() {
 }
 
 app.get('/api/injections', (req, res) => { res.json(getInjections()); });
+
+// ==================== MISSING API ROUTES ====================
+
+// Visitor counter
+app.get('/api/visitors', (req, res) => {
+    const data = getData();
+    if (!data.visitors) data.visitors = { total: 0, today: 0, lastReset: new Date().toDateString() };
+    const today = new Date().toDateString();
+    if (data.visitors.lastReset !== today) { data.visitors.today = 0; data.visitors.lastReset = today; }
+    data.visitors.total = (data.visitors.total || 0) + 1;
+    data.visitors.today = (data.visitors.today || 0) + 1;
+    saveData(data);
+    res.json({ count: data.visitors.total, today: data.visitors.today });
+});
+
+// Blog search
+app.get('/api/blog/search', (req, res) => {
+    const q = (req.query.q || '').toLowerCase().trim();
+    const data = getData();
+    if (!q || q.length < 2) return res.json({ posts: [] });
+    const posts = (data.blogPosts || []).filter(p =>
+        p.title.toLowerCase().includes(q) || (p.content || '').toLowerCase().includes(q)
+    ).slice(0, 8).map(p => ({ id: p.id, title: p.title, date: p.date, views: p.views || 0 }));
+    res.json({ posts });
+});
+
+// Testimonials — add
+app.post('/api/testimonials/add', (req, res) => {
+    const { name, country, rating, text } = req.body;
+    if (!name || !text) return res.status(400).json({ error: 'Name and review required' });
+    const data = getData();
+    if (!data.testimonials) data.testimonials = [];
+    data.testimonials.push({ id: Date.now(), name, country: country || '', rating: parseInt(rating) || 5, text, approved: false, createdAt: new Date().toISOString() });
+    saveData(data);
+    res.json({ success: true });
+});
+
+// Testimonials — list all (admin)
+app.get('/api/testimonials/all', (req, res) => {
+    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    const data = getData();
+    res.json({ testimonials: data.testimonials || [] });
+});
+
+// Testimonials — approve
+app.post('/api/testimonials/approve/:id', (req, res) => {
+    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    const data = getData();
+    const t = (data.testimonials || []).find(t => t.id == req.params.id);
+    if (t) { t.approved = true; saveData(data); res.json({ success: true }); }
+    else res.status(404).json({ error: 'Not found' });
+});
+
+// Testimonials — delete
+app.delete('/api/testimonials/:id', (req, res) => {
+    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    const data = getData();
+    data.testimonials = (data.testimonials || []).filter(t => t.id != req.params.id);
+    saveData(data);
+    res.json({ success: true });
+});
+
+// Save admin settings (auto tasks)
+app.post('/api/admin/settings', (req, res) => {
+    if (!req.session.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+    const { autoMoneyMaker, autoBlogger, autoTargeting } = req.body;
+    const data = getData();
+    if (!data.settings) data.settings = {};
+    data.settings.autoMoneyMaker = !!autoMoneyMaker;
+    data.settings.autoBlogger = !!autoBlogger;
+    data.settings.autoTargeting = !!autoTargeting;
+    saveData(data);
+    res.json({ success: true, message: 'Settings saved!' });
+});
 
 // ==================== AD ENGINE ====================
 app.get('/api/ads/serve', (req, res) => {
@@ -2335,6 +2411,7 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <button class="tab-btn active" onclick="showTab('dashboard')">📊 Dashboard</button>
         <button class="tab-btn" onclick="showTab('ads')">🎯 Ads Engine</button>
         <button class="tab-btn" onclick="showTab('earnings')">💰 Earnings</button>
+        <button class="tab-btn" onclick="showTab('email')">📧 Email Blast</button>
         <button class="tab-btn" onclick="showTab('moneylinks')">🔗 Money Links</button>
         <button class="tab-btn" onclick="showTab('stores')">🏪 Stores</button>
         <button class="tab-btn" onclick="showTab('blogs')">📝 Blogs</button>
@@ -2343,6 +2420,7 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <button class="tab-btn" onclick="showTab('social')">📱 Social</button>
         <button class="tab-btn" onclick="showTab('target')">🎯 Target</button>
         <button class="tab-btn" onclick="showTab('inject')">🔌 Inject</button>
+        <button class="tab-btn" onclick="showTab('testimonials')">⭐ Reviews</button>
         <button class="tab-btn" onclick="showTab('settings')">⚙️ Settings</button>
         <button class="tab-btn" onclick="showTab('command')">🤖 Command</button>
     </div>
@@ -2432,6 +2510,35 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <input type="number" id="withdrawAmount" placeholder="Amount">
         <select id="withdrawMethod"><option value="bank">Bank Transfer</option><option value="card">Mastercard</option><option value="crypto">Cryptocurrency</option></select>
         <button onclick="withdraw()">Withdraw</button>
+    </div>
+
+    <!-- EMAIL BLAST -->
+    <div id="email" class="section">
+        <h2 style="color:#fbbf24;margin-bottom:16px;">📧 Email Blast</h2>
+        <div style="background:#0a0f1e;padding:16px;border-radius:8px;margin-bottom:20px;">
+            <strong style="color:#10b981;">Total Subscribers: ${data.subscribers.length}</strong>
+            <span style="color:#64748b;margin-left:20px;">Last campaigns: ${(data.emailCampaigns || []).length}</span>
+        </div>
+        <h3 style="margin-bottom:10px;">Quick Blast (Choose Campaign)</h3>
+        <select id="campaignIndex" style="margin-bottom:10px;">
+            <option value="0">💰 3 Ways to Make $500 This Week</option>
+            <option value="1">🛒 Jumia Affiliate — $1,200/Month</option>
+            <option value="2">🤖 AI Tools to Make Money</option>
+            <option value="3">📚 Free Library Access</option>
+            <option value="4">🚀 5 Platforms to Start Today</option>
+        </select>
+        <button onclick="sendQuickBlast()">🚀 Send This Campaign to All Subscribers</button>
+        <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
+        <h3 style="margin-bottom:10px;">Custom Email Blast</h3>
+        <input type="text" id="blastSubject" placeholder="Email Subject Line">
+        <textarea id="blastHtml" rows="6" placeholder="HTML email body (leave empty to use default template)"></textarea>
+        <button onclick="sendCustomBlast()">📨 Send Custom Blast to All Subscribers</button>
+        <div id="blastResult" style="margin-top:12px;font-size:14px;padding:10px;border-radius:6px;display:none;"></div>
+        <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
+        <h3 style="margin-bottom:10px;">Recent Campaigns</h3>
+        <div style="max-height:300px;overflow-y:auto;">
+            ${(data.emailCampaigns || []).slice(0,10).map(c => `<div class="item"><span><strong>${c.subject.substring(0,50)}</strong> — ${c.sent}/${c.total} sent on ${new Date(c.date).toLocaleDateString()}</span></div>`).join('') || '<p style="color:#64748b">No campaigns sent yet.</p>'}
+        </div>
     </div>
 
     <!-- MONEY LINKS -->
@@ -2533,6 +2640,31 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
         <button onclick="injectCode()">Inject Code</button>
     </div>
 
+    <!-- TESTIMONIALS MANAGEMENT -->
+    <div id="testimonials" class="section">
+        <h2 style="color:#fbbf24;margin-bottom:16px;">⭐ Reviews & Testimonials</h2>
+        <div style="background:#0a0f1e;padding:14px;border-radius:8px;margin-bottom:16px;">
+            <strong style="color:#10b981;">Total Reviews: ${(data.testimonials || []).length}</strong>
+            <span style="color:#64748b;margin-left:16px;">Approved: ${(data.testimonials || []).filter(t=>t.approved).length}</span>
+            <span style="color:#f59e0b;margin-left:16px;">Pending: ${(data.testimonials || []).filter(t=>!t.approved).length}</span>
+        </div>
+        <div id="testimonialsListAdmin">
+            ${(data.testimonials || []).length === 0 ? '<p style="color:#64748b">No testimonials submitted yet.</p>' : ''}
+            ${(data.testimonials || []).map(t => `
+            <div class="item" style="flex-direction:column;align-items:flex-start;gap:8px;">
+                <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+                    <strong>${t.name} ${t.country ? '📍 '+t.country : ''} ${'★'.repeat(t.rating||5)}</strong>
+                    <span class="badge ${t.approved?'active':'pending'}">${t.approved?'✅ Approved':'⏳ Pending'}</span>
+                </div>
+                <p style="color:#94a3b8;font-size:13px;">${t.text}</p>
+                <div style="display:flex;gap:8px;">
+                    ${!t.approved ? `<button class="approve" onclick="approveTestimonial(${t.id})">✅ Approve</button>` : ''}
+                    <button class="del" onclick="deleteTestimonial(${t.id})">Delete</button>
+                </div>
+            </div>`).join('')}
+        </div>
+    </div>
+
     <!-- SETTINGS -->
     <div id="settings" class="section">
         <h3>Change Password</h3>
@@ -2605,7 +2737,47 @@ button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;
     async function addIMEIs(){const imeis=document.getElementById('imeis').value.split('\n').filter(i=>i.trim());await fetch('/api/target-imeis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({imeis})});alert(imeis.length+' IMEIs added');location.reload();}
     async function injectCode(){await fetch('/api/inject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:document.getElementById('injectLocation').value,code:document.getElementById('injectCode').value})});alert('Injected!');}
     async function changePassword(){const c=document.getElementById('currentPass').value,n=document.getElementById('newPass').value,cf=document.getElementById('confirmPass').value;if(!c||!n||!cf){alert('Fill all fields');return;}if(n!==cf){alert('Passwords do not match');return;}if(n.length<6){alert('Min 6 characters');return;}const r=await fetch('/api/admin/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:c,newPassword:n,confirmPassword:cf})});const d=await r.json();if(d.success)alert('✅ Password changed!');else alert('❌ '+d.error);}
-    async function saveSettings(){alert('Settings saved!');}
+    async function saveSettings(){
+        const autoMoneyMaker=document.getElementById('autoMoney').checked;
+        const autoBlogger=document.getElementById('autoBlog').checked;
+        const autoTargeting=document.getElementById('autoTarget').checked;
+        const r=await fetch('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({autoMoneyMaker,autoBlogger,autoTargeting})});
+        const d=await r.json();
+        if(d.success)alert('✅ Settings saved!');else alert('❌ Failed to save settings');
+    }
+    async function sendQuickBlast(){
+        const idx=document.getElementById('campaignIndex').value;
+        if(!confirm('Send campaign to all subscribers?'))return;
+        const btn=event.target;btn.textContent='⏳ Sending...';btn.disabled=true;
+        const r=await fetch('/api/admin/email-blast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campaignIndex:idx})});
+        const d=await r.json();
+        const el=document.getElementById('blastResult');
+        el.style.display='block';
+        if(d.success){el.style.background='rgba(16,185,129,0.1)';el.style.color='#10b981';el.textContent='✅ Sent '+d.sent+'/'+d.total+' emails!';}
+        else{el.style.background='rgba(239,68,68,0.1)';el.style.color='#ef4444';el.textContent='❌ '+(d.message||'Failed');}
+        btn.textContent='🚀 Send This Campaign to All Subscribers';btn.disabled=false;
+    }
+    async function sendCustomBlast(){
+        const subject=document.getElementById('blastSubject').value;
+        const html=document.getElementById('blastHtml').value;
+        if(!subject){alert('Enter a subject line');return;}
+        if(!confirm('Send custom email to all subscribers?'))return;
+        const btn=event.target;btn.textContent='⏳ Sending...';btn.disabled=true;
+        const r=await fetch('/api/admin/email-blast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,html:html||undefined,campaignIndex:0})});
+        const d=await r.json();
+        const el=document.getElementById('blastResult');
+        el.style.display='block';
+        if(d.success){el.style.background='rgba(16,185,129,0.1)';el.style.color='#10b981';el.textContent='✅ Custom email sent to '+d.sent+'/'+d.total+' subscribers!';}
+        else{el.style.background='rgba(239,68,68,0.1)';el.style.color='#ef4444';el.textContent='❌ '+(d.message||'Failed');}
+        btn.textContent='📨 Send Custom Blast to All Subscribers';btn.disabled=false;
+    }
+    async function approveTestimonial(id){
+        await fetch('/api/testimonials/approve/'+id,{method:'POST'});
+        alert('✅ Review approved!');location.reload();
+    }
+    async function deleteTestimonial(id){
+        if(confirm('Delete this review?')){await fetch('/api/testimonials/'+id,{method:'DELETE'});location.reload();}
+    }
     async function sendCommand(){const cmd=document.getElementById('commandInput').value;const r=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});const d=await r.json();document.getElementById('response').textContent=d.response;}
     function logout(){window.location.href='/logout';}
 </script>
