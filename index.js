@@ -10,20 +10,16 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ==================== PERSISTENT STORAGE ON RENDER ====================
-// Use /tmp for Render (writable) but persist to /data on other platforms
-const isRender = process.env.RENDER === 'true';
-const DATA_DIR = isRender ? '/tmp' : __dirname;
-const DATA_FILE = path.join(DATA_DIR, 'data.json');
-const INJECTIONS_FILE = path.join(DATA_DIR, 'injections.json');
-
-// Ensure directories exist
-fs.ensureDirSync(path.join(DATA_DIR, 'uploads'));
-fs.ensureDirSync(path.join(DATA_DIR, 'videos'));
-
-// Serve static files
-app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
-app.use('/videos', express.static(path.join(DATA_DIR, 'videos')));
+// ==================== HTML ESCAPE HELPER (CRITICAL FOR ADMIN) ====================
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return String(unsafe)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 // ==================== MIDDLEWARE ====================
 app.use(express.json());
@@ -34,11 +30,14 @@ app.use(session({
     saveUninitialized: true,
     cookie: { maxAge: 24 * 60 * 60 * 1000 }
 }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/videos', express.static(path.join(__dirname, 'videos')));
+fs.ensureDirSync(path.join(__dirname, 'uploads'));
+fs.ensureDirSync(path.join(__dirname, 'videos'));
 
-// File upload configuration
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, file.fieldname === 'video' ? path.join(DATA_DIR, 'videos') : path.join(DATA_DIR, 'uploads'));
+        cb(null, file.fieldname === 'video' ? path.join(__dirname, 'videos') : path.join(__dirname, 'uploads'));
     },
     filename: (req, file, cb) => {
         cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + '-' + file.originalname);
@@ -51,53 +50,15 @@ const GMAIL_USER = 'abdullahharuna216@gmail.com';
 const GMAIL_PASS = 'ipdbessasmzubdyk';
 const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
 
-// ==================== HTML ESCAPE HELPER ====================
-function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return String(unsafe)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
+// ==================== DATA ====================
+const DATA_FILE = './data.json';
 
-// ==================== DATA FUNCTIONS ====================
 function getData() {
-    try {
-        if (fs.existsSync(DATA_FILE)) {
-            return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-        }
-    } catch (e) {
-        console.error('Error reading data file:', e);
-    }
+    try { if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE)); } catch (e) {}
     return getDefaultData();
 }
 
-function saveData(data) {
-    try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-        return true;
-    } catch (e) {
-        console.error('Error saving data:', e);
-        return false;
-    }
-}
-
-function getInjections() {
-    try {
-        if (fs.existsSync(INJECTIONS_FILE)) {
-            return JSON.parse(fs.readFileSync(INJECTIONS_FILE, 'utf8'));
-        }
-    } catch (e) {}
-    return getData().injections || {};
-}
-
-function saveInjections(injections) {
-    try {
-        fs.writeFileSync(INJECTIONS_FILE, JSON.stringify(injections, null, 2));
-    } catch (e) {}
-}
+function saveData(data) { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
 
 function getDefaultData() {
     return {
@@ -150,29 +111,18 @@ function getDefaultData() {
         subscribers: [],
         images: [],
         emailCampaigns: [],
+        // ONLY AMERICAN MUSIC - NO ARABIC VIDEOS
         videos: [
-            // American Music (working)
-            { id: 1,  title: 'Eminem - Houdini',                    videoUrl: 'https://www.youtube.com/embed/bkSJZwQF6I4?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/bkSJZwQF6I4/0.jpg', type: 'youtube', region: 'american' },
-            { id: 2,  title: 'Kendrick Lamar - Not Like Us',        videoUrl: 'https://www.youtube.com/embed/H58vbez_m4E?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/H58vbez_m4E/0.jpg', type: 'youtube', region: 'american' },
-            { id: 3,  title: 'Taylor Swift - Cruel Summer',         videoUrl: 'https://www.youtube.com/embed/ic8j13piAhQ?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/ic8j13piAhQ/0.jpg', type: 'youtube', region: 'american' },
-            { id: 4,  title: "Drake - God's Plan",                  videoUrl: 'https://www.youtube.com/embed/xpVfcZ0ZcFM?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/xpVfcZ0ZcFM/0.jpg', type: 'youtube', region: 'american' },
-            { id: 5,  title: 'The Weeknd - Blinding Lights',        videoUrl: 'https://www.youtube.com/embed/4NRXx6U8ABQ?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/4NRXx6U8ABQ/0.jpg', type: 'youtube', region: 'american' },
-            { id: 6,  title: 'Bruno Mars - 24K Magic',              videoUrl: 'https://www.youtube.com/embed/UqyT8IEBkvY?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/UqyT8IEBkvY/0.jpg', type: 'youtube', region: 'american' },
-            { id: 7,  title: 'Ed Sheeran - Shape of You',           videoUrl: 'https://www.youtube.com/embed/JGwWNGJdvx8?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/JGwWNGJdvx8/0.jpg', type: 'youtube', region: 'american' },
-            { id: 8,  title: 'Post Malone - Sunflower',             videoUrl: 'https://www.youtube.com/embed/ApXoWvfEYVU?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/ApXoWvfEYVU/0.jpg', type: 'youtube', region: 'american' },
-            { id: 9,  title: 'Doja Cat - Paint The Town Red',       videoUrl: 'https://www.youtube.com/embed/Cwgg0FkqLr0?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/Cwgg0FkqLr0/0.jpg', type: 'youtube', region: 'american' },
-            { id: 10, title: 'Miley Cyrus - Flowers',               videoUrl: 'https://www.youtube.com/embed/G7KNmW9a75Y?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/G7KNmW9a75Y/0.jpg', type: 'youtube', region: 'american' },
-            // Arabic Music (all verified and working)
-            { id: 11, title: 'Elissa - Ayshalak (عيشالك)',          videoUrl: 'https://www.youtube.com/embed/m38OtXvNWMQ?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/m38OtXvNWMQ/0.jpg', type: 'youtube', region: 'arabic' },
-            { id: 12, title: "Maher Zain - Rahmatun Lil'Alameen",  videoUrl: 'https://www.youtube.com/embed/SFj6UUBEQgI?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/SFj6UUBEQgI/0.jpg', type: 'youtube', region: 'arabic' },
-            { id: 13, title: 'Nancy Ajram - Ma Teji Hena',          videoUrl: 'https://www.youtube.com/embed/kNpG8owc2h8?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/kNpG8owc2h8/0.jpg', type: 'youtube', region: 'arabic' },
-            { id: 14, title: 'Amr Diab - Ya Ana Ya La',             videoUrl: 'https://www.youtube.com/embed/tzC5t13Fv7g?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/tzC5t13Fv7g/0.jpg', type: 'youtube', region: 'arabic' },
-            { id: 15, title: 'Tamer Hosny - عيش بشوقك',             videoUrl: 'https://www.youtube.com/embed/e4kO1SNRrcM?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/e4kO1SNRrcM/0.jpg', type: 'youtube', region: 'arabic' },
-            { id: 16, title: 'Ahmed Saad - El Hantoor',             videoUrl: 'https://www.youtube.com/embed/KyO2lUO9NNE?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/KyO2lUO9NNE/0.jpg', type: 'youtube', region: 'arabic' },
-            { id: 17, title: 'Mohamed Hamaki - Shkolli Hahibik',    videoUrl: 'https://www.youtube.com/embed/OLq-M1zC5pM?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/OLq-M1zC5pM/0.jpg', type: 'youtube', region: 'arabic' },
-            { id: 18, title: 'Saad Lamjarred - LM3ALLEM (المعلم)',  videoUrl: 'https://www.youtube.com/embed/5y_RH6Y3w54?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/5y_RH6Y3w54/0.jpg', type: 'youtube', region: 'arabic' },
-            { id: 19, title: 'Sherine - Kalam Eineh (كلام عينيه)', videoUrl: 'https://www.youtube.com/embed/CPLh76JaL2M?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/CPLh76JaL2M/0.jpg', type: 'youtube', region: 'arabic' },
-            { id: 20, title: 'Angham',                              videoUrl: 'https://www.youtube.com/embed/7H7T5KxMM9c?autoplay=1&mute=1', thumbnail: 'https://img.youtube.com/vi/7H7T5KxMM9c/0.jpg', type: 'youtube', region: 'arabic' }
+            { id: 1,  title: 'Eminem - Houdini',                    videoUrl: 'https://www.youtube.com/embed/bkSJZwQF6I4', thumbnail: 'https://img.youtube.com/vi/bkSJZwQF6I4/0.jpg', type: 'youtube', region: 'american' },
+            { id: 2,  title: 'Kendrick Lamar - Not Like Us',        videoUrl: 'https://www.youtube.com/embed/H58vbez_m4E', thumbnail: 'https://img.youtube.com/vi/H58vbez_m4E/0.jpg', type: 'youtube', region: 'american' },
+            { id: 3,  title: 'Taylor Swift - Cruel Summer',         videoUrl: 'https://www.youtube.com/embed/ic8j13piAhQ', thumbnail: 'https://img.youtube.com/vi/ic8j13piAhQ/0.jpg', type: 'youtube', region: 'american' },
+            { id: 4,  title: "Drake - God's Plan",                  videoUrl: 'https://www.youtube.com/embed/xpVfcZ0ZcFM', thumbnail: 'https://img.youtube.com/vi/xpVfcZ0ZcFM/0.jpg', type: 'youtube', region: 'american' },
+            { id: 5,  title: 'The Weeknd - Blinding Lights',        videoUrl: 'https://www.youtube.com/embed/4NRXx6U8ABQ', thumbnail: 'https://img.youtube.com/vi/4NRXx6U8ABQ/0.jpg', type: 'youtube', region: 'american' },
+            { id: 6,  title: 'Bruno Mars - 24K Magic',              videoUrl: 'https://www.youtube.com/embed/UqyT8IEBkvY', thumbnail: 'https://img.youtube.com/vi/UqyT8IEBkvY/0.jpg', type: 'youtube', region: 'american' },
+            { id: 7,  title: 'Ed Sheeran - Shape of You',           videoUrl: 'https://www.youtube.com/embed/JGwWNGJdvx8', thumbnail: 'https://img.youtube.com/vi/JGwWNGJdvx8/0.jpg', type: 'youtube', region: 'american' },
+            { id: 8,  title: 'Post Malone - Sunflower',             videoUrl: 'https://www.youtube.com/embed/ApXoWvfEYVU', thumbnail: 'https://img.youtube.com/vi/ApXoWvfEYVU/0.jpg', type: 'youtube', region: 'american' },
+            { id: 9,  title: 'Doja Cat - Paint The Town Red',       videoUrl: 'https://www.youtube.com/embed/Cwgg0FkqLr0', thumbnail: 'https://img.youtube.com/vi/Cwgg0FkqLr0/0.jpg', type: 'youtube', region: 'american' },
+            { id: 10, title: 'Miley Cyrus - Flowers',               videoUrl: 'https://www.youtube.com/embed/G7KNmW9a75Y', thumbnail: 'https://img.youtube.com/vi/G7KNmW9a75Y/0.jpg', type: 'youtube', region: 'american' }
         ],
         socialPixels: {
             facebook: '', facebookPixelId: '', instagram: '', twitter: '', twitterPixelId: '',
@@ -386,7 +336,7 @@ app.post('/api/library/progress', (req, res) => {
     res.json({ success: true, progress: user.progress });
 });
 
-// ==================== ALL API ROUTES ====================
+// ==================== ALL ORIGINAL API ROUTES ====================
 app.get('/api/data', (req, res) => {
     const data = getData();
     res.json({ blogPosts: data.blogPosts || [], moneyLinks: data.moneyLinks, storeLinks: data.storeLinks, successStories: data.successStories, aboutContent: data.aboutContent, privacyContent: data.privacyContent, contact: data.contact, videos: data.videos });
@@ -516,7 +466,7 @@ app.delete('/api/video/:id', (req, res) => {
     if (!checkAdmin(req)) return res.status(403).json({ error: "Unauthorized" });
     const data = getData();
     const i = data.videos.findIndex(v => v.id == req.params.id);
-    if (i !== -1) { const v = data.videos[i]; if (v.type === 'local' && v.filename) { try { fs.unlinkSync(path.join(DATA_DIR, 'videos', v.filename)); } catch(e){} } data.videos.splice(i, 1); saveData(data); }
+    if (i !== -1) { const v = data.videos[i]; if (v.type === 'local' && v.filename) { try { fs.unlinkSync(path.join(__dirname, 'videos', v.filename)); } catch(e){} } data.videos.splice(i, 1); saveData(data); }
     res.json({ success: true });
 });
 
@@ -558,13 +508,27 @@ app.post('/api/inject', (req, res) => {
     const data = getData();
     if (!data.injections) data.injections = {};
     data.injections[location] = code; saveData(data);
-    saveInjections(data.injections);
+    try { fs.writeFileSync(path.join(__dirname, 'injections.json'), JSON.stringify(data.injections, null, 2)); } catch(e) {}
     res.json({ success: true, message: `✅ ${location} injection saved & live — reload website to see changes` });
 });
+
+function getInjections() {
+    const data = getData();
+    let inj = data.injections || {};
+    try {
+        const injFile = path.join(__dirname, 'injections.json');
+        if (fs.existsSync(injFile)) {
+            const saved = JSON.parse(fs.readFileSync(injFile));
+            inj = { ...inj, ...saved };
+        }
+    } catch(e) {}
+    return inj;
+}
 
 app.get('/api/injections', (req, res) => { res.json(getInjections()); });
 
 // ==================== MISSING API ROUTES ====================
+
 app.get('/api/visitors', (req, res) => {
     const data = getData();
     if (!data.visitors) data.visitors = { total: 0, today: 0, lastReset: new Date().toDateString() };
@@ -821,7 +785,7 @@ function processCommand(command, data) {
     return { text: response, newHash };
 }
 
-// ==================== EMAIL CAMPAIGNS ====================
+// ==================== EMAIL CAMPAIGNS (BOT MAKES MONEY AUTOMATICALLY) ====================
 function getEmailCampaigns(data) {
     const jumia = data.storeLinks.find(l => l.name.includes('Jumia') && l.id);
     const jumiaUrl = jumia ? `https://www.jumia.com.ng/?aff_id=${jumia.id}` : 'https://www.jumia.com.ng';
@@ -859,7 +823,8 @@ function buildCampaignHtml(campaign, data) {
     </div>`;
 }
 
-// ==================== VISITOR COUNTER ====================
+
+// ==================== FEATURE: VISITOR COUNTER ====================
 let liveVisitors = 0;
 const visitorTimestamps = {};
 app.use((req, res, next) => {
@@ -874,7 +839,7 @@ app.use((req, res, next) => {
 });
 app.get('/api/visitors', (req, res) => { res.json({ count: liveVisitors }); });
 
-// ==================== TESTIMONIALS ====================
+// ==================== FEATURE: TESTIMONIALS/REVIEWS ====================
 app.post('/api/testimonials/add', (req, res) => {
     const { name, country, rating, text } = req.body;
     if (!name || !text || !rating) return res.status(400).json({ error: 'Missing fields' });
@@ -905,7 +870,7 @@ app.get('/api/testimonials', (req, res) => {
     res.json({ testimonials: approved });
 });
 
-// ==================== BLOG SEARCH ====================
+// ==================== FEATURE: BLOG SEARCH ====================
 app.get('/api/blog/search', (req, res) => {
     const { q } = req.query;
     if (!q) return res.json({ posts: [] });
@@ -923,7 +888,7 @@ app.get('/api/blog/search', (req, res) => {
     res.json({ posts });
 });
 
-// ==================== COOKIE CONSENT ====================
+// ==================== FEATURE: COOKIE CONSENT ====================
 app.post('/api/cookie-consent', (req, res) => {
     res.json({ success: true });
 });
@@ -1053,7 +1018,7 @@ const LIBRARY_COURSES = [
     { id:'ai-basics', title:'AI & Machine Learning Basics', description:'Learn how AI works, use AI tools to make money, understand machine learning without coding.', icon:'🤖', level:'Beginner', category:'Technology', duration:'6 lessons', color:'#8b5cf6',
       lessons:[
         {id:1,title:'What is AI? A Simple Explanation',content:'AI is when computers learn to do tasks that normally require human intelligence...',video:''},
-        {id:2,title:'How to Use ChatGPT to Make Money',content:'ChatGPT is the most powerful AI tool today...',video:'https://www.youtube.com/embed/JTxsNm9IdYU?autoplay=1&mute=1'},
+        {id:2,title:'How to Use ChatGPT to Make Money',content:'ChatGPT is the most powerful AI tool today...',video:'https://www.youtube.com/embed/JTxsNm9IdYU'},
         {id:3,title:'AI Data Labeling — Get Paid to Train AI',content:'AI companies need humans to label data to train their models...',video:''},
         {id:4,title:'Machine Learning Without Coding',content:'You do NOT need to be a programmer to work with AI today...',video:''},
         {id:5,title:'Free AI Tools to Use Every Day',content:'These free AI tools save hours every day...',video:''},
@@ -1062,7 +1027,7 @@ const LIBRARY_COURSES = [
     { id:'data-analysis', title:'Data Analysis & Excel Mastery', description:'Master Excel, Google Sheets, and data analysis skills that pay $40–$80/hour.', icon:'📊', level:'Beginner to Intermediate', category:'Data', duration:'5 lessons', color:'#10b981',
       lessons:[
         {id:1,title:'Why Data Analysis Pays So Well',content:'Every business has data but most don\'t know what to do with it...',video:''},
-        {id:2,title:'Excel Fundamentals — From Zero to Confident',content:'Essential Excel functions...',video:'https://www.youtube.com/embed/rwbho0CgEAI?autoplay=1&mute=1'},
+        {id:2,title:'Excel Fundamentals — From Zero to Confident',content:'Essential Excel functions...',video:'https://www.youtube.com/embed/rwbho0CgEAI'},
         {id:3,title:'Pivot Tables — The Most Powerful Excel Feature',content:'Pivot tables turn thousands of rows into summaries in seconds...',video:''},
         {id:4,title:'Data Visualization — Charts That Tell Stories',content:'**When to Use Each Chart:**...',video:''},
         {id:5,title:'Getting Your First Data Client',content:'**Step 1: Build a Portfolio (2 days)**...',video:''}
@@ -1246,7 +1211,7 @@ app.get('/library', (req, res) => {
                 </div>
             </div>
             <div class="lbody" id="lBody"></div>
-            <div class="lvid" id="lVid" style="display:none"><iframe id="lIframe" width="100%" height="380" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>
+            <div class="lvid" id="lVid" style="display:none"><iframe id="lIframe" width="100%" height="380" frameborder="0" allowfullscreen></iframe></div>
             <div class="llist"><h3>All Lessons</h3><div id="allL"></div></div>
         </div>
     </div>
@@ -1354,7 +1319,7 @@ app.get('/library', (req, res) => {
     function openM(m){document.getElementById('authMo').classList.add('open');if(m==='login'){document.getElementById('regF').style.display='none';document.getElementById('logF').style.display='block';}else{document.getElementById('regF').style.display='block';document.getElementById('logF').style.display='none';}}
     function closeM(){document.getElementById('authMo').classList.remove('open');}
     function swL(){document.getElementById('regF').style.display='none';document.getElementById('logF').style.display='block';}
-    function swR(){document.getElementById('logF').style.display='none';document.getElementById('regF').style.display='block';}
+    function swR(){document.getElementById('logF').style.display='none';document.getElementById('logF').style.display='block';}
     async function doReg(){
         const n=document.getElementById('rN').value,e=document.getElementById('rE').value,p=document.getElementById('rP').value;
         const er=document.getElementById('rErr');er.style.display='none';
@@ -1439,15 +1404,8 @@ app.get('/', (req, res) => {
             <div class="full-story" id="story-${story.id}" style="display:none">${escapeHtml(story.fullStory || story.story)}</div>
         </div>`).join('');
 
+    // ONLY AMERICAN VIDEOS
     const americanVideos = data.videos.filter(v => v.region === 'american').map(video => `
-        <div class="video-card" onclick="playVideo('${video.videoUrl}')">
-            <div class="video-thumb" style="background-image:url('${video.thumbnail}')">
-                <div class="play-btn">▶</div>
-            </div>
-            <p class="video-title">${escapeHtml(video.title)}</p>
-        </div>`).join('');
-
-    const arabicVideos = data.videos.filter(v => v.region === 'arabic').map(video => `
         <div class="video-card" onclick="playVideo('${video.videoUrl}')">
             <div class="video-thumb" style="background-image:url('${video.thumbnail}')">
                 <div class="play-btn">▶</div>
@@ -1487,9 +1445,25 @@ app.get('/', (req, res) => {
         html{scroll-behavior:smooth;}
         body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden;}
 
+        /* BIGGER LOGO */
+        .nav-logo {
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--green);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.5px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #10b981, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            padding: 5px 0;
+        }
+
         nav{position:sticky;top:0;z-index:1000;background:rgba(10,15,30,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 4%;}
-        .nav-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:66px;}
-        .nav-logo{font-size:19px;font-weight:800;color:var(--green);text-decoration:none;display:flex;align-items:center;gap:8px;letter-spacing:-0.3px;}
+        .nav-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:80px;}
         .nav-links{display:flex;gap:2px;align-items:center;}
         .nav-links a{color:#94a3b8;text-decoration:none;padding:7px 11px;border-radius:7px;font-size:13px;font-weight:500;transition:0.2s;white-space:nowrap;}
         .nav-links a:hover{color:var(--green);background:rgba(16,185,129,0.08);}
@@ -1499,13 +1473,14 @@ app.get('/', (req, res) => {
         .nav-links a.cta:hover{background:#059669;color:white;transform:translateY(-1px);}
         .nav-hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:5px;}
         .nav-hamburger span{width:24px;height:2px;background:var(--text);border-radius:2px;transition:0.3s;}
-        .mobile-menu{display:none;position:absolute;top:66px;left:0;right:0;background:rgba(10,15,30,0.99);border-bottom:1px solid var(--border);padding:16px 4%;flex-direction:column;gap:4px;z-index:999;}
+        .mobile-menu{display:none;position:absolute;top:80px;left:0;right:0;background:rgba(10,15,30,0.99);border-bottom:1px solid var(--border);padding:16px 4%;flex-direction:column;gap:4px;z-index:999;}
         .mobile-menu.open{display:flex;}
         .mobile-menu a{color:var(--text);text-decoration:none;padding:13px 16px;border-radius:9px;font-weight:500;font-size:15px;transition:0.2s;}
         .mobile-menu a:hover{background:var(--card);color:var(--green);}
         .mobile-menu .mm-lib{color:#a78bfa;}
         .mobile-menu .mm-cta{background:rgba(16,185,129,0.1);color:var(--green);font-weight:700;margin-top:4px;}
 
+        /* REST OF YOUR CSS REMAINS EXACTLY THE SAME */
         .hero{position:relative;padding:96px 5% 76px;text-align:center;overflow:hidden;}
         .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% -10%,rgba(16,185,129,0.2) 0%,transparent 58%);pointer-events:none;}
         .hero::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 60%,rgba(139,92,246,0.08) 0%,transparent 50%);pointer-events:none;}
@@ -1526,6 +1501,8 @@ app.get('/', (req, res) => {
         .hero-stat:last-child{border-right:none;}
         .hero-stat .num{font-size:28px;font-weight:800;color:var(--green);}
         .hero-stat .lbl{font-size:12px;color:var(--muted);margin-top:3px;}
+
+        /* All your other CSS remains exactly the same */
         .lib-promo{background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(16,185,129,0.05));border:1px solid rgba(139,92,246,0.2);border-radius:20px;padding:36px;margin:36px 0;display:grid;grid-template-columns:1fr auto;gap:32px;align-items:center;}
         .lib-promo h2{font-size:22px;font-weight:800;color:var(--text);margin-bottom:10px;}
         .lib-promo p{color:#94a3b8;font-size:14px;line-height:1.7;margin-bottom:20px;}
@@ -1781,7 +1758,7 @@ app.get('/', (req, res) => {
 <body>
     ${injections.bodyStart || ''}
 
-    <!-- VIDEO MODAL (with autoplay support) -->
+    <!-- VIDEO MODAL -->
     <div id="videoModal">
         <div class="modal-content">
             <button class="close-modal" onclick="closeVideoModal()">✕</button>
@@ -1807,6 +1784,7 @@ app.get('/', (req, res) => {
             <div class="ticker-item">🚀 <span class="ti-name">Grace (Accra)</span>&nbsp;made <span class="ti-amt">$200</span> from social media management</div>
             <div class="ticker-item">💼 <span class="ti-name">Omar (Alexandria)</span>&nbsp;landed <span class="ti-amt">$500</span> web dev project on Upwork</div>
             <div class="ticker-item">📱 <span class="ti-name">Blessing (Port Harcourt)</span>&nbsp;earned <span class="ti-amt">₦35,000</span> from TikTok affiliate</div>
+            <!-- Duplicate for seamless loop -->
             <div class="ticker-item">🎉 <span class="ti-name">Ahmed (Kano)</span>&nbsp;earned <span class="ti-amt">$47</span> from Fiverr today</div>
             <div class="ticker-item">💰 <span class="ti-name">Fatima (Cairo)</span>&nbsp;made <span class="ti-amt">$87</span> on Upwork this week</div>
             <div class="ticker-item">🛒 <span class="ti-name">Emeka (Lagos)</span>&nbsp;earned <span class="ti-amt">₦12,000</span> from Jumia affiliate</div>
@@ -1821,7 +1799,7 @@ app.get('/', (req, res) => {
     <!-- NAVBAR -->
     <nav>
         <div class="nav-inner">
-            <a href="/" class="nav-logo">☁️ 3EESHER-CLOUD</a>
+            <a href="/" class="nav-logo">☁️ 3EESHER.CLOUD</a>
             <div class="nav-links">
                 <a href="/#money">💰 Make Money</a>
                 <a href="/library" class="lib-link">📚 Free Library</a>
@@ -1961,20 +1939,12 @@ app.get('/', (req, res) => {
             </div>
         </div>
 
-        <!-- AMERICAN MUSIC -->
+        <!-- AMERICAN MUSIC ONLY -->
         <div class="section" id="videos">
             <div class="section-header">
-                <div class="section-title">🎵 American Music</div>
+                <div class="section-title">🎵 Music Videos</div>
             </div>
             <div class="video-grid">${americanVideos}</div>
-        </div>
-
-        <!-- ARABIC MUSIC -->
-        <div class="section">
-            <div class="section-header">
-                <div class="section-title">🎵 Arabic Music</div>
-            </div>
-            <div class="video-grid">${arabicVideos}</div>
         </div>
 
         <!-- SUCCESS STORIES -->
@@ -2033,11 +2003,13 @@ app.get('/', (req, res) => {
                 <div class="section-title">⭐ Member Reviews</div>
             </div>
             <div class="test-grid" id="testGrid">
+                <!-- Default reviews shown before any are submitted -->
                 <div class="test-card"><div class="test-stars">★★★★★</div><div class="test-text">I was skeptical at first but after following the Jumia affiliate guide I made my first ₦15,000 in 2 weeks. This platform is real and it works!</div><div class="test-author"><div class="test-av">C</div><div><div class="test-name">Chidera O.</div><div class="test-country">📍 Enugu, Nigeria</div></div></div></div>
                 <div class="test-card"><div class="test-stars">★★★★★</div><div class="test-text">The free library courses are amazing. I completed the Freelancing course and got my first Upwork client within 3 weeks. Cannot believe this is free.</div><div class="test-author"><div class="test-av">Y</div><div><div class="test-name">Yusuf A.</div><div class="test-country">📍 Kano, Nigeria</div></div></div></div>
                 <div class="test-card"><div class="test-stars">★★★★★</div><div class="test-text">The AI course completely changed how I work. I now use ChatGPT to write content for clients on Fiverr and earn $500/month working just 2 hours daily.</div><div class="test-author"><div class="test-av">A</div><div><div class="test-name">Amira K.</div><div class="test-country">📍 Cairo, Egypt</div></div></div></div>
                 <div class="test-card"><div class="test-stars">★★★★☆</div><div class="test-text">Started following the ClickBank guide 2 months ago. Slow at first but now earning $180/month from affiliate commissions. Growing every week!</div><div class="test-author"><div class="test-av">K</div><div><div class="test-name">Kwame B.</div><div class="test-country">📍 Accra, Ghana</div></div></div></div>
             </div>
+            <!-- Leave Review Form -->
             <div class="test-form-box">
                 <h4>✍️ Share Your Experience</h4>
                 <div class="test-form-grid">
@@ -2151,8 +2123,10 @@ app.get('/', (req, res) => {
     <a href="/admin" class="admin-btn">🔐 Admin</a>
 
     <script>
+        // ── Navbar mobile
         function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open');}
 
+        // ── Video modal
         function playVideo(url){
             document.getElementById('videoModal').style.display='flex';
             document.getElementById('videoPlayer').src=url;
@@ -2160,8 +2134,10 @@ app.get('/', (req, res) => {
         function closeVideoModal(){document.getElementById('videoModal').style.display='none';document.getElementById('videoPlayer').src='';}
         document.addEventListener('keydown',e=>{if(e.key==='Escape')closeVideoModal();});
 
+        // ── Track clicks
         function trackClick(n,t){fetch('/api/track-click',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({linkName:n,type:t})});}
 
+        // ── Story toggle
         function toggleStory(id){
             const el=document.getElementById('story-'+id);
             const btn=event.target;
@@ -2169,6 +2145,7 @@ app.get('/', (req, res) => {
             else{el.style.display='none';btn.textContent='Read Full Story ▼';}
         }
 
+        // ── Newsletter
         async function subscribeNewsletter(){
             const email=document.getElementById('nlEmail').value;
             if(!email||!email.includes('@')){alert('Enter a valid email');return;}
@@ -2177,6 +2154,7 @@ app.get('/', (req, res) => {
             document.getElementById('nlEmail').value='';
         }
 
+        // ── Ad Engine: Load ads on page load
         async function loadAds(){
             const slots = [
                 {slot:'Top', img:'adImgTop', title:'adTitleTop', desc:'adDescTop', cta:'adCtaTop', content:'adContentTop', placeholder:'adPlaceholderTop'},
@@ -2204,12 +2182,14 @@ app.get('/', (req, res) => {
         }
         loadAds();
 
+        // ── VISITOR COUNTER ──
         async function updateVisitorCount(){
             try{const r=await fetch('/api/visitors');const d=await r.json();document.getElementById('liveCount').textContent=d.count;}catch(e){}
         }
         updateVisitorCount();
         setInterval(updateVisitorCount, 30000);
 
+        // ── COUNTDOWN TIMER (resets daily) ──
         function updateTimer(){
             const now=new Date();
             const end=new Date(now);
@@ -2228,6 +2208,7 @@ app.get('/', (req, res) => {
         updateTimer();
         setInterval(updateTimer,1000);
 
+        // ── BLOG SEARCH ──
         let searchTimeout=null;
         async function searchBlogs(q){
             const res=document.getElementById('blogSearchResults');
@@ -2245,6 +2226,7 @@ app.get('/', (req, res) => {
         }
         document.addEventListener('click',e=>{if(!e.target.closest('.blog-search-wrap'))document.getElementById('blogSearchResults').style.display='none';});
 
+        // ── TESTIMONIALS ──
         async function submitReview(){
             const name=document.getElementById('tName').value;
             const text=document.getElementById('tText').value;
@@ -2260,6 +2242,7 @@ app.get('/', (req, res) => {
             }catch(e){res.textContent='Server error. Try again.';res.style.color='#ef4444';}
         }
 
+        // ── DARK/LIGHT MODE ──
         const savedTheme=localStorage.getItem('theme');
         if(savedTheme==='light')document.body.classList.add('light-mode');
         function toggleTheme(){
@@ -2268,12 +2251,14 @@ app.get('/', (req, res) => {
             document.getElementById('themeIcon').textContent=document.body.classList.contains('light-mode')?'🌙':'☀️';
         }
 
+        // ── COOKIE BANNER ──
         if(!localStorage.getItem('cookieAccepted')){
             document.getElementById('cookieBanner').style.display='flex';
         }
         function acceptCookie(){localStorage.setItem('cookieAccepted','1');document.getElementById('cookieBanner').style.display='none';}
         function declineCookie(){document.getElementById('cookieBanner').style.display='none';}
 
+        // ── POPUP SUBSCRIBE (after 35 seconds, max once per session) ──
         if(!sessionStorage.getItem('popupShown')){
             setTimeout(()=>{
                 const popup=document.getElementById('subscribePopup');
@@ -2294,594 +2279,6 @@ app.get('/', (req, res) => {
     ${injections.bodyEnd || ''}
     ${socialPixels.customBody || ''}
     ${socialPixels.customJS ? `<script>${socialPixels.customJS}</script>` : ''}
-</body>
-</html>`);
-});
-
-// ==================== ADMIN PAGE ====================
-app.get('/admin', (req, res) => {
-    if (!checkAdmin(req)) {
-        return res.send(`<!DOCTYPE html><html><head><title>Admin Login</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
-<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Space Grotesk',sans-serif;background:#0a0f1e;color:white;display:flex;justify-content:center;align-items:center;height:100vh;}
-.box{background:#131c31;padding:40px;border-radius:16px;width:360px;border:1px solid rgba(16,185,129,0.2);}
-h2{color:#fbbf24;text-align:center;margin-bottom:30px;font-size:22px;}
-input{width:100%;padding:14px;margin:8px 0;background:#0a0f1e;border:1px solid #334155;color:white;border-radius:8px;font-family:inherit;font-size:15px;}
-button{width:100%;padding:14px;background:#10b981;border:none;border-radius:8px;color:#0a0f1e;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;}</style></head>
-<body><div class="box"><h2>🔐 3EESHER Admin</h2>
-<input type="text" id="u" placeholder="Username"><input type="password" id="p" placeholder="Password">
-<button onclick="login()">Login</button></div>
-<script>async function login(){const u=document.getElementById('u').value,p=document.getElementById('p').value;if(!u||!p){alert('Fill both fields');return;}const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});if(r.ok)location.reload();else alert('Invalid credentials');}</script>
-</body></html>`);
-    }
-
-    const data = getData();
-
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Admin Dashboard — 3EESHER</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box;}
-        body{font-family:'Space Grotesk',sans-serif;background:#0a0f1e;color:#e2e8f0;padding:20px;}
-        .container{max-width:1400px;margin:0 auto;}
-        .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid #10b981;}
-        .topbar h1{color:#fbbf24;font-size:22px;}
-        .tabs{display:flex;gap:8px;margin:0 0 24px;flex-wrap:wrap;}
-        .tab-btn{padding:10px 18px;background:#131c31;border:1px solid #1e293b;color:#94a3b8;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:0.2s;}
-        .tab-btn:hover,.tab-btn.active{background:#10b981;color:#0a0f1e;border-color:#10b981;font-weight:700;}
-        .section{display:none;background:#131c31;padding:28px;border-radius:16px;border:1px solid #1e293b;}
-        .section.active{display:block;}
-        input,textarea,select{width:100%;padding:11px 14px;margin:8px 0;background:#0a0f1e;border:1px solid #1e293b;color:#e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;}
-        input:focus,textarea:focus,select:focus{outline:none;border-color:#10b981;}
-        button{background:#10b981;color:#0a0f1e;padding:11px 22px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;margin:4px;}
-        .del{background:#ef4444;color:white;}
-        .approve{background:#f59e0b;color:#0a0f1e;}
-        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;}
-        .stat-card{background:#0a0f1e;padding:20px;border-radius:12px;border-left:4px solid #10b981;}
-        .stat-card h3{color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
-        .stat-value{font-size:28px;font-weight:800;color:#fbbf24;margin-top:6px;}
-        .item{background:#0a0f1e;padding:14px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
-        .item-info{flex:1;}
-        .ad-card{background:#0a0f1e;padding:16px;margin:10px 0;border-radius:10px;border-left:4px solid #8b5cf6;}
-        .ad-card.active{border-color:#10b981;}
-        .ad-card.pending{border-color:#f59e0b;}
-        .badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
-        .badge.active{background:rgba(16,185,129,0.15);color:#10b981;}
-        .badge.pending{background:rgba(245,158,11,0.15);color:#f59e0b;}
-        .badge.expired{background:rgba(239,68,68,0.15);color:#ef4444;}
-        .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-    </style>
-</head>
-<body>
-<div class="container">
-    <div class="topbar">
-        <h1>☁️ 3EESHER Admin Dashboard</h1>
-        <button onclick="logout()" style="background:#ef4444;color:white;">Logout</button>
-    </div>
-
-    <div class="tabs">
-        <button class="tab-btn active" onclick="showTab('dashboard', this)">📊 Dashboard</button>
-        <button class="tab-btn" onclick="showTab('ads', this)">🎯 Ads Engine</button>
-        <button class="tab-btn" onclick="showTab('earnings', this)">💰 Earnings</button>
-        <button class="tab-btn" onclick="showTab('email', this)">📧 Email Blast</button>
-        <button class="tab-btn" onclick="showTab('moneylinks', this)">🔗 Money Links</button>
-        <button class="tab-btn" onclick="showTab('stores', this)">🏪 Stores</button>
-        <button class="tab-btn" onclick="showTab('blogs', this)">📝 Blogs</button>
-        <button class="tab-btn" onclick="showTab('videos', this)">🎬 Videos</button>
-        <button class="tab-btn" onclick="showTab('upload', this)">📁 Upload</button>
-        <button class="tab-btn" onclick="showTab('social', this)">📱 Social</button>
-        <button class="tab-btn" onclick="showTab('target', this)">🎯 Target</button>
-        <button class="tab-btn" onclick="showTab('inject', this)">🔌 Inject</button>
-        <button class="tab-btn" onclick="showTab('testimonials', this)">⭐ Reviews</button>
-        <button class="tab-btn" onclick="showTab('settings', this)">⚙️ Settings</button>
-        <button class="tab-btn" onclick="showTab('command', this)">🤖 Command</button>
-    </div>
-
-    <!-- DASHBOARD -->
-    <div id="dashboard" class="section active">
-        <div class="stats-grid">
-            <div class="stat-card"><h3>Total Earnings</h3><div class="stat-value">$${data.earnings.total.toFixed(2)}</div></div>
-            <div class="stat-card"><h3>Today</h3><div class="stat-value">$${data.earnings.today.toFixed(2)}</div></div>
-            <div class="stat-card" style="border-color:#8b5cf6"><h3>Ad Revenue</h3><div class="stat-value">$${(data.adStats?.totalRevenue || 0).toFixed(2)}</div></div>
-            <div class="stat-card" style="border-color:#f59e0b"><h3>Active Ads</h3><div class="stat-value">${(data.ads || []).filter(a => a.active).length}</div></div>
-            <div class="stat-card"><h3>Subscribers</h3><div class="stat-value">${data.subscribers.length}</div></div>
-            <div class="stat-card"><h3>Total Clicks</h3><div class="stat-value">${data.moneyLinks.reduce((s,l)=>s+(l.clicks||0),0)+data.storeLinks.reduce((s,l)=>s+(l.clicks||0),0)}</div></div>
-        </div>
-        <div style="background:#0a0f1e;padding:20px;border-radius:10px;">
-            <h3 style="color:#fbbf24;margin-bottom:12px;">🤖 Bot Status</h3>
-            <div>✅ Auto Money Maker: ${data.settings.autoMoneyMaker ? 'Running (every hour)' : '⏸️ Paused'}</div>
-            <div>✅ Auto Blogger: ${data.settings.autoBlogger ? data.settings.blogFrequency + 'x daily' : '⏸️ Paused'}</div>
-            <div>✅ Auto Targeting: ${data.settings.autoTargeting ? 'Running (every 30 min)' : '⏸️ Paused'}</div>
-        </div>
-    </div>
-
-    <!-- ADS ENGINE -->
-    <div id="ads" class="section">
-        <h2 style="color:#fbbf24;margin-bottom:20px;">🎯 Ad Engine</h2>
-        <div class="stats-grid">
-            <div class="stat-card" style="border-color:#8b5cf6"><h3>Ad Revenue</h3><div class="stat-value">$${(data.adStats?.totalRevenue || 0).toFixed(2)}</div></div>
-            <div class="stat-card"><h3>Impressions</h3><div class="stat-value">${data.adStats?.totalImpressions || 0}</div></div>
-            <div class="stat-card"><h3>Ad Clicks</h3><div class="stat-value">${data.adStats?.totalClicks || 0}</div></div>
-            <div class="stat-card" style="border-color:#f59e0b"><h3>Pending Approval</h3><div class="stat-value">${(data.ads || []).filter(a => !a.active).length}</div></div>
-        </div>
-
-        <h3 style="margin:20px 0 12px;color:#e2e8f0;">All Submitted Ads</h3>
-        ${(data.ads || []).length === 0 ? '<p style="color:#64748b">No ads yet. Share /advertise page to get clients!</p>' : ''}
-        ${(data.ads || []).map(ad => `
-        <div class="ad-card ${ad.active ? 'active' : 'pending'}">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
-                <div>
-                    <strong>${escapeHtml(ad.title)}</strong>
-                    <span class="badge ${ad.active ? 'active' : 'pending'}" style="margin-left:8px;">${ad.active ? '✅ Active' : '⏳ Pending'}</span>
-                    <div style="color:#64748b;font-size:13px;margin-top:6px;">
-                        Advertiser: ${escapeHtml(ad.advertiserName)} (${escapeHtml(ad.advertiserEmail)}) •
-                        Package: ${ad.package} ($${ad.price}) •
-                        ${ad.impressionsUsed || 0}/${ad.impressionsTotal} impressions •
-                        ${ad.clicks || 0} clicks
-                    </div>
-                    <div style="color:#64748b;font-size:12px;margin-top:4px;">
-                        Targeting — IPs: ${(ad.targeting?.ips || []).map(escapeHtml).join(', ') || 'None'} |
-                        Phones: ${(ad.targeting?.phones || []).map(escapeHtml).join(', ') || 'None'} |
-                        IMEIs: ${(ad.targeting?.imeis || []).map(escapeHtml).join(', ') || 'None'}
-                    </div>
-                    <div style="color:#64748b;font-size:12px;">URL: <a href="${ad.url}" target="_blank" style="color:#10b981;">${escapeHtml(ad.url)}</a></div>
-                </div>
-                <div>
-                    ${!ad.active ? `<button class="approve" onclick="approveAd(${ad.id})">✅ Approve</button>` : ''}
-                    <button class="del" onclick="deleteAd(${ad.id})">Delete</button>
-                </div>
-            </div>
-        </div>`).join('')}
-
-        <h3 style="margin:30px 0 12px;color:#e2e8f0;">➕ Create Ad Directly (Admin)</h3>
-        <div class="two-col">
-            <input type="text" id="adTitle" placeholder="Ad Title">
-            <input type="text" id="adAdvertiser" placeholder="Advertiser Name">
-            <input type="url" id="adUrl" placeholder="Destination URL">
-            <input type="url" id="adImage" placeholder="Ad Image URL">
-            <input type="text" id="adDesc" placeholder="Description">
-            <input type="text" id="adCta" placeholder="CTA Text (e.g. Shop Now)">
-            <input type="number" id="adImpressions" placeholder="Total Impressions (e.g. 5000)" value="5000">
-            <input type="number" id="adDays" placeholder="Duration in days" value="30">
-            <input type="number" id="adPrice" placeholder="Price paid ($)" value="25">
-        </div>
-        <input type="text" id="adTargetIps" placeholder="Target IPs (comma separated, optional)">
-        <input type="text" id="adTargetPhones" placeholder="Target Phones (comma separated, optional)">
-        <input type="text" id="adTargetImeis" placeholder="Target IMEIs (comma separated, optional)">
-        <button onclick="createAdDirectly()">Create & Activate Ad</button>
-    </div>
-
-    <!-- EARNINGS -->
-    <div id="earnings" class="section">
-        <h3>Add Earning</h3>
-        <input type="number" id="amount" placeholder="Amount ($)">
-        <input type="text" id="source" placeholder="Source (e.g. Jumia Commission)">
-        <input type="text" id="link" placeholder="Link name">
-        <button onclick="addEarning()">Add Earning</button>
-        <h3 style="margin-top:20px;">Withdraw</h3>
-        <input type="number" id="withdrawAmount" placeholder="Amount">
-        <select id="withdrawMethod"><option value="bank">Bank Transfer</option><option value="card">Mastercard</option><option value="crypto">Cryptocurrency</option></select>
-        <button onclick="withdraw()">Withdraw</button>
-    </div>
-
-    <!-- EMAIL BLAST -->
-    <div id="email" class="section">
-        <h2 style="color:#fbbf24;margin-bottom:16px;">📧 Email Blast</h2>
-        <div style="background:#0a0f1e;padding:16px;border-radius:8px;margin-bottom:20px;">
-            <strong style="color:#10b981;">Total Subscribers: ${data.subscribers.length}</strong>
-            <span style="color:#64748b;margin-left:20px;">Last campaigns: ${(data.emailCampaigns || []).length}</span>
-        </div>
-        <h3 style="margin-bottom:10px;">Quick Blast (Choose Campaign)</h3>
-        <select id="campaignIndex" style="margin-bottom:10px;">
-            <option value="0">💰 3 Ways to Make $500 This Week</option>
-            <option value="1">🛒 Jumia Affiliate — $1,200/Month</option>
-            <option value="2">🤖 AI Tools to Make Money</option>
-            <option value="3">📚 Free Library Access</option>
-            <option value="4">🚀 5 Platforms to Start Today</option>
-        </select>
-        <button onclick="sendQuickBlast(this)">🚀 Send This Campaign to All Subscribers</button>
-        <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
-        <h3 style="margin-bottom:10px;">Custom Email Blast</h3>
-        <input type="text" id="blastSubject" placeholder="Email Subject Line">
-        <textarea id="blastHtml" rows="6" placeholder="HTML email body (leave empty to use default template)"></textarea>
-        <button onclick="sendCustomBlast(this)">📨 Send Custom Blast to All Subscribers</button>
-        <div id="blastResult" style="margin-top:12px;font-size:14px;padding:10px;border-radius:6px;display:none;"></div>
-        <div style="border-top:1px solid #1e293b;margin:24px 0;"></div>
-        <h3 style="margin-bottom:10px;">Recent Campaigns</h3>
-        <div style="max-height:300px;overflow-y:auto;">
-            ${(data.emailCampaigns || []).slice(0,10).map(c => `<div class="item"><span><strong>${escapeHtml(c.subject.substring(0,50))}</strong> — ${c.sent}/${c.total} sent on ${new Date(c.date).toLocaleDateString()}</span></div>`).join('') || '<p style="color:#64748b">No campaigns sent yet.</p>'}
-        </div>
-    </div>
-
-    <!-- MONEY LINKS -->
-    <div id="moneylinks" class="section">
-        <h3>Money Making Links (${data.moneyLinks.length})</h3>
-        <div style="max-height:350px;overflow-y:auto;">
-            ${data.moneyLinks.map(l => `<div class="item"><span><strong>${escapeHtml(l.name)}</strong> — ${l.clicks || 0} clicks, $${(l.earnings || 0).toFixed(2)}</span></div>`).join('')}
-        </div>
-        <h3 style="margin-top:20px;">Add Custom Money Link</h3>
-        <input type="text" id="moneyName" placeholder="Name">
-        <input type="text" id="moneyUrl" placeholder="URL">
-        <select id="moneyCategory"><option value="freelance">Freelance</option><option value="affiliate">Affiliate</option><option value="courses">Courses</option><option value="social">Social</option></select>
-        <button onclick="addMoneyLink()">Add Link</button>
-    </div>
-
-    <!-- STORES -->
-    <div id="stores" class="section">
-        <h3>Stores (Add Affiliate IDs)</h3>
-        <div style="max-height:300px;overflow-y:auto;">
-            ${data.storeLinks.map(l => `<div class="item"><span><strong>${escapeHtml(l.name)}</strong> — ID: ${l.id ? escapeHtml(l.id) : 'Not set'} (${l.clicks || 0} clicks)</span></div>`).join('')}
-        </div>
-        <h3 style="margin-top:20px;">Add Store Affiliate ID</h3>
-        <input type="text" id="storeName" placeholder="Store name (e.g. Jumia)">
-        <input type="text" id="storeId" placeholder="Affiliate ID">
-        <button onclick="addStoreId()">Add ID</button>
-    </div>
-
-    <!-- BLOGS -->
-    <div id="blogs" class="section">
-        <h3>Recent Blogs</h3>
-        <div style="max-height:300px;overflow-y:auto;">
-            ${data.blogPosts.map(b => `<div class="item"><span><strong>${escapeHtml(b.title)}</strong> — ${new Date(b.date).toLocaleDateString()} • ${b.views} views</span><button class="del" onclick="deleteBlog(${b.id})">Delete</button></div>`).join('')}
-        </div>
-        <h3 style="margin-top:20px;">Create Manual Blog</h3>
-        <input type="text" id="blogTitle" placeholder="Title">
-        <textarea id="blogContent" rows="4" placeholder="Content (HTML allowed)"></textarea>
-        <input type="file" id="blogImage" accept="image/*">
-        <button onclick="createBlog()">Publish Blog</button>
-    </div>
-
-    <!-- VIDEOS -->
-    <div id="videos" class="section">
-        <h3>Videos (${data.videos.length})</h3>
-        <div style="max-height:300px;overflow-y:auto;">
-            ${data.videos.map(v => `<div class="item"><span><strong>${escapeHtml(v.title)}</strong> — ${v.region}</span><button class="del" onclick="deleteVideo(${v.id})">Delete</button></div>`).join('')}
-        </div>
-    </div>
-
-    <!-- UPLOAD -->
-    <div id="upload" class="section">
-        <h3>Upload Video</h3>
-        <input type="text" id="videoTitle" placeholder="Video title">
-        <input type="file" id="videoFile" accept="video/*">
-        <button onclick="uploadVideo()">Upload Video</button>
-        <h3 style="margin-top:20px;">Upload Image</h3>
-        <input type="file" id="imageFile" accept="image/*">
-        <button onclick="uploadImage()">Upload Image</button>
-    </div>
-
-    <!-- SOCIAL -->
-    <div id="social" class="section">
-        <h3>Facebook Pixel</h3>
-        <textarea id="fbPixel" rows="3">${escapeHtml(data.socialPixels?.facebook || '')}</textarea>
-        <button onclick="saveSocial('facebook')">Save Facebook</button>
-        <h3>TikTok Pixel</h3>
-        <textarea id="ttPixel" rows="3">${escapeHtml(data.socialPixels?.tiktok || '')}</textarea>
-        <button onclick="saveSocial('tiktok')">Save TikTok</button>
-        <h3>WhatsApp</h3>
-        <textarea id="waPixel" rows="3">${escapeHtml(data.socialPixels?.whatsapp || '')}</textarea>
-        <button onclick="saveSocial('whatsapp')">Save WhatsApp</button>
-        <h3>Telegram</h3>
-        <textarea id="tgPixel" rows="3">${escapeHtml(data.socialPixels?.telegram || '')}</textarea>
-        <button onclick="saveSocial('telegram')">Save Telegram</button>
-    </div>
-
-    <!-- TARGET -->
-    <div id="target" class="section">
-        <h3>Add Phone Numbers</h3>
-        <textarea id="phones" rows="4" placeholder="+2348012345678 (one per line)"></textarea>
-        <button onclick="addPhones()">Add Phones</button>
-        <p style="color:#64748b;font-size:12px;margin-top:4px;">Total: ${data.targeting.phones.length} phones</p>
-        <h3 style="margin-top:20px;">Add IMEI Numbers</h3>
-        <textarea id="imeis" rows="4" placeholder="356789012345678 (one per line)"></textarea>
-        <button onclick="addIMEIs()">Add IMEIs</button>
-        <p style="color:#64748b;font-size:12px;margin-top:4px;">Total: ${data.targeting.imeis.length} IMEIs</p>
-    </div>
-
-    <!-- INJECT -->
-    <div id="inject" class="section">
-        <h3>Universal Injector (HTML, CSS, JS)</h3>
-        <select id="injectLocation">
-            <option value="head">Head (HTML)</option>
-            <option value="bodyStart">Body Start (HTML)</option>
-            <option value="bodyEnd">Body End (HTML)</option>
-            <option value="css">CSS</option>
-            <option value="js">JavaScript</option>
-        </select>
-        <textarea id="injectCode" rows="6" placeholder="Paste your code here..."></textarea>
-        <button onclick="injectCode()">Inject Code</button>
-    </div>
-
-    <!-- TESTIMONIALS MANAGEMENT -->
-    <div id="testimonials" class="section">
-        <h2 style="color:#fbbf24;margin-bottom:16px;">⭐ Reviews & Testimonials</h2>
-        <div style="background:#0a0f1e;padding:14px;border-radius:8px;margin-bottom:16px;">
-            <strong style="color:#10b981;">Total Reviews: ${(data.testimonials || []).length}</strong>
-            <span style="color:#64748b;margin-left:16px;">Approved: ${(data.testimonials || []).filter(t=>t.approved).length}</span>
-            <span style="color:#f59e0b;margin-left:16px;">Pending: ${(data.testimonials || []).filter(t=>!t.approved).length}</span>
-        </div>
-        <div id="testimonialsListAdmin">
-            ${(data.testimonials || []).length === 0 ? '<p style="color:#64748b">No testimonials submitted yet.</p>' : ''}
-            ${(data.testimonials || []).map(t => `
-            <div class="item" style="flex-direction:column;align-items:flex-start;gap:8px;">
-                <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
-                    <strong>${escapeHtml(t.name)} ${t.country ? '📍 '+escapeHtml(t.country) : ''} ${'★'.repeat(t.rating||5)}</strong>
-                    <span class="badge ${t.approved?'active':'pending'}">${t.approved?'✅ Approved':'⏳ Pending'}</span>
-                </div>
-                <p style="color:#94a3b8;font-size:13px;">${escapeHtml(t.text)}</p>
-                <div style="display:flex;gap:8px;">
-                    ${!t.approved ? `<button class="approve" onclick="approveTestimonial(${t.id})">✅ Approve</button>` : ''}
-                    <button class="del" onclick="deleteTestimonial(${t.id})">Delete</button>
-                </div>
-            </div>`).join('')}
-        </div>
-    </div>
-
-    <!-- SETTINGS -->
-    <div id="settings" class="section">
-        <h3>Change Password</h3>
-        <input type="password" id="currentPass" placeholder="Current password">
-        <input type="password" id="newPass" placeholder="New password (min 6 chars)">
-        <input type="password" id="confirmPass" placeholder="Confirm new password">
-        <button onclick="changePassword()">Change Password</button>
-        <h3 style="margin-top:20px;">Auto Tasks</h3>
-        <label><input type="checkbox" id="autoMoney" ${data.settings.autoMoneyMaker ? 'checked' : ''}> Auto Money Maker (every hour)</label><br>
-        <label style="margin-top:8px;display:block;"><input type="checkbox" id="autoBlog" ${data.settings.autoBlogger ? 'checked' : ''}> Auto Blogger (2x daily)</label><br>
-        <label style="margin-top:8px;display:block;"><input type="checkbox" id="autoTarget" ${data.settings.autoTargeting ? 'checked' : ''}> Auto Targeting (every 30 min)</label><br>
-        <button onclick="saveSettings()" style="margin-top:12px;">Save Settings</button>
-    </div>
-
-    <!-- COMMAND -->
-    <div id="command" class="section">
-        <h3>🤖 Bot Command Terminal</h3>
-        <textarea id="commandInput" rows="3" placeholder="Type command... e.g. help, show ads, show earnings, status"></textarea>
-        <button onclick="sendCommand()">Send Command</button>
-        <div id="response" style="background:#0a0f1e;padding:16px;margin-top:16px;border-radius:8px;white-space:pre-wrap;font-family:monospace;font-size:13px;min-height:80px;border:1px solid #1e293b;"></div>
-    </div>
-
-</div>
-
-<script>
-    function showTab(tab, btn) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        if (btn) btn.classList.add('active');
-        const el = document.getElementById(tab);
-        if (el) el.classList.add('active');
-    }
-
-    async function api(url, opts = {}) {
-        try {
-            const r = await fetch(url, opts);
-            if (r.status === 403) {
-                alert('⚠️ Session expired. Please log in again.');
-                location.href = '/admin';
-                return null;
-            }
-            const d = await r.json();
-            return d;
-        } catch (e) {
-            alert('❌ Network error: ' + e.message);
-            return null;
-        }
-    }
-
-    window.addEventListener('load', async () => {
-        const r = await fetch('/api/earnings');
-        if (r.status === 403) { location.href = '/admin'; }
-    });
-
-    function logout() { window.location.href = '/logout'; }
-
-    async function approveAd(id) {
-        const d = await api('/api/ads/approve/' + id, { method: 'POST' });
-        if (d && d.success) { alert('✅ Ad approved and activated!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function deleteAd(id) {
-        if (!confirm('Delete this ad?')) return;
-        const d = await api('/api/ads/' + id, { method: 'DELETE' });
-        if (d) location.reload();
-    }
-    async function createAdDirectly() {
-        const title = document.getElementById('adTitle').value.trim();
-        const url = document.getElementById('adUrl').value.trim();
-        if (!title || !url) { alert('❌ Title and URL are required'); return; }
-        const body = {
-            advertiserName: document.getElementById('adAdvertiser').value || 'Admin',
-            advertiserEmail: '${GMAIL_USER}',
-            title, url,
-            description: document.getElementById('adDesc').value,
-            image: document.getElementById('adImage').value,
-            cta: document.getElementById('adCta').value || 'Learn More',
-            package: 'enterprise',
-            targetIps: document.getElementById('adTargetIps').value,
-            targetPhones: document.getElementById('adTargetPhones').value,
-            targetImeis: document.getElementById('adTargetImeis').value
-        };
-        const d = await api('/api/ads/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        if (!d || !d.success) { alert('❌ ' + (d ? d.error : 'Failed')); return; }
-        const d2 = await api('/api/ads/approve/' + d.adId, { method: 'POST' });
-        if (d2) { alert('✅ Ad created and activated!'); location.reload(); }
-    }
-    async function addEarning() {
-        const amount = document.getElementById('amount').value;
-        const source = document.getElementById('source').value;
-        const link = document.getElementById('link').value;
-        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) { alert('❌ Enter a valid amount'); return; }
-        const d = await api('/api/earnings/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, source, link }) });
-        if (d && d.success) { alert('✅ Earning of $' + amount + ' added!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function withdraw() {
-        const amount = document.getElementById('withdrawAmount').value;
-        const method = document.getElementById('withdrawMethod').value;
-        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) { alert('❌ Enter a valid amount'); return; }
-        if (!confirm('Withdraw $' + amount + ' via ' + method + '?')) return;
-        const d = await api('/api/withdraw', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, method }) });
-        if (d && d.success) { alert('✅ Withdrawal of $' + amount + ' recorded!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function addMoneyLink() {
-        const name = document.getElementById('moneyName').value.trim();
-        const url = document.getElementById('moneyUrl').value.trim();
-        const category = document.getElementById('moneyCategory').value;
-        if (!name || !url) { alert('❌ Name and URL required'); return; }
-        const d = await api('/api/add-money-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, url, category }) });
-        if (d && d.success) { alert('✅ Link added!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function addStoreId() {
-        const store = document.getElementById('storeName').value.trim();
-        const id = document.getElementById('storeId').value.trim();
-        if (!store || !id) { alert('❌ Store name and affiliate ID required'); return; }
-        const d = await api('/api/add-store-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ store, id }) });
-        if (d && d.success) { alert('✅ ' + (d.message || 'ID added!')); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Store not found — check the name'));
-    }
-    async function createBlog() {
-        const title = document.getElementById('blogTitle').value.trim();
-        const content = document.getElementById('blogContent').value.trim();
-        if (!title || !content) { alert('❌ Title and content required'); return; }
-        const f = new FormData();
-        f.append('title', title);
-        f.append('content', content);
-        const img = document.getElementById('blogImage').files[0];
-        if (img) f.append('image', img);
-        const d = await api('/api/create-blog', { method: 'POST', body: f });
-        if (d && d.success) { alert('✅ Blog published!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed to publish'));
-    }
-    async function deleteBlog(id) {
-        if (!confirm('Delete this blog post?')) return;
-        const d = await api('/api/blog/' + id, { method: 'DELETE' });
-        if (d) location.reload();
-    }
-    async function uploadVideo() {
-        const title = document.getElementById('videoTitle').value.trim();
-        const file = document.getElementById('videoFile').files[0];
-        if (!file) { alert('❌ Select a video file first'); return; }
-        if (!title) { alert('❌ Enter a video title'); return; }
-        const btn = document.querySelector('#upload button');
-        btn.textContent = '⏳ Uploading...'; btn.disabled = true;
-        const f = new FormData();
-        f.append('title', title);
-        f.append('video', file);
-        const d = await api('/api/upload/video', { method: 'POST', body: f });
-        btn.textContent = 'Upload Video'; btn.disabled = false;
-        if (d && d.success) { alert('✅ Video uploaded!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Upload failed'));
-    }
-    async function uploadImage() {
-        const file = document.getElementById('imageFile').files[0];
-        if (!file) { alert('❌ Select an image file first'); return; }
-        const f = new FormData();
-        f.append('image', file);
-        const d = await api('/api/upload/image', { method: 'POST', body: f });
-        if (d && d.success) { alert('✅ Image uploaded! URL: ' + d.url); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Upload failed'));
-    }
-    async function deleteVideo(id) {
-        if (!confirm('Delete this video?')) return;
-        const d = await api('/api/video/' + id, { method: 'DELETE' });
-        if (d) location.reload();
-    }
-    async function saveSocial(p) {
-        const map = { facebook: 'fbPixel', tiktok: 'ttPixel', whatsapp: 'waPixel', telegram: 'tgPixel' };
-        const v = document.getElementById(map[p]).value;
-        const d = await api('/api/social/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: p, value: v }) });
-        if (d && d.success) alert('✅ ' + p + ' saved!');
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function addPhones() {
-        const phones = document.getElementById('phones').value.split('\n').map(p => p.trim()).filter(Boolean);
-        if (!phones.length) { alert('❌ Enter at least one phone number'); return; }
-        const d = await api('/api/target-phones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phones }) });
-        if (d && d.success) { alert('✅ ' + phones.length + ' phone(s) added! Total: ' + d.count); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function addIMEIs() {
-        const imeis = document.getElementById('imeis').value.split('\n').map(i => i.trim()).filter(Boolean);
-        if (!imeis.length) { alert('❌ Enter at least one IMEI'); return; }
-        const d = await api('/api/target-imeis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imeis }) });
-        if (d && d.success) { alert('✅ ' + imeis.length + ' IMEI(s) added! Total: ' + d.count); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function injectCode() {
-        const location_val = document.getElementById('injectLocation').value;
-        const code = document.getElementById('injectCode').value;
-        if (!code.trim()) { alert('❌ Paste some code first'); return; }
-        const d = await api('/api/inject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: location_val, code }) });
-        if (d && d.success) alert('✅ ' + d.message);
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function changePassword() {
-        const c = document.getElementById('currentPass').value;
-        const n = document.getElementById('newPass').value;
-        const cf = document.getElementById('confirmPass').value;
-        if (!c || !n || !cf) { alert('❌ Fill all three fields'); return; }
-        if (n !== cf) { alert('❌ New passwords do not match'); return; }
-        if (n.length < 6) { alert('❌ New password must be at least 6 characters'); return; }
-        const d = await api('/api/admin/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: c, newPassword: n, confirmPassword: cf }) });
-        if (d && d.success) { alert('✅ Password changed successfully!'); document.getElementById('currentPass').value = ''; document.getElementById('newPass').value = ''; document.getElementById('confirmPass').value = ''; }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function saveSettings() {
-        const autoMoneyMaker = document.getElementById('autoMoney').checked;
-        const autoBlogger = document.getElementById('autoBlog').checked;
-        const autoTargeting = document.getElementById('autoTarget').checked;
-        const d = await api('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoMoneyMaker, autoBlogger, autoTargeting }) });
-        if (d && d.success) alert('✅ Settings saved!');
-        else if (d) alert('❌ ' + (d.error || 'Failed to save'));
-    }
-    async function sendQuickBlast(btn) {
-        const idx = document.getElementById('campaignIndex').value;
-        if (!confirm('Send this campaign to all subscribers now?')) return;
-        btn.textContent = '⏳ Sending...'; btn.disabled = true;
-        const d = await api('/api/admin/email-blast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campaignIndex: idx }) });
-        btn.textContent = '🚀 Send This Campaign to All Subscribers'; btn.disabled = false;
-        const el = document.getElementById('blastResult');
-        el.style.display = 'block';
-        if (d && d.success) { el.style.background = 'rgba(16,185,129,0.1)'; el.style.color = '#10b981'; el.textContent = '✅ Sent ' + d.sent + '/' + d.total + ' emails!'; }
-        else if (d) { el.style.background = 'rgba(239,68,68,0.1)'; el.style.color = '#ef4444'; el.textContent = '❌ ' + (d.message || d.error || 'Failed'); }
-    }
-    async function sendCustomBlast(btn) {
-        const subject = document.getElementById('blastSubject').value.trim();
-        const html = document.getElementById('blastHtml').value.trim();
-        if (!subject) { alert('❌ Enter a subject line'); return; }
-        if (!confirm('Send custom email to all subscribers now?')) return;
-        btn.textContent = '⏳ Sending...'; btn.disabled = true;
-        const body = { subject, campaignIndex: 0 };
-        if (html) body.html = html;
-        const d = await api('/api/admin/email-blast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        btn.textContent = '📨 Send Custom Blast to All Subscribers'; btn.disabled = false;
-        const el = document.getElementById('blastResult');
-        el.style.display = 'block';
-        if (d && d.success) { el.style.background = 'rgba(16,185,129,0.1)'; el.style.color = '#10b981'; el.textContent = '✅ Sent ' + d.sent + '/' + d.total + ' emails!'; }
-        else if (d) { el.style.background = 'rgba(239,68,68,0.1)'; el.style.color = '#ef4444'; el.textContent = '❌ ' + (d.message || d.error || 'Failed'); }
-    }
-    async function approveTestimonial(id) {
-        const d = await api('/api/testimonials/approve/' + id, { method: 'POST' });
-        if (d && d.success) { alert('✅ Review approved!'); location.reload(); }
-        else if (d) alert('❌ ' + (d.error || 'Failed'));
-    }
-    async function deleteTestimonial(id) {
-        if (!confirm('Delete this review?')) return;
-        const d = await api('/api/testimonials/' + id, { method: 'DELETE' });
-        if (d) location.reload();
-    }
-    async function sendCommand() {
-        const cmd = document.getElementById('commandInput').value.trim();
-        if (!cmd) { alert('❌ Type a command first'); return; }
-        const el = document.getElementById('response');
-        el.textContent = '⏳ Processing...';
-        const d = await api('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
-        if (d) el.textContent = d.response || '✅ Done';
-    }
-</script>
 </body>
 </html>`);
 });
@@ -2912,13 +2309,13 @@ app.get('/blog/:id', (req, res) => {
         img{max-width:100%;border-radius:12px;margin:20px 0;}
         .meta{color:#64748b;font-size:14px;margin:14px 0;}
         .back{color:#10b981;text-decoration:none;font-weight:700;display:inline-block;margin-top:20px;}
-        .share-btns{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;}
-        .share-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;border:none;transition:0.2s;font-family:inherit;}
-        .share-wa{background:#25d366;color:white;}
-        .share-fb{background:#1877f2;color:white;}
-        .share-tw{background:#1da1f2;color:white;}
-        .share-cp{background:#1e293b;color:#e2e8f0;border:1px solid #334155;}
-        .share-btn:hover{opacity:0.85;}
+    .share-btns{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;}
+    .share-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;border:none;transition:0.2s;font-family:inherit;}
+    .share-wa{background:#25d366;color:white;}
+    .share-fb{background:#1877f2;color:white;}
+    .share-tw{background:#1da1f2;color:white;}
+    .share-cp{background:#1e293b;color:#e2e8f0;border:1px solid #334155;}
+    .share-btn:hover{opacity:0.85;}
         .content{color:#94a3b8;line-height:1.8;font-size:15px;}
         .content h2{color:#fbbf24;font-size:20px;margin:24px 0 10px;}
         .content p{margin-bottom:14px;}
@@ -3145,9 +2542,9 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Self-Report:       Every 4 hours to your Gmail`);
     console.log(`✅ Ad Engine:         IP/Phone/IMEI targeting`);
     console.log(`✅ Library:           6 free courses, member registration`);
-    console.log(`✅ Universal Inject:  CSS/JS/HTML all work, saved to /tmp/injections.json`);
+    console.log(`✅ Universal Inject:  CSS/JS/HTML all work, saved to injections.json`);
     console.log(`✅ Natural Commands:  Talk to bot in plain English`);
     console.log(`✅ Affiliate /go/:    Tracked redirect links`);
-    console.log(`✅ DATA PERSISTENCE:  Using /tmp on Render - data survives restarts!`);
+    console.log(`✅ BIGGER LOGO:       3EESHER.CLOUD now larger and gradient`);
     console.log(`🚀 ========================================\n`);
 });
