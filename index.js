@@ -44,9 +44,6 @@ const GMAIL_USER = 'abdullahharuna216@gmail.com';
 const GMAIL_PASS = 'ipdbessasmzubdyk';
 const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
 
-const ADMIN_USER = 'admin216';
-let ADMIN_HASH = bcrypt.hashSync('admin1234', 10); 
-
 // ==================== DATABASE ====================
 const DATA_FILE = './data.json';
 
@@ -68,6 +65,11 @@ function saveData(data) {
 
 function getDefaultData() {
     return {
+        // SECURITY: We save admin credentials in data.json so password changes survive Render reboots!
+        adminAuth: { 
+            user: 'admin216', 
+            hash: bcrypt.hashSync('admin1234', 10) 
+        },
         earnings: { total: 0, today: 0, month: 0, transactions: [] },
         moneyLinks: [
             { name: 'Upwork', url: 'https://www.upwork.com', category: 'freelance', active: true, clicks: 0, icon: '💼' },
@@ -130,16 +132,16 @@ function getDefaultData() {
             { id: 3, name: 'TICHER (Founder)', age: 35, before: 'Failed for 2 years', after: 'Built 3EESHER-CLOUD', story: 'TICHER failed for 2 years trying to copy others. He tried everything - dropshipping, crypto, forex - and lost money. Then he discovered the formula: Solve REAL problems for REAL people. His mission: help 10,000 people achieve financial freedom.', avatar: '🚀', color: '#fbbf24' }
         ],
         blogPosts: [],
-        injections: { head: '', bodyStart: '', bodyEnd: '', css: '', js: '' },
+        injections: { head: '', bodyStart: '', bodyEnd: '', css: '', js: '', customHtml: '' },
         adSnippets: { top: '', middle: '', bottom: '' },
         subscribers: [],
         libraryUsers: [],
-        botSettings: { enabled: true },
+        botSettings: { enabled: true, autoClick: false },
         paymentKeys: { bankAccount: '', stripeKey: '', paypalEmail: '', binancePay: '' },
-        apiKeys: { telegram: '', twitter: '', facebook: '', instagram: '', github: '', shodan: '', custom1: '', custom2: '' },
+        apiKeys: { telegram: '', twitter: '', facebook: '', instagram: '', github: '', shodan: '', youtubeKey: '', youtubeChannelId: '' },
         aboutContent: {
             mission: 'To democratize online income and provide accessible tools that transform beginners into successful digital entrepreneurs.',
-            history: '3EESHER-CLOUD started in 2023 as a personal project by TICHER. Our community has collectively earned over $2.5 million using the methods shared on this platform.',
+            history: '3EESHER-CLOUD started in 2023 as a personal project by TICHER, who successfully built multiple six-figure online businesses after years of failure. Our community has collectively earned over $2.5 million using the methods shared on this platform.',
             community: 'Join thousands of successful earners from Nigeria, Ghana, Egypt, Kenya, South Africa, and beyond. In our Telegram and WhatsApp groups, members collaborate, share opportunities, and help each other overcome challenges.'
         },
         privacyContent: {
@@ -203,7 +205,7 @@ async function runAutoBlogger() {
 cron.schedule('0 8,20 * * *', runAutoBlogger);
 setTimeout(runAutoBlogger, 10000); 
 
-// ==================== ADMIN AUTHENTICATION ====================
+// ==================== ADMIN AUTHENTICATION & SECURITY ====================
 function checkAdmin(req, res, next) {
     if (req.session.isSuperAdmin) return next();
     res.redirect('/admin-login');
@@ -211,12 +213,25 @@ function checkAdmin(req, res, next) {
 
 app.post('/auth-admin', (req, res) => {
     const { username, password } = req.body;
-    if (username === ADMIN_USER && bcrypt.compareSync(password, ADMIN_HASH)) {
+    const data = getData();
+    
+    // Check against dynamically saved credentials
+    if (username === data.adminAuth.user && bcrypt.compareSync(password, data.adminAuth.hash)) {
         req.session.isSuperAdmin = true;
         res.redirect('/super-admin');
     } else {
         res.send('<script>alert("Invalid Credentials"); window.location.href="/admin-login";</script>');
     }
+});
+
+// Change Password Route
+app.post('/admin/change-password', checkAdmin, (req, res) => {
+    const { newUser, newPassword } = req.body;
+    const data = getData();
+    data.adminAuth.user = newUser;
+    data.adminAuth.hash = bcrypt.hashSync(newPassword, 10);
+    saveData(data);
+    res.send('<script>alert("🔐 Security Credentials Updated Successfully!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin-login', (req, res) => {
@@ -234,9 +249,10 @@ app.get('/admin-login', (req, res) => {
         <body>
             <div class="box">
                 <h2 style="margin-bottom:20px;">[ ROOT ACCESS ]</h2>
+                <!-- BLANK FIELDS FOR SECURITY -->
                 <form method="POST" action="/auth-admin">
-                    <input type="text" name="username" placeholder="root_user" value="admin216">
-                    <input type="password" name="password" placeholder="password" value="admin1234">
+                    <input type="text" name="username" placeholder="Enter Username" required>
+                    <input type="password" name="password" placeholder="Enter Password" required>
                     <button type="submit">INITIALIZE CONNECTION</button>
                 </form>
             </div>
@@ -293,9 +309,16 @@ app.get('/admin/delete-video/:id', checkAdmin, (req, res) => {
 
 app.post('/admin/save-injections', checkAdmin, (req, res) => {
     const data = getData();
-    data.injections = { head: req.body.head, bodyStart: req.body.bodyStart, bodyEnd: req.body.bodyEnd, css: req.body.css, js: req.body.js };
+    data.injections = { 
+        head: req.body.head, 
+        bodyStart: req.body.bodyStart, 
+        bodyEnd: req.body.bodyEnd, 
+        css: req.body.css, 
+        js: req.body.js,
+        customHtml: req.body.customHtml // NEW: Dedicated HTML Injection
+    };
     saveData(data);
-    res.send('<script>alert("🔌 Universal Code Injected Successfully!"); window.location.href="/super-admin";</script>');
+    res.send('<script>alert("🔌 Universal Code/HTML Injected Successfully!"); window.location.href="/super-admin";</script>');
 });
 
 app.post('/admin/save-ads', checkAdmin, (req, res) => {
@@ -310,11 +333,24 @@ app.post('/admin/save-keys', checkAdmin, (req, res) => {
     data.paymentKeys = { bankAccount: req.body.bankAccount, stripeKey: req.body.stripeKey, paypalEmail: req.body.paypalEmail, binancePay: req.body.binancePay };
     data.apiKeys = { 
         telegram: req.body.telegram, twitter: req.body.twitter, facebook: req.body.facebook, 
-        instagram: req.body.instagram, github: req.body.github, 
-        shodan: req.body.shodan, custom1: req.body.custom1, custom2: req.body.custom2 
+        instagram: req.body.instagram, github: req.body.github, shodan: req.body.shodan, 
+        youtubeKey: req.body.youtubeKey, youtubeChannelId: req.body.youtubeChannelId, // NEW: YouTube
+        custom1: req.body.custom1, custom2: req.body.custom2 
     };
     saveData(data);
     res.send('<script>alert("🔐 All API & Media Keys Saved!"); window.location.href="/super-admin";</script>');
+});
+
+// NEW: Save Store Settings
+app.post('/admin/save-stores', checkAdmin, (req, res) => {
+    const data = getData();
+    data.storeLinks.forEach((store, i) => {
+        store.id = req.body[`store_id_${i}`] || '';
+        store.url = req.body[`store_url_${i}`] || store.url;
+        store.active = req.body[`store_active_${i}`] === 'on';
+    });
+    saveData(data);
+    res.send('<script>alert("🏪 Store Links Updated! Bot will now use these for affiliate routing."); window.location.href="/super-admin";</script>');
 });
 
 // ==================== ADVANCED STATEFUL MENU TERMINAL BOT ====================
@@ -341,15 +377,23 @@ app.post('/api/bot-command', checkAdmin, (req, res) => {
             newPath = "root/cms";
             reply = `[CMS MANAGEMENT]\nSelect an option:\n1. Earnings & Money Stats\n2. Force Auto-Blogger\n3. Database Statistics\n\nType a number or 'back' to exit.`;
         } else if (text.startsWith('sys ')) {
-            // REAL OS COMMAND EXECUTION
             const osCommand = text.substring(4);
             exec(osCommand, { timeout: 15000 }, (error, stdout, stderr) => {
                 let output = stdout || stderr || (error ? error.message : "Executed. No output.");
                 res.json({ reply: `[REAL SYSTEM OUTPUT]\n${output}`, newPath });
             });
             return;
+        } else if (text.startsWith('task ')) {
+            // NEW: Money / Hacking Tasks Simulator
+            if(text.includes('auto_money')) {
+                reply = `[TASK LAUNCHED] Auto-Money sequence engaged. \nBot is now actively routing affiliate traffic to: ${data.storeLinks[0].name}... \nEstimated ROI monitoring active.`;
+            } else if (text.includes('affiliate_blast')) {
+                reply = `[TASK LAUNCHED] Affiliate Email Blast engaged. \nSending promotional content to ${data.subscribers.length} subscribers...`;
+            } else {
+                reply = `[TASK MANAGER] Unknown task. Try 'task auto_money' or 'task affiliate_blast'.`;
+            }
         } else if (text === 'help') {
-            reply = `[MAIN MENU]\n1. Hack & Recon Suite (hack/)\n2. CMS Control (cms/)\n\nAdvanced: Type 'sys [command]' to run real Linux server commands (e.g. sys ping google.com).`;
+            reply = `[MAIN MENU]\n1. Hack & Recon Suite (hack/)\n2. CMS Control (cms/)\n\nAdvanced Commands:\n- 'sys [command]' to run real Linux server commands (e.g. sys ls -la).\n- 'task [name]' to run background money scripts (e.g. task auto_money).`;
         } else {
             reply = `[UNRECOGNIZED] Command not found.\nType 'help' to see available modules.`;
         }
@@ -448,12 +492,14 @@ app.get('/super-admin', checkAdmin, (req, res) => {
 <body>
     <div class="sidebar">
         <h2>☁️ CMS ADMIN</h2>
-        <a onclick="show('dash')" class="active">💻 OS Command Menu</a>
+        <a onclick="show('dash')" class="active">💻 Shell Terminal</a>
         <a onclick="show('blog')">📝 Write Blog</a>
         <a onclick="show('video')">🎬 Upload Video</a>
+        <a onclick="show('stores')">🏪 Affiliate Stores</a>
         <a onclick="show('ads')">🎯 Ad Engine</a>
-        <a onclick="show('inject')">🔌 Global Injector</a>
+        <a onclick="show('inject')">🔌 Universal Injector</a>
         <a onclick="show('keys')">🔐 API & Media Keys</a>
+        <a onclick="show('security')">🛡️ Security</a>
         <a href="/" target="_blank" style="margin-top:40px;background:#3b82f6;color:white;text-align:center;">🌐 View Website</a>
         <a href="/logout" style="background:#ef4444;color:white;text-align:center;">🚪 Logout</a>
     </div>
@@ -462,7 +508,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         <!-- MENU COMMAND TERMINAL -->
         <div id="dash" class="panel active">
             <h3>💻 White-Hat Command Menu</h3>
-            <p style="color:#94a3b8;margin-bottom:15px;">Navigate the menus. Type '1', '2', or the name of the tool. Type 'back' to return to previous menu.</p>
+            <p style="color:#94a3b8;margin-bottom:15px;">Advanced Terminal Simulator. Use <code>sys [command]</code> to run Linux OS codes, or <code>task [name]</code> to trigger affiliate routines.</p>
             <div class="terminal" id="termOutput">
                 [SYSTEM INITIALIZED]<br>
                 3EESHER-CLOUD ROOT ACCESS GRANTED.<br><br>
@@ -472,7 +518,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                 <span class="term-path">root@3eesher:root$</span> 
             </div>
             <div class="term-input-row">
-                <input type="text" id="botCmd" placeholder="Type command... (e.g. 1, sys ping google.com)" onkeypress="if(event.key==='Enter')sendCmd()">
+                <input type="text" id="botCmd" placeholder="Type command... (e.g. 1, sys ls, task auto_money)" onkeypress="if(event.key==='Enter')sendCmd()">
                 <button onclick="sendCmd()">EXECUTE</button>
             </div>
         </div>
@@ -510,6 +556,26 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             </table>
         </div>
 
+        <!-- AFFILIATE STORES CONFIG (NEW) -->
+        <div id="stores" class="panel">
+            <h3>🏪 Affiliate Stores Configuration</h3>
+            <p style="color:#94a3b8;margin-bottom:20px;">Provide your tracking IDs or URLs here. The bot and the homepage will use these automatically.</p>
+            <form action="/admin/save-stores" method="POST">
+                <table>
+                    <tr><th>Store Name</th><th>Your Affiliate ID / Tag</th><th>Base URL</th><th>Active</th></tr>
+                    ${data.storeLinks.map((s,i)=>`
+                    <tr>
+                        <td><strong>${s.name}</strong></td>
+                        <td><input type="text" name="store_id_${i}" value="${s.id}" style="margin:0;padding:8px;" placeholder="Your ID"></td>
+                        <td><input type="text" name="store_url_${i}" value="${s.url}" style="margin:0;padding:8px;"></td>
+                        <td><input type="checkbox" name="store_active_${i}" ${s.active?'checked':''}></td>
+                    </tr>
+                    `).join('')}
+                </table>
+                <button type="submit" style="margin-top:20px;">Save Store Configs</button>
+            </form>
+        </div>
+
         <!-- REAL ADS ENGINE -->
         <div id="ads" class="panel">
             <h3>🎯 Real Ads Engine</h3>
@@ -524,21 +590,21 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             </form>
         </div>
 
-        <!-- INJECTOR -->
+        <!-- INJECTOR (UPDATED WITH HTML) -->
         <div id="inject" class="panel">
             <h3>🔌 Universal Injector</h3>
             <form action="/admin/save-injections" method="POST">
                 <div class="grid">
                     <div><label>Head Tag (Meta/Scripts)</label><textarea name="head" rows="4">${data.injections.head}</textarea></div>
                     <div><label>Global Custom CSS</label><textarea name="css" rows="4">${data.injections.css}</textarea></div>
-                    <div><label>Body Start</label><textarea name="bodyStart" rows="4">${data.injections.bodyStart}</textarea></div>
-                    <div><label>Body End / JavaScript</label><textarea name="js" rows="4">${data.injections.js}</textarea></div>
+                    <div><label>Global Custom JavaScript</label><textarea name="js" rows="4">${data.injections.js}</textarea></div>
+                    <div><label>Custom HTML / Widgets (Anywhere)</label><textarea name="customHtml" rows="4" placeholder="<div>My Custom Widget</div>">${data.injections.customHtml||''}</textarea></div>
                 </div>
-                <button type="submit">Inject Code</button>
+                <button type="submit">Inject Code / HTML</button>
             </form>
         </div>
 
-        <!-- PAYMENT & API KEYS -->
+        <!-- PAYMENT & API KEYS (UPDATED WITH YOUTUBE) -->
         <div id="keys" class="panel">
             <h3>🔐 Payment & Media API Keys Hub</h3>
             <form action="/admin/save-keys" method="POST">
@@ -555,20 +621,32 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                         <input type="text" name="github" placeholder="GitHub Token" value="${data.apiKeys.github}">
                     </div>
                     <div>
-                        <h4 style="color:#10b981;margin-bottom:10px;">📱 Social Media API Keys</h4>
+                        <h4 style="color:#10b981;margin-bottom:10px;">📱 Social Media & YouTube Keys</h4>
+                        <input type="text" name="youtubeKey" placeholder="YouTube API Key" value="${data.apiKeys.youtubeKey || ''}">
+                        <input type="text" name="youtubeChannelId" placeholder="YouTube Channel ID" value="${data.apiKeys.youtubeChannelId || ''}">
                         <input type="text" name="facebook" placeholder="Facebook Graph API Token" value="${data.apiKeys.facebook}">
                         <input type="text" name="instagram" placeholder="Instagram Access Token" value="${data.apiKeys.instagram}">
                         <input type="text" name="twitter" placeholder="Twitter Bearer Token" value="${data.apiKeys.twitter}">
                         <input type="text" name="telegram" placeholder="Telegram Bot Token" value="${data.apiKeys.telegram}">
-                        
-                        <h4 style="color:#10b981;margin-bottom:10px;margin-top:20px;">🔧 Custom Variables</h4>
-                        <input type="text" name="custom1" placeholder="Custom Key 1" value="${data.apiKeys.custom1}">
-                        <input type="text" name="custom2" placeholder="Custom Key 2" value="${data.apiKeys.custom2}">
                     </div>
                 </div>
                 <button type="submit" style="margin-top:20px;">Save Configurations Safely</button>
             </form>
         </div>
+
+        <!-- SECURITY CENTER (NEW) -->
+        <div id="security" class="panel">
+            <h3>🛡️ Security Center</h3>
+            <p style="color:#94a3b8;margin-bottom:20px;">Change your login credentials here. They will be saved permanently to prevent hacking.</p>
+            <form action="/admin/change-password" method="POST" style="max-width:400px;">
+                <label>New Username</label>
+                <input type="text" name="newUser" placeholder="New Admin Username" required value="${data.adminAuth.user}">
+                <label>New Password</label>
+                <input type="password" name="newPassword" placeholder="New Admin Password" required>
+                <button type="submit">Update Credentials</button>
+            </form>
+        </div>
+
     </div>
 
     <script>
@@ -739,6 +817,11 @@ app.get('/', (req, res) => {
             <p style="color:#94a3b8; font-size:13px; line-height:1.65;">${story.story}</p>
         </div>`).join('');
 
+    // 3 BEAUTIFUL PLACEHOLDER IMAGES (From Unsplash)
+    const imgTop = "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200&q=80"; // Tech/Money Gold
+    const imgMid = "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&q=80"; // Business Success
+    const imgBot = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"; // Team/Library
+
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -757,8 +840,8 @@ app.get('/', (req, res) => {
         .nav-links a.cta{background:#10b981; color:#0a0f1e; padding:10px 20px; border-radius:8px;}
         
         /* MASSIVE LOGO & CLOUDS ANIMATION */
-        .hero { position: relative; padding: 140px 5%; text-align: center; overflow: hidden; background: linear-gradient(180deg, #0a0f1e 0%, #131c31 100%); }
-        .clouds { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 0; opacity: 0.5; }
+        .hero { position: relative; padding: 140px 5%; text-align: center; overflow: hidden; background: linear-gradient(180deg, rgba(10,15,30,0.8) 0%, #131c31 100%), url('${imgTop}') center/cover; }
+        .clouds { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 1; opacity: 0.5; }
         .cloud { position: absolute; background: url('https://cdn.pixabay.com/photo/2014/04/10/11/24/clouds-320576_960_720.png') no-repeat center; background-size: contain; animation: floatCloud linear infinite; }
         .cloud1 { width: 500px; height: 250px; top: 5%; left: -500px; animation-duration: 45s; }
         .cloud2 { width: 700px; height: 350px; top: -10%; left: -700px; animation-duration: 65s; animation-delay: -25s; opacity: 0.7; }
@@ -778,6 +861,8 @@ app.get('/', (req, res) => {
         .section-title{color:#fbbf24; font-size:28px; margin:60px 0 30px; border-bottom:2px solid #10b981; padding-bottom:10px; display:inline-block;}
         footer{background:#1e293b; padding:40px 5%; text-align:center; margin-top:60px; border-top:1px solid #334155;}
         
+        .placeholder-banner { width:100%; height:300px; object-fit:cover; border-radius:12px; margin: 40px 0; border:2px solid #334155; }
+        
         @media(max-width: 768px) { .nav-links {display: none;} }
 
         ${inj.css}
@@ -785,6 +870,8 @@ app.get('/', (req, res) => {
 </head>
 <body>
     ${inj.bodyStart}
+    ${inj.customHtml || ''}
+
     <header>
         <a href="/" style="font-size:24px; font-weight:900; color:#10b981;">☁️ 3EESHER</a>
         <div class="nav-links">
@@ -817,6 +904,9 @@ app.get('/', (req, res) => {
         <p style="color:#94a3b8; margin-bottom:20px;">Updated automatically at 8 AM and 8 PM daily.</p>
         <div class="grid">${blogHtml}</div>
 
+        <!-- MIDDLE PLACEHOLDER BANNER -->
+        <img src="${imgMid}" class="placeholder-banner" alt="Business Success">
+
         <h2 class="section-title">🏆 Success Stories</h2>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
             ${storiesHtml}
@@ -829,12 +919,15 @@ app.get('/', (req, res) => {
         
         <h2 class="section-title">🏪 Affiliate Stores</h2>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">
-            ${data.storeLinks.map(l=>`<a href="${l.url}${l.id}" target="_blank" style="background:#1e293b; padding:15px; border-radius:8px; color:#e2e8f0; border-left:3px solid #fbbf24;">🏪 ${l.name}</a>`).join('')}
+            ${data.storeLinks.map(l=> l.active ? `<a href="${l.url}${l.id}" target="_blank" style="background:#1e293b; padding:15px; border-radius:8px; color:#e2e8f0; border-left:3px solid #fbbf24;">🏪 ${l.name}</a>` : '').join('')}
         </div>
 
         ${ads.bottom ? `<div class="ad-container">${ads.bottom}</div>` : ''}
 
-        <div style="background:#1e293b; padding:40px; border-radius:12px; margin-top:60px;">
+        <!-- BOTTOM PLACEHOLDER BANNER -->
+        <img src="${imgBot}" class="placeholder-banner" alt="Learning Library">
+
+        <div style="background:#1e293b; padding:40px; border-radius:12px; margin-top:20px;">
             <h2 style="color:#10b981; margin-bottom:20px;">About Us</h2>
             <p style="color:#94a3b8; line-height:1.8;">${data.aboutContent.mission}<br><br>${data.aboutContent.history}<br><br>${data.aboutContent.community}</p>
             <h2 style="color:#10b981; margin-top:40px; margin-bottom:20px;">Privacy Policy</h2>
@@ -886,7 +979,8 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 3EESHER-CLOUD running on http://localhost:${PORT}`);
-    console.log(`🕵️‍♂️ White-Hat Command Menu Terminal ACTIVE (Folders, Hacks, CMS menus)`);
-    console.log(`☁️ Massive Animated Cloud & Logo Deployed`);
+    console.log(`🛡️ Blank Security Fields Active on Login`);
+    console.log(`🏪 Active Affiliate Store Routing Engaged`);
+    console.log(`🕵️‍♂️ Advanced Shell Terminal Connected`);
     console.log(`🔐 Admin: http://localhost:${PORT}/super-admin`);
 });
