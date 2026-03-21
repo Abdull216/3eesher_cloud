@@ -120,12 +120,17 @@ function getDefaultData() {
             { id: 2, title: 'Kendrick Lamar - Not Like Us', videoUrl: 'https://www.youtube.com/embed/H58vbez_m4E', thumbnail: 'https://img.youtube.com/vi/H58vbez_m4E/0.jpg', type: 'youtube' },
             { id: 3, title: 'Taylor Swift - Cruel Summer', videoUrl: 'https://www.youtube.com/embed/ic8j13piAhQ', thumbnail: 'https://img.youtube.com/vi/ic8j13piAhQ/0.jpg', type: 'youtube' },
             { id: 4, title: "Drake - God's Plan", videoUrl: 'https://www.youtube.com/embed/xpVfcZ0ZcFM', thumbnail: 'https://img.youtube.com/vi/xpVfcZ0ZcFM/0.jpg', type: 'youtube' },
-            { id: 5, title: 'The Weeknd - Blinding Lights', videoUrl: 'https://www.youtube.com/embed/4NRXx6U8ABQ', thumbnail: 'https://img.youtube.com/vi/4NRXx6U8ABQ/0.jpg', type: 'youtube' }
+            { id: 5, title: 'The Weeknd - Blinding Lights', videoUrl: 'https://www.youtube.com/embed/4NRXx6U8ABQ', thumbnail: 'https://img.youtube.com/vi/4NRXx6U8ABQ/0.jpg', type: 'youtube' },
+            { id: 6, title: 'Bruno Mars - 24K Magic', videoUrl: 'https://www.youtube.com/embed/UqyT8IEBkvY', thumbnail: 'https://img.youtube.com/vi/UqyT8IEBkvY/0.jpg', type: 'youtube' },
+            { id: 7, title: 'Ed Sheeran - Shape of You', videoUrl: 'https://www.youtube.com/embed/JGwWNGJdvx8', thumbnail: 'https://img.youtube.com/vi/JGwWNGJdvx8/0.jpg', type: 'youtube' },
+            { id: 8, title: 'Post Malone - Sunflower', videoUrl: 'https://www.youtube.com/embed/ApXoWvfEYVU', thumbnail: 'https://img.youtube.com/vi/ApXoWvfEYVU/0.jpg', type: 'youtube' },
+            { id: 9, title: 'Doja Cat - Paint The Town Red', videoUrl: 'https://www.youtube.com/embed/Cwgg0FkqLr0', thumbnail: 'https://img.youtube.com/vi/Cwgg0FkqLr0/0.jpg', type: 'youtube' },
+            { id: 10, title: 'Miley Cyrus - Flowers', videoUrl: 'https://www.youtube.com/embed/G7KNmW9a75Y', thumbnail: 'https://img.youtube.com/vi/G7KNmW9a75Y/0.jpg', type: 'youtube' }
         ],
         successStories: [
-            { id: 1, name: 'Ahmed from Kano', age: 45, before: 'Civil servant earning N80,000/month', after: '$2,500/month online', story: 'Ahmed was a civil servant struggling to pay school fees. He started with Fiverr doing logo design, making just $47 in his first month. He didn\'t give up. He learned Canva, took online courses, and expanded to Upwork. By month 3, he was making $1,200. He added ClickBank affiliate marketing and reached $1,800 by month 6. Today, he earns $2,500/month, owns a house, a car, and his children are in private school. His secret: consistency and never giving up.', avatar: '👨‍💼', color: '#10b981' },
-            { id: 2, name: 'Fatima from Cairo', age: 22, before: 'University student with no income', after: '$1,800/month freelancing', story: 'Fatima was an engineering student watching her friends travel while she couldn\'t afford a new phone. She started with data entry on Upwork, making $87 in her first month. She learned social media management and by month 3 had 3 retainer clients. She improved her English, targeted US clients, and by month 6 was making $1,200. Today she pays her own tuition and supports her family.', avatar: '👩‍🎓', color: '#f59e0b' },
-            { id: 3, name: 'TICHER (Founder)', age: 35, before: 'Failed for 2 years', after: 'Built 3EESHER-CLOUD', story: 'TICHER failed for 2 years trying to copy others. He tried everything - dropshipping, crypto, forex - and lost money. Then he discovered the formula: Solve REAL problems for REAL people. He created this platform to help Nigerians make money online. Today he earns from multiple streams: affiliate marketing, ad revenue, consultations, and digital products.', avatar: '🚀', color: '#fbbf24' }
+            { id: 1, name: 'Ahmed from Kano', age: 45, before: 'Civil servant earning N80,000/month', after: '$2,500/month online', story: 'Ahmed was a civil servant struggling to pay school fees. He started with Fiverr doing logo design. Today, he earns $2,500/month.', avatar: '👨‍💼', color: '#10b981' },
+            { id: 2, name: 'Fatima from Cairo', age: 22, before: 'University student with no income', after: '$1,800/month freelancing', story: 'Fatima started with data entry on Upwork. She improved her English, targeted US clients, and by month 6 was making $1,200. Today she pays her own tuition.', avatar: '👩‍🎓', color: '#f59e0b' },
+            { id: 3, name: 'TICHER (Founder)', age: 35, before: 'Failed for 2 years', after: 'Built 3EESHER-CLOUD', story: 'TICHER failed for 2 years trying to copy others. He discovered the formula: Solve REAL problems for REAL people. His mission: help 10,000 people achieve financial freedom.', avatar: '🚀', color: '#fbbf24' }
         ],
         blogPosts: [],
         injections: { head: '', bodyStart: '', bodyEnd: '', css: '', js: '', customHtml: '' },
@@ -136,13 +141,13 @@ function getDefaultData() {
         paymentKeys: { bankAccount: '', stripeKey: '', paypalEmail: '', binancePay: '' },
         apiKeys: { telegram: '', twitter: '', facebook: '', instagram: '', github: '', shodan: '', youtubeKey: '', youtubeChannelId: '', mailchimpKey: '', mailchimpListId: '', algoliaAppId: '', algoliaApiKey: '', semrushCode: '' },
         aboutContent: {
-            mission: 'To democratize online income and provide accessible tools that transform beginners into successful digital entrepreneurs. We believe financial freedom should be available to everyone, regardless of their background, education, or location.',
-            history: '3EESHER-CLOUD started in 2023 as a personal project by TICHER, who successfully built multiple six-figure online businesses after years of failure. Our community has collectively earned over $2.5 million using the methods and links shared on this platform.',
-            community: 'Join thousands of successful earners from Nigeria, Ghana, Egypt, Kenya, South Africa, and beyond. In our Telegram and WhatsApp groups, members collaborate, share opportunities, and help each other overcome challenges.'
+            mission: 'To democratize online income and provide accessible tools that transform beginners into successful digital entrepreneurs. We believe financial freedom should be available to everyone.',
+            history: '3EESHER-CLOUD started in 2023 as a personal project by TICHER. Our community has collectively earned over $2.5 million using the methods and links shared on this platform.',
+            community: 'Join thousands of successful earners from Nigeria, Ghana, Egypt, Kenya, South Africa, and beyond. In our Telegram and WhatsApp groups, members collaborate and share opportunities.'
         },
         privacyContent: {
-            introduction: '3EESHER-CLOUD ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services. Please read this privacy policy carefully.',
-            dataCollected: 'We collect information you provide directly to us, such as when you contact us via email, subscribe to our newsletter, or participate in community features. This may include your name, email address, and any content you submit. We also automatically collect certain information when you visit our website, including your IP address and browser type.'
+            introduction: '3EESHER-CLOUD ("we", "our", "us") is committed to protecting your privacy.',
+            dataCollected: 'We collect information you provide directly to us, such as when you contact us via email, subscribe to our newsletter, or participate in community features.'
         }
     };
 }
@@ -165,7 +170,7 @@ function getMetaTags(title, desc, url, image) {
     `;
 }
 
-// ==================== AUTO BLOGGER (REAL NEWS VIA RSS) ====================
+// ==================== AUTO BLOGGER ====================
 async function runAutoBlogger() {
     const data = getData();
     if (!data.botSettings.enabled) return;
@@ -232,7 +237,7 @@ app.post('/api/subscribe', async (req, res) => {
         saveData(data);
 
         if(data.apiKeys.mailchimpKey && data.apiKeys.mailchimpListId) {
-            const dc = data.apiKeys.mailchimpKey.split('-')[1];
+            const dc = data.apiKeys.mailchimpKey.split('-')[1]; 
             try {
                 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
                 await fetch(`https://${dc}.api.mailchimp.com/3.0/lists/${data.apiKeys.mailchimpListId}/members`, {
@@ -250,7 +255,7 @@ app.post('/api/subscribe', async (req, res) => {
 app.get('/api/fomo-data', (req, res) => {
     const data = getData();
     const messages = [];
-    if (data.libraryUsers.length > 0) messages.push({ icon: "📚", text: `A new user joined the library! Total Members: ${data.libraryUsers.length}` });
+    if (data.libraryUsers.length > 0) messages.push({ icon: "📚", text: `A new user joined the library! Total: ${data.libraryUsers.length}` });
     if (data.blogPosts.length > 0) messages.push({ icon: "📰", text: `Trending: ${data.blogPosts[0].title.substring(0, 30)}...` });
     if (data.moneyLinks.some(l => l.clicks > 0)) {
         const topLink = data.moneyLinks.sort((a,b) => b.clicks - a.clicks)[0];
@@ -335,11 +340,10 @@ app.get('/admin/delete-video/:id', checkAdmin, (req, res) => {
     const data = getData(); data.videos = data.videos.filter(v => v.id != req.params.id); saveData(data); res.redirect('/super-admin');
 });
 
-// DOWNLOAD VIDEO ROUTE (NEW)
 app.get('/download/video/:id', (req, res) => {
     const data = getData();
     const video = data.videos.find(v => v.id == req.params.id);
-    if (!video || video.type !== 'local') return res.status(404).send('Video not found or not downloadable.');
+    if (!video || video.type !== 'local') return res.status(404).send('Video not found.');
     const filePath = path.join(__dirname, video.videoUrl);
     res.download(filePath);
 });
@@ -377,7 +381,6 @@ app.post('/admin/save-stores', checkAdmin, (req, res) => {
     res.send('<script>alert("🏪 Store Links Updated!"); window.location.href="/super-admin";</script>');
 });
 
-// ==================== ADVANCED STATEFUL MENU TERMINAL BOT ====================
 app.post('/api/bot-command', checkAdmin, (req, res) => {
     const { cmd, pathStr } = req.body;
     const text = cmd.toLowerCase().trim();
@@ -592,7 +595,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             const cmd = document.getElementById('botCmd').value;
             if(!cmd) return;
             const term = document.getElementById('termOutput');
-            term.innerHTML += '<br><br><span style="color:#0cc">root@3eesher:~$</span> ' + cmd + '<br><span style="color:#666">Executing...</span>';
+            term.innerHTML += '<br><br><span style="color:#0cc">root@3eesher:' + currentPath + '$</span> ' + cmd + '<br><span style="color:#666">Executing...</span>';
             document.getElementById('botCmd').value = '';
             term.scrollTop = term.scrollHeight;
             try {
@@ -608,23 +611,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
 </html>`);
 });
 
-// ==================== LIBRARY REGISTRATION & LOGIN ====================
-app.post('/api/library/register', (req, res) => {
-    const { name, email, password } = req.body;
-    const data = getData();
-    if(data.libraryUsers.find(u=>u.email===email)) return res.status(400).json({error:'Email exists'});
-    data.libraryUsers.push({ id:Date.now(), name, email, pass:bcrypt.hashSync(password,10) });
-    if(!data.subscribers.includes(email)) data.subscribers.push(email);
-    saveData(data); req.session.libUser = { name, email }; res.json({success:true});
-});
-app.post('/api/library/login', (req, res) => {
-    const { email, password } = req.body;
-    const user = getData().libraryUsers.find(u=>u.email===email);
-    if(user && bcrypt.compareSync(password, user.pass)) { req.session.libUser = { name: user.name, email }; res.json({success:true}); } 
-    else { res.status(401).json({error:'Invalid login'}); }
-});
-
-// ==================== FRONTEND HOMEPAGE (SAAS MEGA MENU & PLUGINS) ====================
+// ==================== FRONTEND HOMEPAGE ====================
 app.get('/', (req, res) => {
     const data = getData();
     const inj = data.injections;
@@ -641,7 +628,6 @@ app.get('/', (req, res) => {
         </div>
     `).join('');
 
-    // NEW: ADDED "DOWNLOAD VIDEO" BUTTON FOR LOCAL VIDEOS
     const vidHtml = data.videos.map((v, index) => `
         <div class="card" data-aos="zoom-in" data-aos-delay="${index * 50}">
             ${v.type === 'youtube' 
@@ -676,14 +662,11 @@ app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>3EESHER.CLOUD | The Ultimate Digital Wealth Hub</title>
+    <title>3EESHER.CLOUD | Premium Digital Hub</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     ${getMetaTags('3EESHER.CLOUD - Wealth & Knowledge', data.aboutContent.mission, BASE_URL, '')}
     
-    <!-- AOS ANIMATION CSS -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-
-    <!-- GOOGLE TRANSLATE PLUGIN -->
     <script type="text/javascript">
         function googleTranslateElementInit() { new google.translate.TranslateElement({pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.SIMPLE}, 'google_translate_element'); }
     </script>
@@ -691,27 +674,12 @@ app.get('/', (req, res) => {
 
     ${inj.head || ''}
     <style>
-        /* CSS VARIABLES FOR LIGHT/DARK THEME TOGGLE */
-        :root {
-            --bg: #0a0f1e;
-            --card: #1e293b;
-            --text: #e2e8f0;
-            --muted: #94a3b8;
-            --border: #334155;
-            --highlight: #10b981;
-        }
-        [data-theme="light"] {
-            --bg: #f8fafc;
-            --card: #ffffff;
-            --text: #0f172a;
-            --muted: #475569;
-            --border: #cbd5e1;
-        }
+        :root { --bg: #0a0f1e; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --border: #334155; --highlight: #10b981; }
+        [data-theme="light"] { --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #475569; --border: #cbd5e1; }
 
         body{font-family:-apple-system, sans-serif; background:var(--bg); color:var(--text); margin:0; padding:0; overflow-x:hidden; transition:background 0.3s, color 0.3s;}
         a{text-decoration:none;}
         
-        /* PROGRESS SCROLLBAR */
         ::-webkit-scrollbar { width: 10px; }
         ::-webkit-scrollbar-track { background: var(--bg); }
         ::-webkit-scrollbar-thumb { background: var(--highlight); border-radius: 5px; }
@@ -721,25 +689,20 @@ app.get('/', (req, res) => {
         .ticker-item { display: inline-block; padding: 0 30px; }
         @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
 
-        /* FLOATING GLASS SAAS NAV */
-        .nav-container { position:sticky; top:20px; z-index:100; padding:0 5%; pointer-events:none; }
-        header { pointer-events:auto; background:rgba(15,23,42,0.85); border:1px solid rgba(16,185,129,0.3); padding:10px 30px; border-radius:50px; backdrop-filter:blur(15px); display:flex; justify-content:space-between; align-items:center; max-width:1300px; margin:0 auto; box-shadow:0 10px 40px rgba(0,0,0,0.5);}
-        .logo{font-size:22px; font-weight:900; background:linear-gradient(to right, var(--highlight), #fbbf24); -webkit-background-clip:text; color:transparent; letter-spacing:-1px;}
+        /* TOP BAR FOR TRANSLATE AND THEME */
+        .top-bar { background: var(--card); padding: 5px 5%; display: flex; justify-content: flex-end; align-items: center; border-bottom: 1px solid var(--border); font-size:12px; z-index:101; position:relative;}
+        .theme-toggle { background:none; border:none; color:var(--highlight); font-size:16px; cursor:pointer; margin-left:15px; }
+
+        .nav-container { position:sticky; top:0; z-index:100; pointer-events:none; }
+        header { pointer-events:auto; background:rgba(15,23,42,0.9); border-bottom:1px solid var(--border); padding:15px 5%; backdrop-filter:blur(15px); display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+        .logo{font-size:24px; font-weight:900; background:linear-gradient(to right, var(--highlight), #fbbf24); -webkit-background-clip:text; color:transparent; letter-spacing:-1px;}
         
-        /* MEGA MENU DROPDOWNS */
         .nav-links { display:flex; align-items:center; gap:20px; }
-        .dropdown { position:relative; display:inline-block; }
-        .dropbtn { color:var(--text); font-weight:600; font-size:14px; background:none; border:none; cursor:pointer; padding:10px; }
-        .dropdown-content { display:none; position:absolute; background-color:var(--card); min-width:200px; box-shadow:0px 8px 16px 0px rgba(0,0,0,0.5); z-index:1; border-radius:12px; border:1px solid var(--border); top:100%; left:0; overflow:hidden;}
-        .dropdown-content a { color:var(--text); padding:12px 16px; text-decoration:none; display:block; font-size:13px; transition:0.2s;}
-        .dropdown-content a:hover { background-color:rgba(16,185,129,0.1); color:var(--highlight); }
-        .dropdown:hover .dropdown-content { display:block; }
-
+        .nav-links a { color:var(--text); font-weight:600; font-size:15px; transition:0.2s;}
+        .nav-links a:hover { color:var(--highlight); }
         .nav-links a.cta{background:var(--highlight); color:#000; padding:10px 20px; border-radius:30px; box-shadow:0 4px 15px rgba(16,185,129,0.4); font-weight:bold;}
-        .theme-toggle { background:none; border:none; color:var(--highlight); font-size:20px; cursor:pointer; margin-left:10px; }
 
-        /* NEW REDESIGNED ENTERPRISE HERO */
-        .hero { position: relative; padding: 140px 5% 80px; text-align: center; overflow: hidden; background: var(--bg); border-bottom:1px solid var(--border);}
+        .hero { position: relative; padding: 100px 5% 60px; text-align: center; overflow: hidden; background: var(--bg); border-bottom:1px solid var(--border);}
         .hero-glow { position:absolute; top:-50%; left:50%; transform:translateX(-50%); width:800px; height:800px; background:radial-gradient(circle, rgba(16,185,129,0.15) 0%, rgba(10,15,30,0) 70%); z-index:0; pointer-events:none;}
         .clouds { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; opacity: 0.3; }
         .cloud { position: absolute; background: url('https://cdn.pixabay.com/photo/2014/04/10/11/24/clouds-320576_960_720.png') no-repeat center; background-size: contain; animation: floatCloud linear infinite; }
@@ -747,32 +710,25 @@ app.get('/', (req, res) => {
         .cloud2 { width: 600px; height: 300px; top: -10%; left: -600px; animation-duration: 55s; animation-delay: -20s; }
         @keyframes floatCloud { 0% { transform: translateX(0); } 100% { transform: translateX(100vw) translateX(600px); } }
         
-        .hero-content { position:relative; z-index:2; max-width:900px; margin:0 auto; background:rgba(15,23,42,0.6); padding:40px; border-radius:20px; border:1px solid rgba(16,185,129,0.3); backdrop-filter:blur(10px);}
-        .main-logo-img { width: 100px; height: 100px; margin-bottom: 10px; filter: drop-shadow(0 10px 20px rgba(16,185,129,0.5)); animation: floatLogo 4s ease-in-out infinite; }
+        .hero-content { position:relative; z-index:2; max-width:900px; margin:0 auto; }
+        .main-logo-img { width: 120px; height: 120px; margin-bottom: 10px; filter: drop-shadow(0 10px 20px rgba(16,185,129,0.5)); animation: floatLogo 4s ease-in-out infinite; }
         @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
         
-        .trust-badges { display:inline-flex; align-items:center; gap:10px; background:var(--card); padding:8px 20px; border-radius:30px; border:1px solid var(--border); margin-bottom:20px; }
+        .trust-badges { display:inline-flex; align-items:center; gap:10px; background:rgba(30,41,59,0.6); padding:8px 20px; border-radius:30px; border:1px solid var(--border); margin-bottom:20px; }
         .avatar-group { display:flex; margin-right:5px; }
         .avatar-group div { width:28px; height:28px; border-radius:50%; background:var(--highlight); border:2px solid var(--bg); margin-left:-10px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; color:#000; }
         .avatar-group div:first-child { margin-left:0; background:#fbbf24; }
+        .avatar-group div:last-child { background:#3b82f6; }
 
-        .massive-logo { font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 900; background: linear-gradient(135deg, #fff 20%, var(--highlight) 60%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; letter-spacing: -2px; }
-        .hero-subtitle { color: #fbbf24; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
-        .hero-desc { color:var(--text); font-size:16px; line-height: 1.6; text-align:left; margin-bottom:30px; background:rgba(0,0,0,0.3); padding:20px; border-radius:10px;}
+        .massive-logo { font-size: clamp(3rem, 7vw, 5.5rem); font-weight: 900; background: linear-gradient(135deg, #fff 20%, var(--highlight) 60%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; letter-spacing: -2px; }
+        .hero-subtitle { color: #94a3b8; font-size: clamp(1rem, 2vw, 1.4rem); font-weight: normal; margin-bottom: 30px; max-width:700px; margin-left:auto; margin-right:auto; line-height:1.6; }
         
         .hero-ctas { display:flex; gap:15px; justify-content:center; flex-wrap:wrap; margin-bottom: 20px; }
-        .hero-btn { background:var(--highlight); color:#000; padding:16px 30px; border-radius:30px; font-weight:900; font-size:16px; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
+        .hero-btn { background:var(--highlight); color:#000; padding:16px 35px; border-radius:30px; font-weight:900; font-size:18px; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
         .hero-btn:hover{transform:translateY(-3px); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.6);}
-        .hero-btn-outline { background:transparent; color:var(--highlight); border:2px solid var(--highlight); padding:16px 30px; border-radius:30px; font-weight:900; font-size:16px; display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
+        .hero-btn-outline { background:transparent; color:var(--highlight); border:2px solid var(--highlight); padding:16px 35px; border-radius:30px; font-weight:900; font-size:18px; display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
         .hero-btn-outline:hover { background:rgba(16,185,129,0.1); transform:translateY(-3px);}
-
-        /* WHY 3EESHER FEATURE GRID */
-        .feature-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:20px; max-width:1200px; margin:40px auto 0; position:relative; z-index:2; text-align:left;}
-        .feat-card { background:var(--card); border:1px solid var(--border); padding:30px; border-radius:16px; transition:0.3s; }
-        .feat-card:hover { border-color:var(--highlight); transform:translateY(-5px); }
-        .feat-icon { font-size:30px; margin-bottom:15px; display:inline-block; padding:15px; background:rgba(16,185,129,0.1); border-radius:12px; }
-        .feat-card h3 { color:var(--text); font-size:18px; margin-bottom:10px; }
-        .feat-card p { color:var(--muted); font-size:14px; line-height:1.6; }
+        .sub-cta { display:block; color:#fbbf24; font-size:13px; font-weight:bold; letter-spacing:1px;}
 
         .layout-wrapper { display: grid; grid-template-columns: 1fr 340px; gap: 40px; max-width: 1400px; margin: 40px auto; padding: 0 5%; }
         .section-title{color:#fbbf24; font-size:24px; margin:0 0 20px; border-bottom:2px solid var(--highlight); padding-bottom:10px; display:inline-block;}
@@ -790,12 +746,10 @@ app.get('/', (req, res) => {
         .m-link-wrap { display:flex; align-items:center; background:rgba(30,41,59,0.6); border-radius:8px; border-left:3px solid var(--highlight); overflow:hidden; transition:0.3s;}
         .m-link-wrap:hover { transform:translateX(5px); border-left-color:#fbbf24; background:var(--card);}
         .m-link { flex:1; padding:15px; color:var(--text); font-size:14px; font-weight:600; display:flex; align-items:center; gap:10px;}
-        
-        /* VIRAL SHARE BUTTONS */
         .share-btn { padding:15px 10px; color:var(--muted); font-size:12px; transition:0.3s; border-left:1px solid var(--border); cursor:pointer;}
         .share-btn:hover { background:var(--highlight); color:#000;}
 
-        .sidebar { position: sticky; top: 120px; height: fit-content; }
+        .sidebar { position: sticky; top: 100px; height: fit-content; }
         .widget { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 25px; }
         .widget h3 { color: var(--highlight); font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
         .store-item { display:block; background:var(--bg); padding:12px; border-radius:6px; border:1px solid var(--border); margin-bottom:8px; color:#fbbf24; font-size:13px; font-weight:bold;}
@@ -814,57 +768,34 @@ app.get('/', (req, res) => {
     ${inj.bodyStart || ''}
     ${inj.customHtml || ''}
 
+    <div class="top-bar">
+        <div id="google_translate_element"></div>
+        <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+    </div>
+
     <div class="ticker-wrap">
         <div class="ticker">
             <div class="ticker-item">BTC $68,402.10 ▲</div>
             <div class="ticker-item">ETH $3,501.20 ▲</div>
+            <div class="ticker-item">SOL $340.50 ▼</div>
             <div class="ticker-item">🎉 Ahmed earned $47 on Fiverr</div>
             <div class="ticker-item">💰 Fatima made $87 on Upwork</div>
             <div class="ticker-item">🛒 Emeka earned ₦12k on Jumia</div>
             <div class="ticker-item">BTC $68,402.10 ▲</div>
             <div class="ticker-item">ETH $3,501.20 ▲</div>
-            <div class="ticker-item">🎉 Ahmed earned $47 on Fiverr</div>
+            <div class="ticker-item">SOL $340.50 ▼</div>
         </div>
     </div>
 
-    <!-- SAAS MEGA MENU -->
     <div class="nav-container">
         <header>
-            <div style="display:flex; align-items:center;">
-                <a href="/" class="logo">☁️ 3EESHER</a>
-            </div>
-            
+            <a href="/" class="logo">☁️ 3EESHER</a>
             <div class="nav-links">
-                <div class="dropdown">
-                    <button class="dropbtn">Resources ▼</button>
-                    <div class="dropdown-content">
-                        <a href="/library">📚 Free Library</a>
-                        <a href="#blog">📝 Tech Blogs</a>
-                        <a href="#stories">🏆 Success Stories</a>
-                    </div>
-                </div>
-                
-                <div class="dropdown">
-                    <button class="dropbtn">Income Streams ▼</button>
-                    <div class="dropdown-content">
-                        <a href="#money">💰 30 Money Links</a>
-                        <a href="#stores">🏪 Affiliate Stores</a>
-                    </div>
-                </div>
-
-                <div class="dropdown">
-                    <button class="dropbtn">Media ▼</button>
-                    <div class="dropdown-content">
-                        <a href="#videos">🎬 Watch Videos</a>
-                    </div>
-                </div>
-
-                <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
-                <div id="google_translate_element" style="margin-left:10px;"></div>
-
-                <div style="display:inline-block; text-align:center; margin-left:20px;">
-                    <a href="/library" class="cta">✨ Free Sign Up</a>
-                </div>
+                <a href="#blog">📝 Blog</a>
+                <a href="#videos">🎬 Videos</a>
+                <a href="#money">💰 Make Money</a>
+                <a href="#stores">🏪 Stores</a>
+                <a href="/library" class="cta">📚 Free Library</a>
             </div>
         </header>
     </div>
@@ -888,50 +819,16 @@ app.get('/', (req, res) => {
             <h1 class="massive-logo">3EESHER.CLOUD</h1>
             <h2 class="hero-subtitle">The Ultimate Hub for Digital Wealth & Skills</h2>
             
-            <div class="hero-desc">
-                <h3 style="color:var(--highlight); margin-bottom:5px;">What is this website about?</h3>
-                <p>We provide a centralized platform for Africans and global users to access premium digital education and instant money-making tools.</p>
-                
-                <h3 style="color:var(--highlight); margin-bottom:5px;">Why did we create it?</h3>
-                <p>Because financial freedom shouldn't be locked behind expensive paywalls. We built this to solve real problems for real people.</p>
-                
-                <h3 style="color:var(--highlight); margin-bottom:5px;">Benefits for you:</h3>
-                <ul style="margin-left:20px; color:#fbbf24;">
-                    <li>Free Premium Google Books Library</li>
-                    <li>30 Verified Affiliate Income Links</li>
-                    <li>Automated Daily Tech & Crypto News</li>
-                </ul>
-            </div>
+            <p style="color:#cbd5e1; font-size:18px; margin-bottom:30px; max-width:600px; margin-left:auto; margin-right:auto;">
+                Sign up to unlock our premium Google Books library for free, or click below to access 30+ instant money-making portals.
+            </p>
 
             <div class="hero-ctas">
-                <a href="/library" class="hero-btn">📚 Access Free Google Books</a>
-                <a href="#money" class="hero-btn-outline">💰 View Earning Portals</a>
+                <a href="/library" class="hero-btn">📚 Unlock Free Library</a>
+                <a href="#money" class="hero-btn-outline">💰 See Money Links</a>
                 <a href="#videos" class="hero-btn-outline" style="border-color:#fbbf24; color:#fbbf24;">🎬 Watch Videos</a>
             </div>
             <span class="sub-cta" style="margin-top:10px; display:block; color:var(--highlight); font-weight:bold;">✨ 100% Free. Register in 10 seconds.</span>
-        </div>
-
-        <div class="feature-cards">
-            <div class="feat-card" data-aos="fade-up" data-aos-delay="100">
-                <div class="feat-icon">🎯</div>
-                <h3>What is it?</h3>
-                <p>A fully autonomous money-making platform and premium digital library hosting $10,000+ worth of knowledge.</p>
-            </div>
-            <div class="feat-card" data-aos="fade-up" data-aos-delay="200">
-                <div class="feat-icon">🌍</div>
-                <h3>Who is it for?</h3>
-                <p>Ambitious Africans, freelancers, and digital entrepreneurs ready to build sustainable wealth.</p>
-            </div>
-            <div class="feat-card" data-aos="fade-up" data-aos-delay="300">
-                <div class="feat-icon">💡</div>
-                <h3>Why use it?</h3>
-                <p>Stop paying for gatekept info. Get direct access to global earning portals and the skills needed to monetize them.</p>
-            </div>
-            <div class="feat-card" data-aos="fade-up" data-aos-delay="400">
-                <div class="feat-icon">⚡</div>
-                <h3>How it helps</h3>
-                <p>We connect you directly to Jumia, Fiverr, and ClickBank. Our auto-bot provides daily updates to follow.</p>
-            </div>
         </div>
     </div>
 
@@ -997,7 +894,6 @@ app.get('/', (req, res) => {
         </aside>
     </div>
 
-    <!-- REAL FOMO POPUP -->
     <div class="fomo-popup" id="fomoPopup">
         <div class="fomo-icon" id="fomoIcon">🔥</div>
         <div>
@@ -1018,7 +914,6 @@ app.get('/', (req, res) => {
     <script>
         AOS.init({ duration: 800, once: true });
 
-        // THEME TOGGLE LOGIC
         function toggleTheme() {
             const body = document.body;
             if(body.getAttribute('data-theme') === 'light') {
@@ -1039,7 +934,6 @@ app.get('/', (req, res) => {
             document.getElementById('nlEmail').value='';
         }
 
-        // REAL FOMO FETCH
         setInterval(async () => {
             try {
                 const res = await fetch('/api/fomo-data');
@@ -1059,6 +953,7 @@ app.get('/', (req, res) => {
 </html>`);
 });
 
+// ==================== LIBRARY & BLOG ROUTES ====================
 app.get('/library', (req, res) => {
     if(!req.session.libUser) {
         return res.send(`<!DOCTYPE html><html><head><title>Library Login</title>
@@ -1096,13 +991,11 @@ app.get('/library', (req, res) => {
     </div></div></body></html>`);
 });
 
-// BLOG DETAIL PAGE (WITH READING PROGRESS BAR)
 app.get('/blog/:id', (req, res) => {
     const data = getData(); const post = data.blogPosts.find(p => p.id == req.params.id);
     if (!post) return res.redirect('/'); post.views++; saveData(data);
-    res.send(`<!DOCTYPE html><html><head><title>${post.title}</title>${getMetaTags(post.title, post.content, 'https://3eesher.cloud/blog/'+post.id, post.image)}
+    res.send(`<!DOCTYPE html><html><head><title>${post.title}</title>${getMetaTags(post.title, post.content, BASE_URL+'/blog/'+post.id, post.image)}
     <style>body{font-family:-apple-system,sans-serif; background:#0a0f1e; color:#e2e8f0; padding:40px 5%; margin:0;} .wrap{max-width:800px; margin:40px auto; background:#1e293b; padding:50px; border-radius:20px;border:1px solid #334155;} img{max-width:100%; border-radius:12px;margin:20px 0;} a{color:#10b981;font-weight:bold;text-decoration:none;}
-    /* PROGRESS BAR */
     .progress-container { width: 100%; position: fixed; top: 0; left: 0; height: 5px; background: #0a0f1e; z-index: 1000; }
     .progress-bar { height: 5px; background: #10b981; width: 0%; box-shadow: 0 0 10px #10b981;}
     </style></head>
@@ -1112,7 +1005,6 @@ app.get('/blog/:id', (req, res) => {
     <h1 style="color:#fbbf24;font-size:32px;">${post.title}</h1><p style="color:#94a3b8;font-size:14px;">${new Date(post.date).toLocaleDateString()} • ${post.views} views</p>
     <img src="${post.image}"><div style="line-height:1.8;font-size:16px;color:#cbd5e1;margin-top:20px;">${post.content}</div></div>
     <script>
-        // Reading Progress Bar Logic
         window.onscroll = function() {
             var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
             var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
@@ -1130,6 +1022,5 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 3EESHER-CLOUD ENTERPRISE running on http://localhost:${PORT}`);
-    console.log(`🌟 Added: Theme Toggle, Viral Share Buttons, Mega Menu, and Progress Bars`);
     console.log(`🔐 Admin: http://localhost:${PORT}/super-admin`);
 });
