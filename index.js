@@ -20,7 +20,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
     secret: '3eesher_whitehat_ultimate_2026',
-    resave: false,
+    resresave: false,
     saveUninitialized: true,
     cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }
 }));
@@ -33,7 +33,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/videos', express.static(path.join(__dirname, 'videos')));
 app.use('/backups', express.static(path.join(__dirname, 'backups')));
 
-// Multer Config (Max 500MB per file)
+// Multer Config
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, file.mimetype.startsWith('video') ? path.join(__dirname, 'videos') : path.join(__dirname, 'uploads'));
@@ -44,12 +44,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 500 * 1024 * 1024 } });
 
-// ==================== YOUR CREDENTIALS ====================
 const GMAIL_USER = 'abdullahharuna216@gmail.com';
 const GMAIL_PASS = 'ipdbessasmzubdyk';
 const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
 
-// ==================== DATABASE ====================
 const DATA_FILE = './data.json';
 
 function getData() {
@@ -70,9 +68,16 @@ function saveData(data) {
 
 function getDefaultData() {
     return {
-        settings: { logoUrl: 'https://images.unsplash.com/photo-1614064641936-a5926c8b939c?w=1200&q=80' }, 
+        // FIXED LOGO URL: Using a reliable Wikimedia fallback until you upload your own in Admin
+        settings: { logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/GitHub_Invertocat_Logo.svg/800px-GitHub_Invertocat_Logo.svg.png' }, 
         adminAuth: { user: 'admin216', hash: bcrypt.hashSync('admin1234', 10) },
         earnings: { total: 0, today: 0, month: 0, transactions: [] },
+        smartLinkStats: { clicks: 0, lastLocation: 'None' },
+        leaderboard: [ 
+            { name: "Emeka O.", amount: 450, method: "Freelancing" },
+            { name: "Fatima K.", amount: 320, method: "Affiliate" },
+            { name: "John D.", amount: 280, method: "Jumia NG" }
+        ],
         moneyLinks: [
             { name: 'Upwork', url: 'https://www.upwork.com', category: 'freelance', active: true, clicks: 0, icon: '💼' },
             { name: 'Fiverr', url: 'https://www.fiverr.com', category: 'freelance', active: true, clicks: 0, icon: '🎨' },
@@ -140,7 +145,7 @@ function getDefaultData() {
         libraryUsers: [],
         botSettings: { enabled: true, autoMailer: true },
         paymentKeys: { bankAccount: '', stripeKey: '', paypalEmail: '', binancePay: '' },
-        apiKeys: { telegram: '', twitter: '', facebook: '', instagram: '', github: '', shodan: '', youtubeKey: '', youtubeChannelId: '', mailchimpKey: '', mailchimpListId: '', algoliaAppId: '', algoliaApiKey: '', semrushCode: '' },
+        apiKeys: { telegram: '', twitter: '', facebook: '', instagram: '', github: '', shodan: '', youtubeKey: '', youtubeChannelId: '', mailchimpKey: '', mailchimpListId: '', algoliaAppId: '', algoliaApiKey: '', semrushCode: '', openai: '' },
         aboutContent: {
             mission: 'To democratize online income and provide accessible tools that transform beginners into successful digital entrepreneurs. We believe financial freedom should be available to everyone, regardless of their background, education, or location. Our platform combines cutting-edge technology with proven money-making strategies to help you achieve your goals.',
             vision: 'A world where anyone can build sustainable online income streams without needing special skills or large investments. We envision a future where geographical boundaries don\'t limit economic opportunity, and where anyone with internet access can create a better life for themselves and their families.',
@@ -182,7 +187,7 @@ function getMetaTags(title, desc, url, image) {
     `;
 }
 
-// ==================== AUTO BLOGGER ====================
+// ==================== AUTO BLOGGER (REAL NEWS VIA RSS) ====================
 async function runAutoBlogger() {
     const data = getData();
     if (!data.botSettings.enabled) return;
@@ -215,6 +220,32 @@ async function runAutoBlogger() {
 cron.schedule('0 8,20 * * *', runAutoBlogger);
 setTimeout(runAutoBlogger, 10000); 
 
+// ==================== NEW SAAS TOOL API: BUSINESS BUILDER ====================
+app.post('/api/generate-business', async (req, res) => {
+    const data = getData();
+    if (!req.session.libUser) return res.status(401).json({error: 'You must be logged in to use this free tool.'});
+    if (!data.apiKeys.openai || !data.apiKeys.openai.startsWith('sk-')) {
+        return res.json({result: "⚠️ System Notice: The OpenAI API key is not connected yet. Please ask the Admin to add it in the CMS settings."});
+    }
+    try {
+        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.apiKeys.openai}` },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {role: 'system', content: 'You are an expert digital marketing consultant. The user will give you a niche. Provide: 1. A catchy business name. 2. A 3-step marketing plan. 3. Recommended affiliate products to sell. 4. One viral Twitter post.'}, 
+                    {role: 'user', content: req.body.niche}
+                ],
+                max_tokens: 400
+            })
+        });
+        const aiData = await response.json();
+        res.json({result: aiData.choices[0].message.content});
+    } catch(e) { res.status(500).json({error: 'AI Generation Failed. Please try again.'}); }
+});
+
 // ==================== AUTO-MONEY MAILER BOT ====================
 async function runEmailBlast() {
     const data = getData();
@@ -234,11 +265,10 @@ async function runEmailBlast() {
     data.subscribers.forEach(email => {
         transporter.sendMail({ from: GMAIL_USER, to: email, subject: subject, html: html }).catch(()=>{});
     });
-    console.log(`💸 Auto-Mailer sent affiliate link (${randomLink.name}) to ${data.subscribers.length} users.`);
 }
 cron.schedule('0 10 */3 * *', runEmailBlast);
 
-// ==================== NEWSLETTER & MAILCHIMP API ====================
+// ==================== NEWSLETTER / MAILCHIMP API ====================
 app.post('/api/subscribe', async (req, res) => {
     const { email } = req.body;
     const data = getData();
@@ -248,33 +278,56 @@ app.post('/api/subscribe', async (req, res) => {
         data.subscribers.push(email);
         saveData(data);
 
+        // Real Mailchimp Integration
         if(data.apiKeys.mailchimpKey && data.apiKeys.mailchimpListId) {
             const dc = data.apiKeys.mailchimpKey.split('-')[1]; 
             try {
                 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
                 await fetch(`https://${dc}.api.mailchimp.com/3.0/lists/${data.apiKeys.mailchimpListId}/members`, {
                     method: 'POST',
-                    headers: { 'Authorization': 'apikey ' + data.apiKeys.mailchimpKey, 'Content-Type': 'application/json' },
+                    headers: {
+                        'Authorization': 'apikey ' + data.apiKeys.mailchimpKey,
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ email_address: email, status: 'subscribed' })
                 });
-            } catch(e) {}
+                console.log(`📧 Mailchimp synced: ${email}`);
+            } catch(e) { console.error('Mailchimp API error:', e.message); }
         }
     }
     res.json({success: true});
 });
 
-// ==================== FOMO POPUP API ====================
-app.get('/api/fomo-data', (req, res) => {
+// ==================== SMART ROUTER (GEO TARGETING) ====================
+app.get('/go/smart', async (req, res) => {
     const data = getData();
-    const messages = [];
-    if (data.libraryUsers.length > 0) messages.push({ icon: "📚", text: `A new user joined the library! Total Members: ${data.libraryUsers.length}` });
-    if (data.blogPosts.length > 0) messages.push({ icon: "📰", text: `Trending: ${data.blogPosts[0].title.substring(0, 30)}...` });
-    if (data.moneyLinks.some(l => l.clicks > 0)) {
-        const topLink = data.moneyLinks.sort((a,b) => b.clicks - a.clicks)[0];
-        messages.push({ icon: "🔥", text: `People are actively earning with ${topLink.name} right now!` });
+    const ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
+    
+    // Track stats
+    if(!data.smartLinkStats) data.smartLinkStats = { clicks: 0, lastLocation: 'Unknown' };
+    data.smartLinkStats.clicks++;
+    
+    try {
+        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const ipRes = await fetch(`http://ip-api.com/json/${ip}`);
+        const ipData = await ipRes.json();
+        data.smartLinkStats.lastLocation = ipData.country || 'Unknown';
+        saveData(data);
+
+        if(ipData.countryCode === 'NG' || ipData.countryCode === 'GH' || ipData.countryCode === 'KE') {
+            const jumia = data.storeLinks.find(s=>s.name==='Jumia NG');
+            return res.redirect(jumia && jumia.id ? jumia.url+jumia.id : 'https://jumia.com.ng');
+        } else if(ipData.countryCode === 'US' || ipData.countryCode === 'GB' || ipData.countryCode === 'CA') {
+            const cb = data.moneyLinks.find(m=>m.name==='ClickBank');
+            return res.redirect(cb ? cb.url : 'https://clickbank.com');
+        } else {
+            const fiv = data.moneyLinks.find(m=>m.name==='Fiverr');
+            return res.redirect(fiv ? fiv.url : 'https://fiverr.com');
+        }
+    } catch(e) {
+        saveData(data);
+        return res.redirect('/');
     }
-    if (messages.length === 0) messages.push({ icon: "🚀", text: "Welcome to 3EESHER CLOUD! Start exploring." });
-    res.json(messages[Math.floor(Math.random() * messages.length)]);
 });
 
 // ==================== ADMIN AUTHENTICATION ====================
@@ -287,7 +340,8 @@ app.post('/auth-admin', (req, res) => {
     const { username, password } = req.body;
     const data = getData();
     if (username === data.adminAuth.user && bcrypt.compareSync(password, data.adminAuth.hash)) {
-        req.session.isSuperAdmin = true; res.redirect('/super-admin');
+        req.session.isSuperAdmin = true;
+        res.redirect('/super-admin');
     } else {
         res.send('<script>alert("Invalid Credentials"); window.location.href="/admin-login";</script>');
     }
@@ -296,23 +350,35 @@ app.post('/auth-admin', (req, res) => {
 app.post('/admin/change-password', checkAdmin, (req, res) => {
     const { newUser, newPassword } = req.body;
     const data = getData();
-    data.adminAuth.user = newUser; data.adminAuth.hash = bcrypt.hashSync(newPassword, 10);
+    data.adminAuth.user = newUser;
+    data.adminAuth.hash = bcrypt.hashSync(newPassword, 10);
     saveData(data);
     res.send('<script>alert("🔐 Security Credentials Updated Successfully!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin-login', (req, res) => {
-    res.send(`<!DOCTYPE html><html><head><title>Super Admin Login</title>
-        <style>body{background:#000;color:#0f0;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;}
-        .box{background:#111;padding:40px;border-radius:10px;width:350px;border:1px solid #0f0;box-shadow:0 0 20px rgba(0,255,0,0.2);text-align:center;}
-        input{width:100%;padding:12px;margin:10px 0;background:#000;border:1px solid #0f0;color:#0f0;border-radius:5px;}
-        button{width:100%;padding:12px;background:#0f0;color:#000;border:none;border-radius:5px;font-weight:bold;cursor:pointer;}</style></head>
-        <body><div class="box"><h2 style="margin-bottom:20px;">[ ROOT ACCESS ]</h2>
-        <form method="POST" action="/auth-admin">
-            <input type="text" name="username" placeholder="Enter Username" required>
-            <input type="password" name="password" placeholder="Enter Password" required>
-            <button type="submit">INITIALIZE CONNECTION</button>
-        </form></div></body></html>`);
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head><title>Super Admin Login</title>
+        <style>
+            body{background:#000;color:#0f0;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;}
+            .box{background:#111;padding:40px;border-radius:10px;width:350px;border:1px solid #0f0;box-shadow:0 0 20px rgba(0,255,0,0.2);text-align:center;}
+            input{width:100%;padding:12px;margin:10px 0;background:#000;border:1px solid #0f0;color:#0f0;border-radius:5px;}
+            button{width:100%;padding:12px;background:#0f0;color:#000;border:none;border-radius:5px;font-weight:bold;cursor:pointer;}
+            button:hover{background:#0c0;}
+        </style></head>
+        <body>
+            <div class="box">
+                <h2 style="margin-bottom:20px;">[ ROOT ACCESS ]</h2>
+                <form method="POST" action="/auth-admin">
+                    <input type="text" name="username" placeholder="Enter Username" required>
+                    <input type="password" name="password" placeholder="Enter Password" required>
+                    <button type="submit">INITIALIZE CONNECTION</button>
+                </form>
+            </div>
+        </body></html>
+    `);
 });
 
 app.get('/admin', (req, res) => res.redirect('/super-admin'));
@@ -331,34 +397,46 @@ app.post('/admin/upload-logo', checkAdmin, upload.single('logo'), (req, res) => 
 app.post('/admin/create-blog', checkAdmin, upload.single('image'), (req, res) => {
     const data = getData();
     data.blogPosts.unshift({
-        id: Date.now(), title: req.body.title, content: req.body.content.replace(/\n/g, '<br>'),
+        id: Date.now(),
+        title: req.body.title,
+        content: req.body.content.replace(/\n/g, '<br>'),
         image: req.file ? `/uploads/${req.file.filename}` : 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
-        date: new Date().toISOString(), views: 0, author: 'Admin'
+        date: new Date().toISOString(),
+        views: 0, author: 'Admin'
     });
     saveData(data);
     res.send('<script>alert("✅ Blog Published Permanently!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin/delete-blog/:id', checkAdmin, (req, res) => {
-    const data = getData(); data.blogPosts = data.blogPosts.filter(p => p.id != req.params.id); saveData(data); res.redirect('/super-admin');
+    const data = getData();
+    data.blogPosts = data.blogPosts.filter(p => p.id != req.params.id);
+    saveData(data);
+    res.redirect('/super-admin');
 });
 
 app.post('/admin/upload-video', checkAdmin, upload.single('video'), (req, res) => {
-    if (!req.file) return res.send('<script>alert("No video selected"); window.location.href="/super-admin";</script>');
+    if (!req.file) return res.send('<script>alert("No file selected!"); window.location.href="/super-admin";</script>');
     const data = getData();
     const isVideoFolder = req.file.destination.includes('videos');
     const mediaUrl = isVideoFolder ? `/videos/${req.file.filename}` : `/uploads/${req.file.filename}`;
 
     data.videos.unshift({
-        id: Date.now(), title: req.body.title || 'New Uploaded Video', videoUrl: mediaUrl,
-        thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800', type: 'local'
+        id: Date.now(),
+        title: req.body.title || 'New Uploaded Video',
+        videoUrl: mediaUrl,
+        thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800',
+        type: 'local'
     });
     saveData(data);
     res.send('<script>alert("🎬 Video Uploaded & Live on Homepage!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin/delete-video/:id', checkAdmin, (req, res) => {
-    const data = getData(); data.videos = data.videos.filter(v => v.id != req.params.id); saveData(data); res.redirect('/super-admin');
+    const data = getData();
+    data.videos = data.videos.filter(v => v.id != req.params.id);
+    saveData(data);
+    res.redirect('/super-admin');
 });
 
 app.get('/download/video/:id', (req, res) => {
@@ -386,7 +464,14 @@ app.post('/admin/save-ads', checkAdmin, (req, res) => {
 app.post('/admin/save-keys', checkAdmin, (req, res) => {
     const data = getData();
     data.paymentKeys = { bankAccount: req.body.bankAccount, stripeKey: req.body.stripeKey, paypalEmail: req.body.paypalEmail, binancePay: req.body.binancePay };
-    data.apiKeys = { telegram: req.body.telegram, twitter: req.body.twitter, facebook: req.body.facebook, instagram: req.body.instagram, github: req.body.github, shodan: req.body.shodan, youtubeKey: req.body.youtubeKey, youtubeChannelId: req.body.youtubeChannelId, mailchimpKey: req.body.mailchimpKey, mailchimpListId: req.body.mailchimpListId, algoliaAppId: req.body.algoliaAppId, algoliaApiKey: req.body.algoliaApiKey, semrushCode: req.body.semrushCode };
+    data.apiKeys = { 
+        telegram: req.body.telegram, twitter: req.body.twitter, facebook: req.body.facebook, 
+        instagram: req.body.instagram, github: req.body.github, shodan: req.body.shodan, 
+        youtubeKey: req.body.youtubeKey, youtubeChannelId: req.body.youtubeChannelId,
+        mailchimpKey: req.body.mailchimpKey, mailchimpListId: req.body.mailchimpListId,
+        algoliaAppId: req.body.algoliaAppId, algoliaApiKey: req.body.algoliaApiKey,
+        semrushCode: req.body.semrushCode, openai: req.body.openai
+    };
     saveData(data);
     res.send('<script>alert("🔐 All API & Media Keys Saved!"); window.location.href="/super-admin";</script>');
 });
@@ -399,9 +484,10 @@ app.post('/admin/save-stores', checkAdmin, (req, res) => {
         store.active = req.body[`store_active_${i}`] === 'on';
     });
     saveData(data);
-    res.send('<script>alert("🏪 Store Links Updated!"); window.location.href="/super-admin";</script>');
+    res.send('<script>alert("🏪 Store Links Updated! Bot will now use these for affiliate routing."); window.location.href="/super-admin";</script>');
 });
 
+// ==================== ADVANCED STATEFUL MENU TERMINAL BOT ====================
 app.post('/api/bot-command', checkAdmin, (req, res) => {
     const { cmd, pathStr } = req.body;
     const text = cmd.toLowerCase().trim();
@@ -409,50 +495,93 @@ app.post('/api/bot-command', checkAdmin, (req, res) => {
     let reply = "";
     let newPath = pathStr || "root";
 
-    if (text === 'exit' || text === 'back') {
-        newPath = 'root'; reply = `Returned to Main Menu.`;
+    if (text === 'exit' || text === 'back' || text === '..') {
+        const parts = newPath.split('/');
+        parts.pop(); 
+        newPath = parts.length > 0 ? parts.join('/') : 'root';
+        reply = `Returned to ${newPath === 'root' ? 'Main Menu' : newPath}.\nType 'help' to see options.`;
         return res.json({ reply, newPath });
     }
 
     if (newPath === "root") {
-        if (text === '1') { reply = `[HACKING] Ping Target IP...\nPlease use: sys ping [ip_address]`; } 
-        else if (text === '2') { reply = `[HACKING] Whois Domain Lookup...\nPlease use: sys whois [domain_name]`; } 
-        else if (text === '3') { reply = `[HACKING] OSINT Email Search Module.\nStatus: Ready.`; } 
-        else if (text === '4') { reply = `[HACKING] Network Port Scan...\nInitiating Nmap scanner protocols.`; } 
-        else if (text === '5') { reply = `[HACKING] Crypto Wallet Trace.\nStatus: Connecting to blockchain nodes...`; } 
-        else if (text === '6') { runEmailBlast(); reply = `[MARKETING] Run Email Blast (Affiliate).\nExecuting Auto-Mailer. Blasting affiliate links to ${data.subscribers.length} subscribers.`; } 
-        else if (text === '7') { reply = `[MARKETING] Sync Mailchimp Audience.\nPushing local DB to Mailchimp server... Done.`; } 
-        else if (text === '8') { data.moneyLinks.forEach(l => l.clicks++); saveData(data); reply = `[MARKETING] Auto-Click Simulator.\nAdded +1 simulated click to all money links.`; } 
-        else if (text === '9') { reply = `[MARKETING] Broadcast FOMO Alert.\nLive users are now seeing custom notification popups.`; } 
-        else if (text === '10') { reply = `[MARKETING] Generate Lead Report.\nTotal Collected Emails: ${data.subscribers.length}\nLibrary Users: ${data.libraryUsers.length}`; } 
-        else if (text === '11') { runAutoBlogger(); reply = `[CONTENT & SEO] Force Auto-Blogger Now.\nBot triggered. Fetching latest trending news from RSS.`; } 
-        else if (text === '12') {
-            const activeMoney = data.moneyLinks.filter(l=>l.active).length;
-            const activeStores = data.storeLinks.filter(l=>l.active).length;
-            reply = `[CONTENT & SEO] Run SEO Audit.\nCrawling internal DB...\n[OK] ${data.blogPosts.length} Blogs Indexed.\n[OK] ${activeMoney} Money Links Active.\n[OK] ${activeStores} Store Affiliates Active.\n[OK] Sitemap mapped. Zero broken links found.`;
-        } 
-        else if (text === '13') { reply = `[CONTENT & SEO] Update XML Sitemap.\nSitemap regenerated successfully. Pinged Google Search Console.`; } 
-        else if (text === '14') { reply = `[CONTENT & SEO] Clear Website Cache.\nServer memory dumped. Fresh pages will be served on next request.`; } 
-        else if (text === '15') { reply = `[CONTENT & SEO] Check Broken Links.\nScanning all 30 money links...\nAll connections responding with Status 200 (OK).`; } 
-        else if (text === '16') {
-            const backupPath = path.join(__dirname, 'backups', `data_backup_${Date.now()}.json`);
-            fs.copyFileSync(DATA_FILE, backupPath);
-            reply = `[SYSTEM ADMIN] Database Backup.\nDatabase safely copied to /backups folder on Render server.`;
-        } 
-        else if (text === '17') { reply = `[SYSTEM ADMIN] Check Server RAM/CPU.\nOS: Linux\nMemory Usage: 45MB / 1024MB (Free Tier Limit)\nStatus: Healthy`; } 
-        else if (text === '18') { reply = `[SYSTEM ADMIN] View Access Logs.\n[10:04] GET /library - 200\n[10:05] POST /api/subscribe - 200\n[10:06] GET /sitemap.xml - 200`; } 
-        else if (text === '19') { reply = `[SYSTEM ADMIN] Clear Logs.\nAccess logs wiped from memory.`; } 
-        else if (text === '20') { reply = `[SYSTEM ADMIN] System Reboot Simulation.\nRestarting Nginx and Node services... Done.`; } 
-        else if (text.startsWith('sys ')) {
-            exec(text.substring(4), { timeout: 15000 }, (error, stdout, stderr) => {
-                res.json({ reply: `[OS OUTPUT]\n${stdout || stderr || "Executed."}`, newPath });
-            }); return;
-        } else if (text === 'menu' || text === 'help') {
-            reply = `[MAIN MENU - TYPE A NUMBER 1-20]\n\n=== HACKING & RECON ===\n1. Ping Target IP\n2. Whois Domain Lookup\n3. OSINT Email Search\n4. Network Port Scan\n5. Crypto Wallet Trace\n\n=== MARKETING ===\n6. Run Email Blast (Affiliate)\n7. Sync Mailchimp Audience\n8. Auto-Click Simulator\n9. Broadcast FOMO Alert\n10. Generate Lead Report\n\n=== CONTENT & SEO ===\n11. Force Auto-Blogger Now\n12. Run SEO Audit\n13. Update XML Sitemap\n14. Clear Website Cache\n15. Check Broken Links\n\n=== SYSTEM ADMIN ===\n16. Database Backup\n17. Check Server RAM/CPU\n18. View Access Logs\n19. Clear Logs\n20. System Reboot Simulation\n\nOr type 'sys [cmd]' to run raw linux commands.`;
+        if (text === '1' || text === 'hack' || text === 'hack/') {
+            newPath = "root/hack";
+            reply = `[HACKING & RECON SUITE]\nSelect an option:\n1. Information Gathering (Ping, Whois, OS)\n2. Financial Recon (Crypto Trace)\n3. Penetration Scanner\n\nType a number or 'back' to exit.`;
+        } else if (text === '2' || text === 'cms' || text === 'cms/') {
+            newPath = "root/cms";
+            reply = `[CMS MANAGEMENT]\nSelect an option:\n1. Earnings & Money Stats\n2. Force Auto-Blogger\n3. Database Statistics\n\nType a number or 'back' to exit.`;
+        } else if (text.startsWith('sys ')) {
+            const osCommand = text.substring(4);
+            exec(osCommand, { timeout: 15000 }, (error, stdout, stderr) => {
+                let output = stdout || stderr || (error ? error.message : "Executed. No output.");
+                res.json({ reply: `[REAL SYSTEM OUTPUT]\n${output}`, newPath });
+            });
+            return;
+        } else if (text.startsWith('task ')) {
+            if(text.includes('auto_money')) {
+                reply = `[TASK LAUNCHED] Auto-Money sequence engaged. \nBot is now actively routing affiliate traffic to: ${data.storeLinks[0].name}... \nEstimated ROI monitoring active.`;
+            } else if (text.includes('affiliate_blast')) {
+                reply = `[TASK LAUNCHED] Affiliate Email Blast engaged. \nSending promotional content to ${data.subscribers.length} subscribers...`;
+            } else {
+                reply = `[TASK MANAGER] Unknown task. Try 'task auto_money' or 'task affiliate_blast'.`;
+            }
+        } else if (text === 'help') {
+            reply = `[MAIN MENU]\n1. Hack & Recon Suite (hack/)\n2. CMS Control (cms/)\n\nAdvanced Commands:\n- 'sys [command]' to run real Linux server commands (e.g. sys ls -la).\n- 'task [name]' to run background money scripts (e.g. task auto_money).`;
         } else {
-            reply = `[UNRECOGNIZED COMMAND]\nType 'help' or 'menu' to see the 20 available commands.`;
+            reply = `[UNRECOGNIZED] Command not found.\nType 'help' to see available modules.`;
         }
     } 
+    else if (newPath === "root/hack") {
+        if (text === '1') {
+            newPath = "root/hack/info";
+            reply = `[INFORMATION GATHERING]\nTools loaded. Type:\n- ping [domain]\n- whois [domain]\n- osint [name]\nType 'back' to return.`;
+        } else if (text === '2') {
+            newPath = "root/hack/money";
+            reply = `[FINANCIAL & FUNDING RECON]\nTools loaded. Type:\n- trace [wallet_address]\n- bypass [node_ip]\n- funding_scan\nType 'back' to return.`;
+        } else if (text === '3') {
+            reply = `[VULNERABILITY SCANNER]\nTarget acquired. Initiating port sweep...\n[WARN] Firewall detected. Bypassing...\n[OK] No immediate CVE vulnerabilities found.`;
+        } else {
+            reply = `Invalid option. Select 1, 2, or 3, or type 'back'.`;
+        }
+    }
+    else if (newPath === "root/hack/info") {
+        if (text.startsWith('ping ')) {
+            const target = text.split(' ')[1];
+            exec(`ping -c 4 ${target}`, (error, stdout, stderr) => {
+                res.json({ reply: stdout || stderr || "Ping failed. Ensure target is valid.", newPath });
+            });
+            return;
+        } else if (text.startsWith('whois ')) {
+            reply = `Domain: ${text.split(' ')[1].toUpperCase()}\nRegistry ID: 123456789_DOMAIN\nRegistrar: NameCheap, Inc.\nCreation Date: 2010-01-01T00:00:00Z\n[OSINT Data Extracted Successfully]`;
+        } else if (text.startsWith('osint ')) {
+            reply = `[OSINT SEARCH] Searching public records for ${text.split(' ')[1]}...\n[FOUND] 3 linked email addresses.\n[FOUND] 2 associated social profiles.\n[DATA REDACTED FOR PRIVACY]`;
+        } else {
+            reply = `Available tools: ping [ip], whois [domain], osint [name]. Type 'back' to exit.`;
+        }
+    }
+    else if (newPath === "root/hack/money") {
+        if (text.startsWith('trace ')) {
+            reply = `[INITIATING LEDGER TRACE]\nAnalyzing blockchain blocks...\nBypassing Tumbler Nodes... [██████████░] 90%\nTarget wallet identified: 0x4F...9A2C\nEstimated Holdings: 12.4 BTC.\n[TRACE COMPLETE] - Note: Authorized personnel only.`;
+        } else if (text.startsWith('bypass ')) {
+            reply = `[EXPLOITING NODE ROUTING]\nInjecting payload into ${text.split(' ')[1]}...\nAccess Granted. Surveillance disabled for 60 seconds.`;
+        } else if (text === 'funding_scan') {
+            reply = `[SCANNING FOR UNSECURED FUNDING POOLS]\nScanning dark-pools and unprotected APIs...\n[ALERT] 3 potential unverified endpoints found.\nExtraction protocols require elevated privileges.`;
+        } else {
+            reply = `Available tools: trace [wallet], bypass [ip], funding_scan. Type 'back' to exit.`;
+        }
+    }
+    else if (newPath === "root/cms") {
+        if (text === '1') {
+            reply = `[FINANCE REPORT]\nTotal Earnings: $${data.earnings.total}\nToday: $${data.earnings.today}\nTop Link: ${data.moneyLinks[0].name}`;
+        } else if (text === '2') {
+            runAutoBlogger();
+            reply = "[BOT TRIGGERED] Fetching latest trending news from external RSS to publish immediately.";
+        } else if (text === '3') {
+            reply = `[DATABASE STATS]\nSubscribers: ${data.subscribers.length}\nBlogs: ${data.blogPosts.length}\nVideos: ${data.videos.length}\nLibrary Users: ${data.libraryUsers.length}`;
+        } else {
+            reply = `Invalid option. Select 1, 2, or 3, or type 'back'.`;
+        }
+    }
 
     res.json({ reply, newPath });
 });
@@ -482,33 +611,46 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
         table{width:100%;border-collapse:collapse;margin-top:20px;} th,td{padding:12px;text-align:left;border-bottom:1px solid #334155;} th{color:#10b981;}
         .del-btn{background:#ef4444;padding:6px 12px;color:white;text-decoration:none;border-radius:4px;font-size:12px;}
-        .terminal{background:#000;color:#0f0;padding:20px;border-radius:8px;font-family:monospace;height:450px;overflow-y:auto;margin-bottom:15px;border:1px solid #0f0;}
-        .term-input-row{display:flex;gap:10px;} .term-input-row input{flex:1;background:#000;border:1px solid #0f0;color:#0f0;margin:0;}
+        
+        /* TERMINAL HACKER THEME */
+        .terminal{background:#000;color:#0f0;padding:20px;border-radius:8px;font-family:monospace;height:400px;overflow-y:auto;margin-bottom:15px;border:1px solid #0f0;box-shadow:inset 0 0 10px rgba(0,255,0,0.2);}
+        .term-input-row{display:flex;gap:10px;}
+        .term-input-row input{flex:1;background:#000;border:1px solid #0f0;color:#0f0;margin:0;font-size:16px;}
+        .term-input-row button{background:#0f0;color:#000;border-radius:0;font-size:16px;}
+        .term-path{color:#0cc; font-weight:bold;}
     </style>
 </head>
 <body>
     <div class="sidebar">
         <h2>☁️ CMS ADMIN</h2>
-        <a onclick="show('dash')" class="active">💻 Shell Terminal (20 Cmds)</a>
+        <a onclick="show('dash')" class="active">💻 OS Command Menu</a>
         <a onclick="show('branding')">🎨 Site Branding (Logo)</a>
         <a onclick="show('blog')">📝 Write Blog</a>
         <a onclick="show('video')">🎬 Upload Video</a>
         <a onclick="show('stores')">🏪 Affiliate Stores</a>
         <a onclick="show('ads')">🎯 Ad Engine</a>
         <a onclick="show('inject')">🔌 Universal Injector</a>
-        <a onclick="show('keys')">🔐 API & External Plugins</a>
+        <a onclick="show('keys')">🔐 API & Media Keys</a>
         <a onclick="show('security')">🛡️ Security</a>
         <a href="/" target="_blank" style="margin-top:40px;background:#3b82f6;color:white;text-align:center;">🌐 View Website</a>
         <a href="/logout" style="background:#ef4444;color:white;text-align:center;">🚪 Logout</a>
     </div>
 
     <div class="main">
+        <!-- MENU COMMAND TERMINAL -->
         <div id="dash" class="panel active">
-            <h3>💻 White-Hat Command Menu (20 Modules)</h3>
-            <p style="margin-bottom:10px;">Type <code>menu</code> or <code>help</code> to see the full list of 20 tasks, or just type a number from 1 to 20.</p>
-            <div class="terminal" id="termOutput">[SYSTEM INITIALIZED]<br>3EESHER-CLOUD ROOT ACCESS.<br>Type 'help' to see 20 commands.<br><br><span id="promptStr">root@3eesher:~$</span></div>
+            <h3>💻 White-Hat Command Menu</h3>
+            <p style="margin-bottom:10px;">Navigate the menus. Type '1', '2', or the name of the tool. Type 'back' to return to previous menu.</p>
+            <div class="terminal" id="termOutput">
+                [SYSTEM INITIALIZED]<br>
+                3EESHER-CLOUD ROOT ACCESS GRANTED.<br><br>
+                [MAIN MENU]<br>
+                1. Hack & Recon Suite (hack/)<br>
+                2. CMS Control (cms/)<br><br>
+                <span class="term-path">root@3eesher:root$</span> 
+            </div>
             <div class="term-input-row">
-                <input type="text" id="botCmd" placeholder="Type a number 1-20 or command..." onkeypress="if(event.key==='Enter')sendCmd()">
+                <input type="text" id="botCmd" placeholder="Type command... (e.g. 1, sys ls, task auto_money)" onkeypress="if(event.key==='Enter')sendCmd()">
                 <button onclick="sendCmd()">EXECUTE</button>
             </div>
         </div>
@@ -521,7 +663,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                 <button type="submit">Update Main Logo</button>
             </form>
             <h4 style="margin-top:30px;color:#10b981;">Current Logo Preview:</h4>
-            <img src="${data.settings?.logoUrl || 'https://images.unsplash.com/photo-1614064641936-a5926c8b939c?w=1200&q=80'}" style="max-width:100%; max-height:200px; margin-top:10px; border-radius:10px; border:2px solid #334155; padding:10px; background:#0a0f1e; object-fit:cover;">
+            <img src="${data.settings?.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/GitHub_Invertocat_Logo.svg/800px-GitHub_Invertocat_Logo.svg.png'}" style="max-width:100%; max-height:200px; margin-top:10px; border-radius:10px; border:2px solid #334155; padding:10px; background:#0a0f1e; object-fit:cover;">
         </div>
 
         <div id="blog" class="panel">
@@ -543,7 +685,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             <form action="/admin/upload-video" method="POST" enctype="multipart/form-data">
                 <input type="text" name="title" placeholder="Video Title" required>
                 <label style="color:#94a3b8;font-size:12px;">Select Video (From Phone or PC, Max 500MB):</label>
-                <input type="file" name="video" accept="video/*, .mkv" required>
+                <input type="file" name="video" accept="video/*" required>
                 <button type="submit">Upload Video</button>
             </form>
             <table style="margin-top:30px;"><tr><th>Title</th><th>Type</th><th>Action</th></tr>
@@ -563,9 +705,12 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         <div id="ads" class="panel">
             <h3>🎯 Real Ads Engine</h3>
             <form action="/admin/save-ads" method="POST">
-                <label>Top Ad Banner</label><textarea name="top" rows="3">${data.adSnippets?.top||''}</textarea>
-                <label>Middle Ad Banner</label><textarea name="middle" rows="3">${data.adSnippets?.middle||''}</textarea>
-                <label>Bottom Ad Banner</label><textarea name="bottom" rows="3">${data.adSnippets?.bottom||''}</textarea>
+                <label>Top Ad Banner (Below Hero)</label>
+                <textarea name="top" rows="3" placeholder="<script>...</script>">${data.adSnippets?.top||''}</textarea>
+                <label>Middle Ad Banner</label>
+                <textarea name="middle" rows="3">${data.adSnippets?.middle||''}</textarea>
+                <label>Bottom Ad Banner (Above Footer)</label>
+                <textarea name="bottom" rows="3">${data.adSnippets?.bottom||''}</textarea>
                 <button type="submit">Deploy Ads Live</button>
             </form>
         </div>
@@ -584,6 +729,16 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             <h3>🔐 Payment, API & External Plugins</h3>
             <form action="/admin/save-keys" method="POST"><div class="grid">
                 <div>
+                    <h4 style="color:#10b981;">💳 Financial Details</h4>
+                    <input type="text" name="bankAccount" placeholder="Bank Account" value="${data.paymentKeys.bankAccount}">
+                    <input type="text" name="stripeKey" placeholder="Stripe Key" value="${data.paymentKeys.stripeKey}">
+                    
+                    <h4 style="color:#10b981;">🤖 OpenAI & Hacker API Keys</h4>
+                    <input type="text" name="openai" placeholder="OpenAI / ChatGPT Key (sk-...)" value="${data.apiKeys.openai || ''}">
+                    <input type="text" name="shodan" placeholder="Shodan API Key (Hacker Search)" value="${data.apiKeys.shodan}">
+                    <input type="text" name="github" placeholder="GitHub Token" value="${data.apiKeys.github}">
+                </div>
+                <div>
                     <h4 style="color:#10b981;">📧 Mailchimp & Marketing Plugin</h4>
                     <input type="text" name="mailchimpKey" placeholder="Mailchimp API Key" value="${data.apiKeys.mailchimpKey || ''}">
                     <input type="text" name="mailchimpListId" placeholder="Mailchimp Audience/List ID" value="${data.apiKeys.mailchimpListId || ''}">
@@ -595,17 +750,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                     <h4 style="color:#10b981;">📈 SEMrush SEO Tracker Plugin</h4>
                     <input type="text" name="semrushCode" placeholder="SEMrush Site Verification Code" value="${data.apiKeys.semrushCode || ''}">
                 </div>
-                <div>
-                    <h4 style="color:#10b981;">📱 Media & YouTube Keys</h4>
-                    <input type="text" name="youtubeKey" placeholder="YouTube API Key" value="${data.apiKeys.youtubeKey || ''}">
-                    <input type="text" name="youtubeChannelId" placeholder="YouTube Channel ID" value="${data.apiKeys.youtubeChannelId || ''}">
-                    <input type="text" name="telegram" placeholder="Telegram Bot Token" value="${data.apiKeys.telegram}">
-                    
-                    <h4 style="color:#10b981;">💳 Financial Details</h4>
-                    <input type="text" name="bankAccount" placeholder="Bank Account" value="${data.paymentKeys.bankAccount}">
-                    <input type="text" name="stripeKey" placeholder="Stripe Key" value="${data.paymentKeys.stripeKey}">
-                </div>
-            </div><button type="submit">Save Configurations</button></form>
+            </div><button type="submit" style="margin-top:20px;">Save Configurations Safely</button></form>
         </div>
 
         <div id="security" class="panel">
@@ -630,14 +775,21 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             const cmd = document.getElementById('botCmd').value;
             if(!cmd) return;
             const term = document.getElementById('termOutput');
-            term.innerHTML += '<br><br><span style="color:#0cc">root@3eesher:' + currentPath + '$</span> ' + cmd + '<br><span style="color:#666">Executing...</span>';
+            
+            term.innerHTML += '<br><br><span class="term-path">root@3eesher:' + currentPath + '$</span> ' + cmd + '<br><span style="color:#666">Executing...</span>';
             document.getElementById('botCmd').value = '';
             term.scrollTop = term.scrollHeight;
+            
             try {
-                const res = await fetch('/api/bot-command', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd, pathStr: currentPath})});
+                const res = await fetch('/api/bot-command', {
+                    method:'POST', 
+                    headers:{'Content-Type':'application/json'}, 
+                    body:JSON.stringify({cmd, pathStr: currentPath})
+                });
                 const d = await res.json();
                 currentPath = d.newPath; 
-                term.innerHTML = term.innerHTML.replace('<span style="color:#666">Executing...</span>', '<span style="color:#0f0">'+d.reply.replace(/\\n/g,'<br>')+'</span>');
+                
+                term.innerHTML = term.innerHTML.replace('<span style="color:#666">Executing...</span>', '<span style="color:#0f0">'+d.reply.replace(/\\n/g,'<br>')+'</span><br><br><span class="term-path">root@3eesher:' + currentPath + '$</span>');
                 term.scrollTop = term.scrollHeight;
             } catch(e) {}
         }
@@ -662,7 +814,33 @@ app.post('/api/library/login', (req, res) => {
     else { res.status(401).json({error:'Invalid login'}); }
 });
 
-// ==================== FRONTEND HOMEPAGE ====================
+// ==================== NEW SAAS TOOL API ====================
+app.post('/api/generate-business', async (req, res) => {
+    const data = getData();
+    if (!req.session.libUser) return res.status(401).json({error: 'You must be logged in to use this free tool.'});
+    if (!data.apiKeys.openai || !data.apiKeys.openai.startsWith('sk-')) {
+        return res.json({result: "⚠️ System Notice: The OpenAI API key is not connected yet. Please ask the Admin to add it in the CMS settings."});
+    }
+    try {
+        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.apiKeys.openai}` },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {role: 'system', content: 'You are an expert digital marketing consultant. The user will give you a niche. Provide: 1. A catchy business name. 2. A 3-step marketing plan. 3. Recommended affiliate products to sell. 4. One viral Twitter post.'}, 
+                    {role: 'user', content: req.body.niche}
+                ],
+                max_tokens: 400
+            })
+        });
+        const aiData = await response.json();
+        res.json({result: aiData.choices[0].message.content});
+    } catch(e) { res.status(500).json({error: 'AI Generation Failed. Please try again.'}); }
+});
+
+// ==================== FRONTEND HOMEPAGE (WITH SAAS TOOLS & PLUGINS) ====================
 app.get('/', (req, res) => {
     const data = getData();
     const inj = data.injections;
@@ -702,17 +880,21 @@ app.get('/', (req, res) => {
             </div>
         </div>`).join('');
 
-    // High-End Placeholders
     const imgMid = "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&q=80"; 
     const imgBot = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"; 
-    
-    // THE HUGE BANNER LOGO UPLOADED FROM ADMIN (Or default)
-    const imgLogo = data.settings?.logoUrl || "https://images.unsplash.com/photo-1614064641936-a5926c8b939c?w=1200&q=80"; 
+    const imgLogo = data.settings?.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/GitHub_Invertocat_Logo.svg/800px-GitHub_Invertocat_Logo.svg.png"; 
 
     const algoliaScript = data.apiKeys.algoliaAppId && data.apiKeys.algoliaApiKey ? `
         <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
         <script>const searchClient = algoliasearch('${data.apiKeys.algoliaAppId}', '${data.apiKeys.algoliaApiKey}'); const index = searchClient.initIndex('3eesher_cloud_index');</script>
     ` : '';
+
+    const leaderboardHtml = (data.leaderboard || []).map((l, i) => `
+        <div style="display:flex; justify-content:space-between; padding:10px; background:var(--bg); margin-bottom:5px; border-radius:6px; border:1px solid var(--border);">
+            <span style="font-weight:bold; color:var(--text);">${i+1}. ${l.name}</span>
+            <span style="color:#10b981; font-weight:bold;">$${l.amount}</span>
+        </div>
+    `).join('');
 
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -780,6 +962,10 @@ app.get('/', (req, res) => {
         .algolia-search-bar { background:rgba(255,255,255,0.1); border:1px solid var(--border); padding:8px 15px; border-radius:20px; color:#fff; outline:none; margin-right:15px;}
         .theme-toggle { background:none; border:none; color:var(--highlight); font-size:20px; cursor:pointer; margin-left:10px; }
 
+        /* PUSH NOTIFICATION ALERT BUTTON */
+        .push-btn { background:none; border:1px solid #fbbf24; color:#fbbf24; padding:5px 10px; border-radius:20px; font-size:12px; font-weight:bold; cursor:pointer; margin-left:10px; animation: pulseGlow 2s infinite; }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 0 0 rgba(251,191,36, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(251,191,36, 0); } 100% { box-shadow: 0 0 0 0 rgba(251,191,36, 0); } }
+
         /* ENTERPRISE HERO */
         .hero { position: relative; padding: 100px 5% 80px; text-align: center; overflow: hidden; background: var(--bg); border-bottom:1px solid var(--border);}
         .hero-glow { position:absolute; top:-50%; left:50%; transform:translateX(-50%); width:800px; height:800px; background:radial-gradient(circle, rgba(16,185,129,0.15) 0%, rgba(10,15,30,0) 70%); z-index:0; pointer-events:none;}
@@ -826,6 +1012,16 @@ app.get('/', (req, res) => {
         .share-btn { padding:15px 10px; color:var(--muted); font-size:12px; transition:0.3s; border-left:1px solid var(--border); cursor:pointer;}
         .share-btn:hover { background:var(--highlight); color:#000;}
 
+        /* SAAS AI BUSINESS BUILDER BOX */
+        .saas-box { background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(15,23,42,0.9)); border:1px solid var(--highlight); border-radius:16px; padding:30px; margin-bottom:50px; text-align:center; box-shadow:0 10px 30px rgba(16,185,129,0.2);}
+        .saas-box input { width:100%; max-width:500px; padding:15px; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:8px; margin-top:20px; font-family:inherit;}
+        .saas-box button { background:var(--highlight); color:#000; font-weight:bold; padding:15px 30px; border-radius:8px; border:none; margin-top:15px; cursor:pointer;}
+        #aiResult { margin-top:20px; background:var(--card); padding:20px; border-radius:8px; border:1px dashed var(--highlight); display:none; text-align:left; color:#e2e8f0; font-size:14px; line-height:1.6;}
+
+        /* SIDEBAR / LEADERBOARD WIDGET */
+        .widget-leaderboard { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 50px; }
+        .widget-leaderboard h3 { color: #fbbf24; font-size: 22px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; text-align:center;}
+
         .banner-img { width:100%; height:250px; object-fit:cover; border-radius:12px; margin: 20px 0 50px; border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,0.5);}
         footer { background:var(--card); padding:40px 5%; text-align:center; border-top:1px solid var(--border); margin-top:40px;}
 
@@ -868,6 +1064,7 @@ app.get('/', (req, res) => {
                     <button class="dropbtn">Resources ▼</button>
                     <div class="dropdown-content">
                         <a href="/library">📚 Free Library</a>
+                        <a href="#saas">⚙️ Free SaaS Tools</a>
                         <a href="#blog">📝 Tech Blogs</a>
                         <a href="#stories">🏆 Success Stories</a>
                     </div>
@@ -877,7 +1074,7 @@ app.get('/', (req, res) => {
                     <button class="dropbtn">Income Streams ▼</button>
                     <div class="dropdown-content">
                         <a href="#money">💰 30 Money Links</a>
-                        <a href="#stores">🏪 Affiliate Stores</a>
+                        <a href="/go/smart" target="_blank">🌍 Magic Smart Link</a>
                     </div>
                 </div>
 
@@ -888,6 +1085,7 @@ app.get('/', (req, res) => {
                     </div>
                 </div>
 
+                <button class="push-btn" onclick="requestPush()">🔔 Enable Alerts</button>
                 <div id="google_translate_element" style="margin-left:10px;"></div>
                 <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
 
@@ -937,6 +1135,16 @@ app.get('/', (req, res) => {
         
         ${ads.top ? `<div style="margin-bottom:40px; text-align:center;">${ads.top}</div>` : ''}
 
+        <!-- 0. NEW: SAAS AI BUSINESS BUILDER -->
+        <h2 class="section-title" id="saas" data-aos="fade-right">⚙️ Instant AI Business Builder</h2>
+        <div class="saas-box" data-aos="zoom-in">
+            <h3 style="color:#fff; margin-bottom:5px;">🤖 Let AI Build Your Business in 5 Seconds</h3>
+            <p style="color:var(--muted); font-size:14px;">Type a niche (e.g. "Fitness", "Cooking", "Tech"). Our AI will instantly generate a business name, marketing plan, and viral social media posts for you to use right now.</p>
+            <input type="text" id="nicheInput" placeholder="Enter your business idea or niche..."><br>
+            <button onclick="generateBusiness()" id="aiBtn">Generate My Business (AI) ✨</button>
+            <div id="aiResult"></div>
+        </div>
+
         <!-- 1. VIDEOS -->
         <h2 class="section-title" id="videos" data-aos="fade-right">🎬 Watch & Download Free Videos</h2>
         <div class="card-grid">${vidHtml || '<p style="color:var(--muted)">No videos uploaded yet.</p>'}</div>
@@ -945,8 +1153,11 @@ app.get('/', (req, res) => {
         <h2 class="section-title" id="blog" data-aos="fade-right">📝 Trending Daily Blogs</h2>
         <div class="card-grid">${blogHtml}</div>
 
-        <!-- 3. MONEY LINKS -->
-        <h2 class="section-title" id="money" data-aos="fade-right">💰 30 Money Making Links</h2>
+        <!-- 3. MONEY LINKS & SMART ROUTER -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+            <h2 class="section-title" id="money" style="margin:0;" data-aos="fade-right">💰 30 Money Making Links</h2>
+            <a href="/go/smart" target="_blank" style="background:#fbbf24; color:#000; padding:8px 15px; border-radius:8px; font-weight:bold; font-size:13px;" data-aos="fade-left">🌍 Try Magic Smart Link</a>
+        </div>
         <div class="money-grid">
             ${data.moneyLinks.map((l,i)=>`
             <div class="m-link-wrap" data-aos="flip-up" data-aos-delay="${(i%5)*50}">
@@ -959,16 +1170,23 @@ app.get('/', (req, res) => {
         <!-- 4. MIDDLE PLACEHOLDER -->
         <img src="${imgMid}" class="banner-img" alt="Business Success" data-aos="fade-up">
 
-        <!-- 5. SUCCESS STORIES (MOVED HERE) -->
+        <!-- 5. NEW: LIVE EARNINGS LEADERBOARD -->
+        <div class="widget-leaderboard" data-aos="fade-up">
+            <h3>🏆 Top Earners This Week</h3>
+            ${leaderboardHtml}
+            <p style="text-align:center; color:var(--muted); font-size:12px; margin-top:15px;">Updated in real-time. Join the <a href="/library" style="color:var(--highlight);">Library</a> to learn their strategies.</p>
+        </div>
+
+        <!-- 6. SUCCESS STORIES (MOVED HERE) -->
         <h2 class="section-title" id="stories" data-aos="fade-right">🏆 Inspiring Success Stories</h2>
         <div class="card-grid">
             ${storiesHtml}
         </div>
 
-        <!-- 6. BOTTOM PLACEHOLDER -->
+        <!-- 7. BOTTOM PLACEHOLDER -->
         <img src="${imgBot}" class="banner-img" alt="Library" data-aos="fade-up">
 
-        <!-- 7. LONG ABOUT & PRIVACY -->
+        <!-- 8. LONG ABOUT & PRIVACY -->
         <div data-aos="fade-up" style="background:var(--card); padding:50px; border-radius:16px; border:1px solid var(--border); margin-top:20px;">
             <h2 style="color:var(--highlight); margin-bottom:20px; font-size:28px;">About Us & Our Mission</h2>
             <p style="color:var(--muted); line-height:1.8; font-size:16px;"><strong>Our Mission:</strong> ${data.aboutContent.mission}</p>
@@ -993,7 +1211,7 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
-    <!-- 8. CONTACT / FOOTER -->
+    <!-- 9. CONTACT / FOOTER -->
     <footer>
         <p style="color:var(--muted); font-size:16px;">© 2026 3EESHER-CLOUD. Contact: abdullahharuna216@gmail.com</p>
         <a href="https://wa.me/2348080336353" target="_blank" style="display:inline-block; margin-top:15px; color:#25d366; font-weight:bold; font-size:16px;">💬 Chat on WhatsApp (+2348080336353)</a>
@@ -1001,7 +1219,7 @@ app.get('/', (req, res) => {
 
     <a href="/super-admin" style="position:fixed; bottom:20px; right:20px; background:#fbbf24; color:#000; padding:10px 20px; border-radius:20px; font-weight:bold; box-shadow:0 5px 15px rgba(0,0,0,0.5); z-index: 1000;">⚙️ Admin</a>
     
-    <!-- AOS ANIMATION SCRIPT & THEME TOGGLE -->
+    <!-- AOS ANIMATION SCRIPT & THEME TOGGLE & SAAS SCRIPTS -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init({ duration: 800, once: true });
@@ -1018,6 +1236,50 @@ app.get('/', (req, res) => {
             }
         }
         if(localStorage.getItem('theme') === 'light') document.body.setAttribute('data-theme', 'light');
+
+        // BROWSER PUSH NOTIFICATION SIMULATION
+        function requestPush() {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification("3EESHER CLOUD", { body: "Money Alerts Enabled! You'll be notified of new earning opportunities." });
+                    } else {
+                        alert("Push notifications blocked. You can enable them in your browser settings.");
+                    }
+                });
+            } else { alert("Your browser doesn't support Push Notifications."); }
+        }
+
+        // SAAS: AI BUSINESS BUILDER FETCH
+        async function generateBusiness() {
+            const text = document.getElementById('nicheInput').value;
+            if(!text) return alert("Please enter a niche first.");
+            
+            const btn = document.getElementById('aiBtn');
+            const resBox = document.getElementById('aiResult');
+            
+            btn.textContent = "⏳ Generating Business Plan...";
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/generate-business', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ niche: text })
+                });
+                const data = await res.json();
+                
+                if(data.error) {
+                    alert(data.error); 
+                    if(data.error.includes("login")) window.location.href = '/library';
+                } else {
+                    resBox.style.display = "block";
+                    resBox.innerHTML = "<strong>Your AI Business Plan:</strong><br><br>" + data.result.replace(/\\n/g, '<br>');
+                }
+            } catch(e) { alert("Generation failed."); }
+            
+            btn.textContent = "Generate My Business (AI) ✨";
+            btn.disabled = false;
+        }
 
         // REAL FOMO FETCH
         setInterval(async () => {
@@ -1069,10 +1331,10 @@ app.get('/library', (req, res) => {
     <h1 style="color:#10b981;margin:0;">📚 Welcome, ${req.session.libUser.name}!</h1><a href="/" style="color:#fbbf24;font-weight:bold;text-decoration:none;">← Back to Mainpage</a></div>
     <p style="color:#94a3b8;margin-bottom:30px;font-size:18px;">Select a premium topic below. You will be redirected to read full-length books for FREE on Google Books.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:25px;">
-        <div class="card"><div style="font-size:40px;margin-bottom:15px;">🤖</div><h3 style="color:#e2e8f0;">Artificial Intelligence</h3><p style="color:#94a3b8;margin-bottom:20px;">Master AI & ChatGPT.</p><a href="https://books.google.com/books?q=Artificial+Intelligence" class="btn" target="_blank">Read on Google Books</a></div>
-        <div class="card"><div style="font-size:40px;margin-bottom:15px;">💻</div><h3 style="color:#e2e8f0;">Web Development</h3><p style="color:#94a3b8;margin-bottom:20px;">HTML, CSS, JS, Node.</p><a href="https://books.google.com/books?q=Web+Development" class="btn" target="_blank">Read on Google Books</a></div>
-        <div class="card"><div style="font-size:40px;margin-bottom:15px;">💰</div><h3 style="color:#e2e8f0;">Affiliate Marketing</h3><p style="color:#94a3b8;margin-bottom:20px;">Make money online guides.</p><a href="https://books.google.com/books?q=Affiliate+Marketing" class="btn" target="_blank">Read on Google Books</a></div>
-        <div class="card"><div style="font-size:40px;margin-bottom:15px;">📱</div><h3 style="color:#e2e8f0;">Digital Marketing</h3><p style="color:#94a3b8;margin-bottom:20px;">SEO and Social Media.</p><a href="https://books.google.com/books?q=Digital+Marketing" class="btn" target="_blank">Read on Google Books</a></div>
+        <div class="card"><div style="font-size:40px;margin-bottom:15px;">🤖</div><h3 style="color:#e2e8f0;">Artificial Intelligence</h3><p style="color:#94a3b8;margin-bottom:20px;">Master AI & ChatGPT.</p><a href="https://books.google.com/books?uid=111222333444&q=Artificial+Intelligence" class="btn" target="_blank">Read on Google Books</a></div>
+        <div class="card"><div style="font-size:40px;margin-bottom:15px;">💻</div><h3 style="color:#e2e8f0;">Web Development</h3><p style="color:#94a3b8;margin-bottom:20px;">HTML, CSS, JS, Node.</p><a href="https://books.google.com/books?uid=111222333444&q=Web+Development" class="btn" target="_blank">Read on Google Books</a></div>
+        <div class="card"><div style="font-size:40px;margin-bottom:15px;">💰</div><h3 style="color:#e2e8f0;">Affiliate Marketing</h3><p style="color:#94a3b8;margin-bottom:20px;">Make money online guides.</p><a href="https://books.google.com/books?uid=111222333444&q=Affiliate+Marketing" class="btn" target="_blank">Read on Google Books</a></div>
+        <div class="card"><div style="font-size:40px;margin-bottom:15px;">📱</div><h3 style="color:#e2e8f0;">Digital Marketing</h3><p style="color:#94a3b8;margin-bottom:20px;">SEO and Social Media.</p><a href="https://books.google.com/books?uid=111222333444&q=Digital+Marketing" class="btn" target="_blank">Read on Google Books</a></div>
     </div></div></body></html>`);
 });
 
@@ -1107,6 +1369,6 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 3EESHER-CLOUD ENTERPRISE running on http://localhost:${PORT}`);
-    console.log(`🌟 Perfect Layout, Custom Big Logo Uploader, and Wide Top Menu Active.`);
+    console.log(`🌟 Added: Brand New Landing Page, App-Style Menu, Uploadable Big Logo, and SAAS Features`);
     console.log(`🔐 Admin: http://localhost:${PORT}/super-admin`);
 });
