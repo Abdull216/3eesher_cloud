@@ -70,6 +70,7 @@ function saveData(data) {
 
 function getDefaultData() {
     return {
+        settings: { logoUrl: 'https://cdn-icons-png.flaticon.com/512/3208/3208945.png' }, // NEW: Dynamic Logo
         adminAuth: { user: 'admin216', hash: bcrypt.hashSync('admin1234', 10) },
         earnings: { total: 0, today: 0, month: 0, transactions: [] },
         moneyLinks: [
@@ -129,8 +130,8 @@ function getDefaultData() {
         ],
         successStories: [
             { id: 1, name: 'Ahmed from Kano', age: 45, before: 'Civil servant earning N80,000/month', after: '$2,500/month online', story: 'Ahmed was a civil servant struggling to pay school fees. He started with Fiverr doing logo design, making just $47 in his first month. He didn\'t give up. He learned Canva, took online courses, and expanded to Upwork. By month 3, he was making $1,200. He added ClickBank affiliate marketing and reached $1,800 by month 6. Today, he earns $2,500/month, owns a house, a car, and his children are in private school. His secret: consistency and never giving up.', avatar: '👨‍💼', color: '#10b981' },
-            { id: 2, name: 'Fatima from Cairo', age: 22, before: 'University student with no income', after: '$1,800/month freelancing', story: 'Fatima was an engineering student watching her friends travel while she couldn\'t afford a new phone. She started with data entry on Upwork, making $87 in her first month from 15 small tasks. She learned social media management and by month 3 had 3 retainer clients at $450/month. She improved her English, targeted US clients, and by month 6 was making $1,200. She added Canva templates on Etsy and started teaching other students, reaching $1,800/month. Today she pays her own tuition and supports her family.', avatar: '👩‍🎓', color: '#f59e0b' },
-            { id: 3, name: 'TICHER (Founder)', age: 35, before: 'Failed for 2 years', after: 'Built 3EESHER-CLOUD', story: 'TICHER failed for 2 years trying to copy others. He tried everything - dropshipping, crypto, forex - and lost money. Then he discovered the formula: Solve REAL problems for REAL people. He created this platform to help Nigerians make money online. Today he earns from multiple streams: affiliate marketing, ad revenue, consultations, and digital products. His mission: help 10,000 people achieve financial freedom.', avatar: '🚀', color: '#fbbf24' }
+            { id: 2, name: 'Fatima from Cairo', age: 22, before: 'University student with no income', after: '$1,800/month freelancing', story: 'Fatima was an engineering student watching her friends travel while she couldn\'t afford a new phone. She started with data entry on Upwork, making $87 in her first month. She learned social media management and by month 3 had 3 retainer clients. She improved her English, targeted US clients, and by month 6 was making $1,200. Today she pays her own tuition and supports her family.', avatar: '👩‍🎓', color: '#f59e0b' },
+            { id: 3, name: 'TICHER (Founder)', age: 35, before: 'Failed for 2 years', after: 'Built 3EESHER-CLOUD', story: 'TICHER failed for 2 years trying to copy others. He tried everything - dropshipping, crypto, forex - and lost money. Then he discovered the formula: Solve REAL problems for REAL people. He created this platform to help Nigerians make money online. Today he earns from multiple streams: affiliate marketing, ad revenue, consultations, and digital products.', avatar: '🚀', color: '#fbbf24' }
         ],
         blogPosts: [],
         injections: { head: '', bodyStart: '', bodyEnd: '', css: '', js: '', customHtml: '' },
@@ -141,24 +142,13 @@ function getDefaultData() {
         paymentKeys: { bankAccount: '', stripeKey: '', paypalEmail: '', binancePay: '' },
         apiKeys: { telegram: '', twitter: '', facebook: '', instagram: '', github: '', shodan: '', youtubeKey: '', youtubeChannelId: '', mailchimpKey: '', mailchimpListId: '', algoliaAppId: '', algoliaApiKey: '', semrushCode: '' },
         aboutContent: {
-            mission: 'To democratize online income and provide accessible tools that transform beginners into successful digital entrepreneurs. We believe financial freedom should be available to everyone, regardless of their background, education, or location. Our platform combines cutting-edge technology with proven money-making strategies to help you achieve your goals.',
-            vision: 'A world where anyone can build sustainable online income streams without needing special skills or large investments. We envision a future where geographical boundaries don\'t limit economic opportunity, and where anyone with internet access can create a better life for themselves and their families.',
-            history: '3EESHER-CLOUD started in 2023 as a personal project by TICHER, who successfully built multiple six-figure online businesses after years of failure. Recognizing the lack of accessible, practical information for beginners, TICHER created this platform to share proven strategies and tools that actually work. What began as a simple blog has grown into a comprehensive hub serving thousands of aspiring entrepreneurs across Nigeria, Africa, the Middle East, and beyond. Our community has collectively earned over $2.5 million using the methods and links shared on this platform. Today, we have over 10,000 active members from 47 countries, and we\'re just getting started.',
-            values: ['Accessibility', 'Practicality', 'Transparency', 'Community', 'Innovation'],
-            team: 'Our team consists of successful digital entrepreneurs, content creators, and tech experts who are passionate about helping others succeed online. Each member brings unique expertise in areas like affiliate marketing, web development, content creation, and business strategy. We\'re not just teachers – we\'re practitioners who actively build and scale online businesses, testing every method before recommending it to our community.',
-            community: 'Join thousands of successful earners from Nigeria, Ghana, Egypt, Kenya, South Africa, and beyond. Our community members share strategies, celebrate wins, and support each other\'s growth daily. In our Telegram and WhatsApp groups, members collaborate, share opportunities, and help each other overcome challenges. The 3EESHER community is more than just a platform – it\'s a family of like-minded individuals working toward financial freedom.'
+            mission: 'To democratize online income and provide accessible tools that transform beginners into successful digital entrepreneurs. We believe financial freedom should be available to everyone, regardless of their background, education, or location.',
+            history: '3EESHER-CLOUD started in 2023 as a personal project by TICHER, who successfully built multiple six-figure online businesses after years of failure. Our community has collectively earned over $2.5 million using the methods and links shared on this platform.',
+            community: 'Join thousands of successful earners from Nigeria, Ghana, Egypt, Kenya, South Africa, and beyond. In our Telegram and WhatsApp groups, members collaborate, share opportunities, and help each other overcome challenges.'
         },
         privacyContent: {
-            lastUpdated: 'March 2026',
-            introduction: '3EESHER-CLOUD ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the site.',
-            dataCollected: 'We collect information you provide directly to us, such as when you contact us via email, subscribe to our newsletter, or participate in community features. This may include your name, email address, and any content you submit. We also automatically collect certain information when you visit our website, including your IP address, browser type, operating system, referral URLs, and pages viewed. This information helps us understand how visitors use our site and improve your experience.',
-            dataUsage: 'We use the information we collect to: provide, operate, and maintain our services; improve, personalize, and expand our services; communicate with you about updates, promotions, and events; monitor and analyze usage patterns and trends; protect against unauthorized access and illegal activities; and comply with legal obligations. We do not sell your personal information to third parties.',
-            cookies: 'We use cookies and similar tracking technologies to track activity on our website and hold certain information. Cookies are files with small amount of data which may include an anonymous unique identifier. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. However, if you do not accept cookies, you may not be able to use some portions of our service.',
-            thirdParty: 'We may employ third-party companies and individuals to facilitate our services, provide the service on our behalf, perform service-related services, or assist us in analyzing how our service is used. These third parties have access to your personal information only to perform these tasks on our behalf and are obligated not to disclose or use it for any other purpose.',
-            security: 'We implement appropriate technical and organizational security measures to protect your personal information. However, no method of transmission over the Internet or electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your personal information, we cannot guarantee its absolute security.',
-            rights: 'You have the right to access, correct, update, or request deletion of your personal information. You may also object to processing of your personal information, ask us to restrict processing of your personal information, or request portability of your personal information. To exercise these rights, please contact us using the information below. We will respond to all legitimate requests within 30 days.',
-            children: 'Our services are not intended for individuals under the age of 18. We do not knowingly collect personal information from children under 18. If you are a parent or guardian and you are aware that your child has provided us with personal information, please contact us so that we can take necessary actions.',
-            changes: 'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page with an updated effective date. In some cases, we may provide additional notice (such as adding a statement to our homepage or sending you an email notification). You are advised to review this Privacy Policy periodically for any changes.'
+            introduction: '3EESHER-CLOUD ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services. Please read this privacy policy carefully.',
+            dataCollected: 'We collect information you provide directly to us, such as when you contact us via email, subscribe to our newsletter, or participate in community features. This may include your name, email address, and any content you submit. We also automatically collect certain information when you visit our website, including your IP address and browser type.'
         }
     };
 }
@@ -206,7 +196,6 @@ async function runAutoBlogger() {
                 image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800', 
                 date: new Date().toISOString(), views: 0, author: '3EESHER Auto-Bot'
             });
-            // We keep blogs forever unless manually deleted by admin.
             saveData(data);
             console.log(`✅ Auto-Blogger published: ${item.title}`);
         }
@@ -319,6 +308,16 @@ app.get('/admin', (req, res) => res.redirect('/super-admin'));
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
 
 // ==================== SUPER ADMIN CMS WORKERS ====================
+
+app.post('/admin/upload-logo', checkAdmin, upload.single('logo'), (req, res) => {
+    if (!req.file) return res.send('<script>alert("No file selected!"); window.location.href="/super-admin";</script>');
+    const data = getData();
+    if (!data.settings) data.settings = {};
+    data.settings.logoUrl = `/uploads/${req.file.filename}`;
+    saveData(data);
+    res.send('<script>alert("🎨 Logo Updated Successfully!"); window.location.href="/super-admin";</script>');
+});
+
 app.post('/admin/create-blog', checkAdmin, upload.single('image'), (req, res) => {
     const data = getData();
     data.blogPosts.unshift({
@@ -482,6 +481,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
     <div class="sidebar">
         <h2>☁️ CMS ADMIN</h2>
         <a onclick="show('dash')" class="active">💻 Shell Terminal (20 Cmds)</a>
+        <a onclick="show('branding')">🎨 Site Branding (Logo)</a>
         <a onclick="show('blog')">📝 Write Blog</a>
         <a onclick="show('video')">🎬 Upload Video</a>
         <a onclick="show('stores')">🏪 Affiliate Stores</a>
@@ -502,6 +502,17 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                 <input type="text" id="botCmd" placeholder="Type a number 1-20 or command..." onkeypress="if(event.key==='Enter')sendCmd()">
                 <button onclick="sendCmd()">EXECUTE</button>
             </div>
+        </div>
+
+        <div id="branding" class="panel">
+            <h3>🎨 Site Branding & Logo</h3>
+            <p style="color:#94a3b8;margin-bottom:20px;">Upload a massive, beautiful logo to be displayed at the top of your landing page.</p>
+            <form action="/admin/upload-logo" method="POST" enctype="multipart/form-data">
+                <input type="file" name="logo" accept="image/*" required>
+                <button type="submit">Update Main Logo</button>
+            </form>
+            <h4 style="margin-top:30px;color:#10b981;">Current Logo Preview:</h4>
+            <img src="${data.settings?.logoUrl || ''}" style="max-width:200px; margin-top:10px; border-radius:10px; border:2px solid #334155; padding:10px; background:#0a0f1e;">
         </div>
 
         <div id="blog" class="panel">
@@ -640,7 +651,7 @@ app.post('/api/library/login', (req, res) => {
     else { res.status(401).json({error:'Invalid login'}); }
 });
 
-// ==================== FRONTEND HOMEPAGE (WITH ALL PLUGINS & WIDGETS) ====================
+// ==================== FRONTEND HOMEPAGE (ENTERPRISE LAYOUT) ====================
 app.get('/', (req, res) => {
     const data = getData();
     const inj = data.injections;
@@ -680,8 +691,13 @@ app.get('/', (req, res) => {
             </div>
         </div>`).join('');
 
+    // 3 BEAUTIFUL PLACEHOLDER IMAGES
     const imgTop = "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200&q=80"; 
-    const imgLogo = "https://cdn-icons-png.flaticon.com/512/3208/3208945.png"; 
+    const imgMid = "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&q=80"; 
+    const imgBot = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"; 
+    
+    // Uploaded Logo or Default
+    const imgLogo = data.settings?.logoUrl || "https://cdn-icons-png.flaticon.com/512/3208/3208945.png"; 
 
     const algoliaScript = data.apiKeys.algoliaAppId && data.apiKeys.algoliaApiKey ? `
         <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
@@ -736,25 +752,26 @@ app.get('/', (req, res) => {
         .ticker-item { display: inline-block; padding: 0 30px; }
         @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
 
-        /* FLOATING GLASS SAAS NAV */
-        .nav-container { position:sticky; top:20px; z-index:100; padding:0 5%; pointer-events:none; }
-        header { pointer-events:auto; background:rgba(15,23,42,0.85); border:1px solid rgba(16,185,129,0.3); padding:10px 30px; border-radius:50px; backdrop-filter:blur(15px); display:flex; justify-content:space-between; align-items:center; max-width:1300px; margin:0 auto; box-shadow:0 10px 40px rgba(0,0,0,0.5);}
-        .logo{font-size:22px; font-weight:900; background:linear-gradient(to right, var(--highlight), #fbbf24); -webkit-background-clip:text; color:transparent; letter-spacing:-1px;}
+        /* CLASSIC FULL-WIDTH TOP HEADER */
+        .top-header { background:rgba(15,23,42,0.95); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; backdrop-filter:blur(15px); }
+        .header-inner { max-width:1400px; margin:0 auto; padding:15px 5%; display:flex; justify-content:space-between; align-items:center; }
+        .logo{font-size:24px; font-weight:900; background:linear-gradient(to right, var(--highlight), #fbbf24); -webkit-background-clip:text; color:transparent; letter-spacing:-1px;}
         
         /* MEGA MENU DROPDOWNS */
         .nav-links { display:flex; align-items:center; gap:20px; }
         .dropdown { position:relative; display:inline-block; }
-        .dropbtn { color:var(--text); font-weight:600; font-size:14px; background:none; border:none; cursor:pointer; padding:10px; }
-        .dropdown-content { display:none; position:absolute; background-color:var(--card); min-width:200px; box-shadow:0px 8px 16px 0px rgba(0,0,0,0.5); z-index:1; border-radius:12px; border:1px solid var(--border); top:100%; left:0; overflow:hidden;}
-        .dropdown-content a { color:var(--text); padding:12px 16px; text-decoration:none; display:block; font-size:13px; transition:0.2s;}
+        .dropbtn { color:var(--text); font-weight:600; font-size:15px; background:none; border:none; cursor:pointer; padding:10px; }
+        .dropdown-content { display:none; position:absolute; background-color:var(--card); min-width:200px; box-shadow:0px 8px 20px 0px rgba(0,0,0,0.6); z-index:1; border-radius:12px; border:1px solid var(--border); top:100%; left:0; overflow:hidden;}
+        .dropdown-content a { color:var(--text); padding:12px 16px; text-decoration:none; display:block; font-size:14px; transition:0.2s;}
         .dropdown-content a:hover { background-color:rgba(16,185,129,0.1); color:var(--highlight); }
         .dropdown:hover .dropdown-content { display:block; }
 
-        .nav-links a.cta{background:var(--highlight); color:#000; padding:10px 20px; border-radius:30px; box-shadow:0 4px 15px rgba(16,185,129,0.4); font-weight:bold;}
+        .nav-links a.cta{background:var(--highlight); color:#000; padding:10px 20px; border-radius:8px; box-shadow:0 4px 15px rgba(16,185,129,0.4); font-weight:bold; font-size:14px;}
+        .algolia-search-bar { background:rgba(255,255,255,0.1); border:1px solid var(--border); padding:8px 15px; border-radius:20px; color:#fff; outline:none; margin-right:15px;}
         .theme-toggle { background:none; border:none; color:var(--highlight); font-size:20px; cursor:pointer; margin-left:10px; }
 
-        /* NEW REDESIGNED ENTERPRISE HERO */
-        .hero { position: relative; padding: 140px 5% 80px; text-align: center; overflow: hidden; background: var(--bg); border-bottom:1px solid var(--border);}
+        /* ENTERPRISE HERO */
+        .hero { position: relative; padding: 100px 5% 80px; text-align: center; overflow: hidden; background: linear-gradient(180deg, rgba(10,15,30,0.85) 0%, #0f172a 100%), url('${imgTop}') center/cover; border-bottom:1px solid var(--border);}
         .hero-glow { position:absolute; top:-50%; left:50%; transform:translateX(-50%); width:800px; height:800px; background:radial-gradient(circle, rgba(16,185,129,0.15) 0%, rgba(10,15,30,0) 70%); z-index:0; pointer-events:none;}
         .clouds { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; opacity: 0.3; }
         .cloud { position: absolute; background: url('https://cdn.pixabay.com/photo/2014/04/10/11/24/clouds-320576_960_720.png') no-repeat center; background-size: contain; animation: floatCloud linear infinite; }
@@ -763,34 +780,22 @@ app.get('/', (req, res) => {
         @keyframes floatCloud { 0% { transform: translateX(0); } 100% { transform: translateX(100vw) translateX(600px); } }
         
         .hero-content { position:relative; z-index:2; max-width:900px; margin:0 auto; background:rgba(15,23,42,0.6); padding:40px; border-radius:20px; border:1px solid rgba(16,185,129,0.3); backdrop-filter:blur(10px);}
-        .main-logo-img { width: 100px; height: 100px; margin-bottom: 10px; filter: drop-shadow(0 10px 20px rgba(16,185,129,0.5)); animation: floatLogo 4s ease-in-out infinite; }
+        .main-logo-img { width: 140px; height: 140px; border-radius:20px; margin-bottom: 15px; filter: drop-shadow(0 10px 20px rgba(16,185,129,0.5)); animation: floatLogo 4s ease-in-out infinite; object-fit:cover; background:var(--bg);}
         @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
         
-        .trust-badges { display:inline-flex; align-items:center; gap:10px; background:var(--card); padding:8px 20px; border-radius:30px; border:1px solid var(--border); margin-bottom:20px; }
-        .avatar-group { display:flex; margin-right:5px; }
-        .avatar-group div { width:28px; height:28px; border-radius:50%; background:var(--highlight); border:2px solid var(--bg); margin-left:-10px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; color:#000; }
-        .avatar-group div:first-child { margin-left:0; background:#fbbf24; }
-
         .massive-logo { font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 900; background: linear-gradient(135deg, #fff 20%, var(--highlight) 60%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; letter-spacing: -2px; }
         .hero-subtitle { color: #fbbf24; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
         .hero-desc { color:var(--text); font-size:16px; line-height: 1.6; text-align:left; margin-bottom:30px; background:rgba(0,0,0,0.3); padding:20px; border-radius:10px;}
         
-        .hero-ctas { display:flex; gap:15px; justify-content:center; flex-wrap:wrap; margin-bottom: 20px; }
+        .hero-ctas { display:flex; gap:15px; justify-content:center; flex-wrap:wrap; margin-bottom: 15px; }
         .hero-btn { background:var(--highlight); color:#000; padding:16px 30px; border-radius:30px; font-weight:900; font-size:16px; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
         .hero-btn:hover{transform:translateY(-3px); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.6);}
         .hero-btn-outline { background:transparent; color:var(--highlight); border:2px solid var(--highlight); padding:16px 30px; border-radius:30px; font-weight:900; font-size:16px; display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
         .hero-btn-outline:hover { background:rgba(16,185,129,0.1); transform:translateY(-3px);}
+        .sub-cta { display:block; color:var(--highlight); font-size:13px; font-weight:bold; letter-spacing:1px;}
 
-        /* WHY 3EESHER FEATURE GRID */
-        .feature-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:20px; max-width:1200px; margin:40px auto 0; position:relative; z-index:2; text-align:left;}
-        .feat-card { background:var(--card); border:1px solid var(--border); padding:30px; border-radius:16px; transition:0.3s; }
-        .feat-card:hover { border-color:var(--highlight); transform:translateY(-5px); }
-        .feat-icon { font-size:30px; margin-bottom:15px; display:inline-block; padding:15px; background:rgba(16,185,129,0.1); border-radius:12px; }
-        .feat-card h3 { color:var(--text); font-size:18px; margin-bottom:10px; }
-        .feat-card p { color:var(--muted); font-size:14px; line-height:1.6; }
-
-        .layout-wrapper { display: grid; grid-template-columns: 1fr 340px; gap: 40px; max-width: 1400px; margin: 40px auto; padding: 0 5%; }
-        .section-title{color:#fbbf24; font-size:24px; margin:0 0 20px; border-bottom:2px solid var(--highlight); padding-bottom:10px; display:inline-block;}
+        .layout-wrapper { max-width: 1400px; margin: 40px auto; padding: 0 5%; }
+        .section-title{color:#fbbf24; font-size:26px; margin:0 0 25px; border-bottom:2px solid var(--highlight); padding-bottom:10px; display:inline-block;}
         
         .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom:50px;}
         .card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
@@ -806,21 +811,16 @@ app.get('/', (req, res) => {
         .m-link-wrap:hover { transform:translateX(5px); border-left-color:#fbbf24; background:var(--card);}
         .m-link { flex:1; padding:15px; color:var(--text); font-size:14px; font-weight:600; display:flex; align-items:center; gap:10px;}
         
-        /* VIRAL SHARE BUTTONS */
         .share-btn { padding:15px 10px; color:var(--muted); font-size:12px; transition:0.3s; border-left:1px solid var(--border); cursor:pointer;}
         .share-btn:hover { background:var(--highlight); color:#000;}
 
-        .sidebar { position: sticky; top: 120px; height: fit-content; }
-        .widget { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 25px; }
-        .widget h3 { color: var(--highlight); font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .store-item { display:block; background:var(--bg); padding:12px; border-radius:6px; border:1px solid var(--border); margin-bottom:8px; color:#fbbf24; font-size:13px; font-weight:bold;}
-
+        .banner-img { width:100%; height:250px; object-fit:cover; border-radius:12px; margin: 20px 0 50px; border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,0.5);}
         footer { background:var(--card); padding:40px 5%; text-align:center; border-top:1px solid var(--border); margin-top:40px;}
 
         .fomo-popup { position:fixed; bottom:-100px; left:20px; background:var(--card); border:1px solid var(--highlight); padding:15px; border-radius:10px; display:flex; gap:15px; align-items:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); transition:0.5s; z-index:9999; }
         .fomo-popup.show { bottom:20px; }
 
-        @media(max-width: 992px) { .layout-wrapper { grid-template-columns: 1fr; } .sidebar { position: static; } .nav-links { display: none; } }
+        @media(max-width: 992px) { .nav-links { display: none; } }
         ${inj.css || ''}
     </style>
 </head>
@@ -842,14 +842,16 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
-    <!-- SAAS MEGA MENU -->
-    <div class="nav-container">
-        <header>
+    <!-- CLASSIC TOP HEADER -->
+    <header class="top-header">
+        <div class="header-inner">
             <div style="display:flex; align-items:center;">
                 <a href="/" class="logo">☁️ 3EESHER</a>
             </div>
             
             <div class="nav-links">
+                <input type="text" class="algolia-search-bar" placeholder="Algolia Search...">
+                
                 <div class="dropdown">
                     <button class="dropbtn">Resources ▼</button>
                     <div class="dropdown-content">
@@ -863,7 +865,6 @@ app.get('/', (req, res) => {
                     <button class="dropbtn">Income Streams ▼</button>
                     <div class="dropdown-content">
                         <a href="#money">💰 30 Money Links</a>
-                        <a href="#stores">🏪 Affiliate Stores</a>
                     </div>
                 </div>
 
@@ -874,15 +875,13 @@ app.get('/', (req, res) => {
                     </div>
                 </div>
 
-                <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
                 <div id="google_translate_element" style="margin-left:10px;"></div>
+                <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
 
-                <div style="display:inline-block; text-align:center; margin-left:20px;">
-                    <a href="/library" class="cta">✨ Free Sign Up</a>
-                </div>
+                <a href="/library" class="cta">✨ Free Sign Up</a>
             </div>
-        </header>
-    </div>
+        </div>
+    </header>
 
     <div class="hero">
         <div class="hero-glow"></div>
@@ -891,26 +890,19 @@ app.get('/', (req, res) => {
         </div>
         
         <div class="hero-content" data-aos="fade-up">
+            <!-- BIG PICTURE LOGO UPLOADED FROM ADMIN -->
             <img src="${imgLogo}" alt="3EESHER Logo" class="main-logo-img">
-            
-            <div class="trust-badges" data-aos="fade-down" data-aos-delay="200">
-                <div class="avatar-group">
-                    <div>👨‍💼</div><div>👩‍🎓</div><div>🚀</div>
-                </div>
-                <span style="font-size:13px; font-weight:bold; color:var(--text);">⭐️ Trusted by 10,492+ Africans</span>
-            </div>
 
             <h1 class="massive-logo">3EESHER.CLOUD</h1>
-            <h2 class="hero-subtitle">The Ultimate Hub for Digital Wealth & Skills</h2>
             
             <div class="hero-desc">
                 <h3 style="color:var(--highlight); margin-bottom:5px;">What is this website about?</h3>
-                <p style="margin-bottom:15px;">We provide a centralized platform for Africans and global users to access premium digital education and instant money-making tools.</p>
+                <p>We provide a centralized platform for Africans and global users to access premium digital education and instant money-making tools.</p>
                 
-                <h3 style="color:var(--highlight); margin-bottom:5px;">Why did we create it?</h3>
-                <p style="margin-bottom:15px;">Because financial freedom shouldn't be locked behind expensive paywalls. We built this to solve real problems for real people.</p>
+                <h3 style="color:var(--highlight); margin-bottom:5px;">Why did we create it & Who is it for?</h3>
+                <p>Because financial freedom shouldn't be locked behind expensive paywalls. We built this for ambitious freelancers and digital entrepreneurs ready to build sustainable wealth.</p>
                 
-                <h3 style="color:var(--highlight); margin-bottom:5px;">Benefits for you:</h3>
+                <h3 style="color:var(--highlight); margin-bottom:5px;">How helpful is it?</h3>
                 <ul style="margin-left:20px; color:#fbbf24;">
                     <li>Free Premium Google Books Library</li>
                     <li>30 Verified Affiliate Income Links</li>
@@ -919,109 +911,65 @@ app.get('/', (req, res) => {
             </div>
 
             <div class="hero-ctas">
-                <a href="/library" class="hero-btn">📚 Access Free Google Books</a>
+                <a href="/library" class="hero-btn">📚 Sign Up For Free Library Book</a>
                 <a href="#money" class="hero-btn-outline">💰 View Earning Portals</a>
                 <a href="#videos" class="hero-btn-outline" style="border-color:#fbbf24; color:#fbbf24;">🎬 Watch Videos</a>
             </div>
-            <span class="sub-cta" style="margin-top:10px; display:block; color:var(--highlight); font-weight:bold;">✨ 100% Free. Register in 10 seconds.</span>
-        </div>
-
-        <!-- NEW: WHY 3EESHER GRID -->
-        <div class="feature-cards">
-            <div class="feat-card" data-aos="fade-up" data-aos-delay="100">
-                <div class="feat-icon">🎯</div>
-                <h3>What is it?</h3>
-                <p>A fully autonomous money-making platform and premium digital library hosting $10,000+ worth of knowledge.</p>
-            </div>
-            <div class="feat-card" data-aos="fade-up" data-aos-delay="200">
-                <div class="feat-icon">🌍</div>
-                <h3>Who is it for?</h3>
-                <p>Ambitious Africans, freelancers, and digital entrepreneurs ready to build sustainable wealth.</p>
-            </div>
-            <div class="feat-card" data-aos="fade-up" data-aos-delay="300">
-                <div class="feat-icon">💡</div>
-                <h3>Why use it?</h3>
-                <p>Stop paying for gatekept info. Get direct access to global earning portals and the skills needed to monetize them.</p>
-            </div>
-            <div class="feat-card" data-aos="fade-up" data-aos-delay="400">
-                <div class="feat-icon">⚡</div>
-                <h3>How it helps</h3>
-                <p>We connect you directly to Jumia, Fiverr, and ClickBank. Our auto-bot provides daily updates to follow.</p>
-            </div>
+            <span class="sub-cta">✨ 100% Free. Register in 10 seconds.</span>
         </div>
     </div>
 
+    <!-- MAIN LAYOUT: EXACT ORDER REQUESTED -->
     <div class="layout-wrapper">
-        <div class="main-content">
-            ${ads.top ? `<div style="margin-bottom:40px; text-align:center;">${ads.top}</div>` : ''}
+        
+        ${ads.top ? `<div style="margin-bottom:40px; text-align:center;">${ads.top}</div>` : ''}
 
-            <!-- 🎵 MUSIC & VIDEOS SECTION -->
-            <h2 class="section-title" id="videos" data-aos="fade-right">🎵 Music Stream & Videos</h2>
-            <div class="card-grid">${vidHtml || '<p style="color:var(--muted)">No videos uploaded yet.</p>'}</div>
+        <!-- 1. VIDEOS -->
+        <h2 class="section-title" id="videos" data-aos="fade-right">🎬 Watch & Download Free Videos</h2>
+        <div class="card-grid">${vidHtml || '<p style="color:var(--muted)">No videos uploaded yet.</p>'}</div>
 
-            <!-- SUCCESS STORIES RESTORED TO MAIN CONTENT -->
-            <h2 class="section-title" id="stories" data-aos="fade-right">🏆 Inspiring Success Stories</h2>
-            <div class="card-grid">
-                ${storiesHtml}
-            </div>
+        <!-- 2. BLOGS -->
+        <h2 class="section-title" id="blog" data-aos="fade-right">📝 Trending Daily Blogs</h2>
+        <div class="card-grid">${blogHtml}</div>
 
-            <h2 class="section-title" id="blog" data-aos="fade-right">📝 Trending Daily Blogs</h2>
-            <div class="card-grid">${blogHtml}</div>
-
-            <h2 class="section-title" id="money" data-aos="fade-right">💰 30 Money Making Links</h2>
-            <div class="money-grid">
-                ${data.moneyLinks.map((l,i)=>`
-                <div class="m-link-wrap" data-aos="flip-up" data-aos-delay="${(i%5)*50}">
-                    <a href="${l.url}" target="_blank" class="m-link">${l.icon} ${l.name}</a>
-                    <a href="https://api.whatsapp.com/send?text=Start earning on ${l.name} via 3EESHER.CLOUD: ${BASE_URL}" target="_blank" class="share-btn" title="Share to WhatsApp">💬</a>
-                    <a href="https://twitter.com/intent/tweet?text=Start earning on ${l.name} via 3EESHER.CLOUD&url=${BASE_URL}" target="_blank" class="share-btn" title="Share to Twitter">🐦</a>
-                </div>`).join('')}
-            </div>
-
-            <!-- FULL ABOUT & PRIVACY TEXT RESTORED -->
-            <div data-aos="fade-up" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border); margin-top:20px;">
-                <h2 style="color:var(--highlight); margin-bottom:20px;">About Us & Our Mission</h2>
-                <p style="color:var(--muted); line-height:1.8;"><strong>Our Mission:</strong> ${data.aboutContent.mission}</p>
-                <p style="color:var(--muted); line-height:1.8; margin-top:15px;"><strong>Our Vision:</strong> ${data.aboutContent.vision}</p>
-                <p style="color:var(--muted); line-height:1.8; margin-top:15px;"><strong>Our History:</strong> ${data.aboutContent.history}</p>
-                <p style="color:var(--muted); line-height:1.8; margin-top:15px;"><strong>Our Community:</strong> ${data.aboutContent.community}</p>
-                
-                <hr style="border:0; border-top:1px solid var(--border); margin:40px 0;">
-                
-                <h2 style="color:var(--highlight); margin-bottom:20px;">Privacy Policy</h2>
-                <p style="color:var(--muted); line-height:1.8; margin-bottom:15px;">${data.privacyContent.introduction}</p>
-                <p style="color:var(--muted); line-height:1.8; margin-bottom:15px;"><strong>Data Collection:</strong> ${data.privacyContent.dataCollected}</p>
-                <p style="color:var(--muted); line-height:1.8; margin-bottom:15px;"><strong>Data Usage:</strong> ${data.privacyContent.dataUsage}</p>
-                <p style="color:var(--muted); line-height:1.8; margin-bottom:15px;"><strong>Cookies:</strong> ${data.privacyContent.cookies}</p>
-                <p style="color:var(--muted); line-height:1.8; margin-bottom:15px;"><strong>Security & Rights:</strong> ${data.privacyContent.security} ${data.privacyContent.rights}</p>
-                <p style="color:var(--muted); line-height:1.8; margin-bottom:15px;"><em>Last Updated: ${data.privacyContent.lastUpdated}</em></p>
-            </div>
+        <!-- 3. MONEY LINKS -->
+        <h2 class="section-title" id="money" data-aos="fade-right">💰 30 Money Making Links</h2>
+        <div class="money-grid">
+            ${data.moneyLinks.map((l,i)=>`
+            <div class="m-link-wrap" data-aos="flip-up" data-aos-delay="${(i%5)*50}">
+                <a href="${l.url}" target="_blank" class="m-link">${l.icon} ${l.name}</a>
+                <a href="https://api.whatsapp.com/send?text=Start earning on ${l.name} via 3EESHER.CLOUD: ${BASE_URL}" target="_blank" class="share-btn" title="Share to WhatsApp">💬</a>
+                <a href="https://twitter.com/intent/tweet?text=Start earning on ${l.name} via 3EESHER.CLOUD&url=${BASE_URL}" target="_blank" class="share-btn" title="Share to Twitter">🐦</a>
+            </div>`).join('')}
         </div>
 
-        <aside class="sidebar">
-            <div class="widget" style="text-align:center;" data-aos="fade-left">
-                <div style="width:80px; height:80px; background:linear-gradient(135deg, #10b981, #fbbf24); border-radius:50%; margin:0 auto 15px; display:flex; align-items:center; justify-content:center; font-size:35px;">🚀</div>
-                <h3 style="border:none; margin-bottom:5px;">Meet TICHER</h3>
-                <p style="color:var(--muted); font-size:13px; line-height:1.5;">Founder of 3EESHER-CLOUD. Helping 10,000+ Africans achieve financial freedom.</p>
-            </div>
+        <!-- 4. MIDDLE PLACEHOLDER -->
+        <img src="${imgMid}" class="banner-img" alt="Business Success" data-aos="fade-up">
 
-            ${ads.middle ? `<div class="widget" style="padding:10px; text-align:center;">${ads.middle}</div>` : ''}
+        <!-- 5. SUCCESS STORIES (MOVED HERE) -->
+        <h2 class="section-title" id="stories" data-aos="fade-right">🏆 Inspiring Success Stories</h2>
+        <div class="card-grid">
+            ${storiesHtml}
+        </div>
 
-            <div class="widget" id="stores" data-aos="fade-left" data-aos-delay="200">
-                <h3>🏪 Top Affiliate Stores</h3>
-                ${data.storeLinks.slice(0,5).map(l=> l.active ? `<a href="${l.url}${l.id}" target="_blank" class="store-item">🛒 ${l.name}</a>` : '').join('')}
-            </div>
+        <!-- 6. BOTTOM PLACEHOLDER -->
+        <img src="${imgBot}" class="banner-img" alt="Library" data-aos="fade-up">
 
-            <div class="widget" data-aos="fade-left" data-aos-delay="300">
-                <h3>📧 Mailchimp Connect</h3>
-                <p style="color:var(--muted); font-size:13px; margin-bottom:15px;">Join the elite list. Syncs directly to Mailchimp database.</p>
-                <input type="email" id="nlEmail" style="width:100%; padding:12px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); margin-bottom:10px;" placeholder="Your Email Address">
-                <button onclick="subscribeMailchimp()" style="width:100%; padding:12px; background:var(--highlight); color:#000; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Subscribe Now</button>
-            </div>
+        <!-- 7. LONG ABOUT & PRIVACY -->
+        <div data-aos="fade-up" style="background:var(--card); padding:50px; border-radius:16px; border:1px solid var(--border); margin-top:20px;">
+            <h2 style="color:var(--highlight); margin-bottom:20px; font-size:28px;">About Us & Our Mission</h2>
+            <p style="color:var(--muted); line-height:1.8; font-size:16px;"><strong>Our Mission:</strong> ${data.aboutContent.mission}</p>
+            <p style="color:var(--muted); line-height:1.8; font-size:16px; margin-top:15px;"><strong>Our History:</strong> ${data.aboutContent.history}</p>
+            <p style="color:var(--muted); line-height:1.8; font-size:16px; margin-top:15px;"><strong>Our Community:</strong> ${data.aboutContent.community}</p>
             
-            ${ads.bottom ? `<div class="widget" style="padding:10px; text-align:center;">${ads.bottom}</div>` : ''}
-        </aside>
-    </div>
+            <hr style="border:0; border-top:1px solid var(--border); margin:40px 0;">
+            
+            <h2 style="color:var(--highlight); margin-bottom:20px; font-size:28px;">Privacy Policy</h2>
+            <p style="color:var(--muted); line-height:1.8; font-size:16px; margin-bottom:15px;">${data.privacyContent.introduction}</p>
+            <p style="color:var(--muted); line-height:1.8; font-size:16px; margin-bottom:15px;"><strong>Data Collection:</strong> ${data.privacyContent.dataCollected}</p>
+        </div>
+
+    </div> <!-- END LAYOUT WRAPPER -->
 
     <!-- REAL FOMO POPUP -->
     <div class="fomo-popup" id="fomoPopup">
@@ -1032,9 +980,10 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
+    <!-- 8. CONTACT / FOOTER -->
     <footer>
-        <p style="color:var(--muted);">© 2026 3EESHER-CLOUD. Contact: abdullahharuna216@gmail.com</p>
-        <a href="https://wa.me/2348080336353" target="_blank" style="display:inline-block; margin-top:15px; color:#25d366; font-weight:bold;">💬 Chat on WhatsApp (+2348080336353)</a>
+        <p style="color:var(--muted); font-size:16px;">© 2026 3EESHER-CLOUD. Contact: abdullahharuna216@gmail.com</p>
+        <a href="https://wa.me/2348080336353" target="_blank" style="display:inline-block; margin-top:15px; color:#25d366; font-weight:bold; font-size:16px;">💬 Chat on WhatsApp (+2348080336353)</a>
     </footer>
 
     <a href="/super-admin" style="position:fixed; bottom:20px; right:20px; background:#fbbf24; color:#000; padding:10px 20px; border-radius:20px; font-weight:bold; box-shadow:0 5px 15px rgba(0,0,0,0.5); z-index: 1000;">⚙️ Admin</a>
@@ -1056,14 +1005,6 @@ app.get('/', (req, res) => {
             }
         }
         if(localStorage.getItem('theme') === 'light') document.body.setAttribute('data-theme', 'light');
-
-        async function subscribeMailchimp(){
-            const email = document.getElementById('nlEmail').value;
-            if(!email) return alert("Enter email.");
-            await fetch('/api/subscribe', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email})});
-            alert('Synced! Welcome to the elite list.');
-            document.getElementById('nlEmail').value='';
-        }
 
         // REAL FOMO FETCH
         setInterval(async () => {
@@ -1153,5 +1094,6 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 3EESHER-CLOUD ENTERPRISE running on http://localhost:${PORT}`);
+    console.log(`🌟 Perfect Layout, Logo Uploader, and Wide Top Menu Active.`);
     console.log(`🔐 Admin: http://localhost:${PORT}/super-admin`);
 });
