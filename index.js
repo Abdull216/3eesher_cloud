@@ -70,7 +70,8 @@ function saveData(data) {
 
 function getDefaultData() {
     return {
-        settings: { logoUrl: 'https://cdn-icons-png.flaticon.com/512/3208/3208945.png' }, // NEW: Dynamic Logo
+        // DYNAMIC LOGO SETTINGS
+        settings: { logoUrl: 'https://images.unsplash.com/photo-1633409361618-c73427e4e206?w=1200&q=80' }, 
         adminAuth: { user: 'admin216', hash: bcrypt.hashSync('admin1234', 10) },
         earnings: { total: 0, today: 0, month: 0, transactions: [] },
         moneyLinks: [
@@ -130,8 +131,8 @@ function getDefaultData() {
         ],
         successStories: [
             { id: 1, name: 'Ahmed from Kano', age: 45, before: 'Civil servant earning N80,000/month', after: '$2,500/month online', story: 'Ahmed was a civil servant struggling to pay school fees. He started with Fiverr doing logo design, making just $47 in his first month. He didn\'t give up. He learned Canva, took online courses, and expanded to Upwork. By month 3, he was making $1,200. He added ClickBank affiliate marketing and reached $1,800 by month 6. Today, he earns $2,500/month, owns a house, a car, and his children are in private school. His secret: consistency and never giving up.', avatar: '👨‍💼', color: '#10b981' },
-            { id: 2, name: 'Fatima from Cairo', age: 22, before: 'University student with no income', after: '$1,800/month freelancing', story: 'Fatima was an engineering student watching her friends travel while she couldn\'t afford a new phone. She started with data entry on Upwork, making $87 in her first month. She learned social media management and by month 3 had 3 retainer clients. She improved her English, targeted US clients, and by month 6 was making $1,200. Today she pays her own tuition and supports her family.', avatar: '👩‍🎓', color: '#f59e0b' },
-            { id: 3, name: 'TICHER (Founder)', age: 35, before: 'Failed for 2 years', after: 'Built 3EESHER-CLOUD', story: 'TICHER failed for 2 years trying to copy others. He tried everything - dropshipping, crypto, forex - and lost money. Then he discovered the formula: Solve REAL problems for REAL people. He created this platform to help Nigerians make money online. Today he earns from multiple streams: affiliate marketing, ad revenue, consultations, and digital products.', avatar: '🚀', color: '#fbbf24' }
+            { id: 2, name: 'Fatima from Cairo', age: 22, before: 'University student with no income', after: '$1,800/month freelancing', story: 'Fatima was an engineering student watching her friends travel while she couldn\'t afford a new phone. She started with data entry on Upwork, making $87 in her first month from 15 small tasks. She learned social media management and by month 3 had 3 retainer clients at $450/month. She improved her English, targeted US clients, and by month 6 was making $1,200. She added Canva templates on Etsy and started teaching other students, reaching $1,800/month. Today she pays her own tuition and supports her family.', avatar: '👩‍🎓', color: '#f59e0b' },
+            { id: 3, name: 'TICHER (Founder)', age: 35, before: 'Failed for 2 years', after: 'Built 3EESHER-CLOUD', story: 'TICHER failed for 2 years trying to copy others. He tried everything - dropshipping, crypto, forex - and lost money. Then he discovered the formula: Solve REAL problems for REAL people. He created this platform to help Nigerians make money online. Today he earns from multiple streams: affiliate marketing, ad revenue, consultations, and digital products. His mission: help 10,000 people achieve financial freedom.', avatar: '🚀', color: '#fbbf24' }
         ],
         blogPosts: [],
         injections: { head: '', bodyStart: '', bodyEnd: '', css: '', js: '', customHtml: '' },
@@ -142,13 +143,24 @@ function getDefaultData() {
         paymentKeys: { bankAccount: '', stripeKey: '', paypalEmail: '', binancePay: '' },
         apiKeys: { telegram: '', twitter: '', facebook: '', instagram: '', github: '', shodan: '', youtubeKey: '', youtubeChannelId: '', mailchimpKey: '', mailchimpListId: '', algoliaAppId: '', algoliaApiKey: '', semrushCode: '' },
         aboutContent: {
-            mission: 'To democratize online income and provide accessible tools that transform beginners into successful digital entrepreneurs. We believe financial freedom should be available to everyone, regardless of their background, education, or location.',
-            history: '3EESHER-CLOUD started in 2023 as a personal project by TICHER, who successfully built multiple six-figure online businesses after years of failure. Our community has collectively earned over $2.5 million using the methods and links shared on this platform.',
-            community: 'Join thousands of successful earners from Nigeria, Ghana, Egypt, Kenya, South Africa, and beyond. In our Telegram and WhatsApp groups, members collaborate, share opportunities, and help each other overcome challenges.'
+            mission: 'To democratize online income and provide accessible tools that transform beginners into successful digital entrepreneurs. We believe financial freedom should be available to everyone, regardless of their background, education, or location. Our platform combines cutting-edge technology with proven money-making strategies to help you achieve your goals.',
+            vision: 'A world where anyone can build sustainable online income streams without needing special skills or large investments. We envision a future where geographical boundaries don\'t limit economic opportunity, and where anyone with internet access can create a better life for themselves and their families.',
+            history: '3EESHER-CLOUD started in 2023 as a personal project by TICHER, who successfully built multiple six-figure online businesses after years of failure. Recognizing the lack of accessible, practical information for beginners, TICHER created this platform to share proven strategies and tools that actually work. What began as a simple blog has grown into a comprehensive hub serving thousands of aspiring entrepreneurs across Nigeria, Africa, the Middle East, and beyond. Our community has collectively earned over $2.5 million using the methods and links shared on this platform. Today, we have over 10,000 active members from 47 countries, and we\'re just getting started.',
+            values: ['Accessibility', 'Practicality', 'Transparency', 'Community', 'Innovation'],
+            team: 'Our team consists of successful digital entrepreneurs, content creators, and tech experts who are passionate about helping others succeed online. Each member brings unique expertise in areas like affiliate marketing, web development, content creation, and business strategy. We\'re not just teachers – we\'re practitioners who actively build and scale online businesses, testing every method before recommending it to our community.',
+            community: 'Join thousands of successful earners from Nigeria, Ghana, Egypt, Kenya, South Africa, and beyond. Our community members share strategies, celebrate wins, and support each other\'s growth daily. In our Telegram and WhatsApp groups, members collaborate, share opportunities, and help each other overcome challenges. The 3EESHER community is more than just a platform – it\'s a family of like-minded individuals working toward financial freedom.'
         },
         privacyContent: {
-            introduction: '3EESHER-CLOUD ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services. Please read this privacy policy carefully.',
-            dataCollected: 'We collect information you provide directly to us, such as when you contact us via email, subscribe to our newsletter, or participate in community features. This may include your name, email address, and any content you submit. We also automatically collect certain information when you visit our website, including your IP address and browser type.'
+            lastUpdated: 'March 2026',
+            introduction: '3EESHER-CLOUD ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the site.',
+            dataCollected: 'We collect information you provide directly to us, such as when you contact us via email, subscribe to our newsletter, or participate in community features. This may include your name, email address, and any content you submit. We also automatically collect certain information when you visit our website, including your IP address, browser type, operating system, referral URLs, and pages viewed. This information helps us understand how visitors use our site and improve your experience.',
+            dataUsage: 'We use the information we collect to: provide, operate, and maintain our services; improve, personalize, and expand our services; communicate with you about updates, promotions, and events; monitor and analyze usage patterns and trends; protect against unauthorized access and illegal activities; and comply with legal obligations. We do not sell your personal information to third parties.',
+            cookies: 'We use cookies and similar tracking technologies to track activity on our website and hold certain information. Cookies are files with small amount of data which may include an anonymous unique identifier. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. However, if you do not accept cookies, you may not be able to use some portions of our service.',
+            thirdParty: 'We may employ third-party companies and individuals to facilitate our services, provide the service on our behalf, perform service-related services, or assist us in analyzing how our service is used. These third parties have access to your personal information only to perform these tasks on our behalf and are obligated not to disclose or use it for any other purpose.',
+            security: 'We implement appropriate technical and organizational security measures to protect your personal information. However, no method of transmission over the Internet or electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your personal information, we cannot guarantee its absolute security.',
+            rights: 'You have the right to access, correct, update, or request deletion of your personal information. You may also object to processing of your personal information, ask us to restrict processing of your personal information, or request portability of your personal information. To exercise these rights, please contact us using the information below. We will respond to all legitimate requests within 30 days.',
+            children: 'Our services are not intended for individuals under the age of 18. We do not knowingly collect personal information from children under 18. If you are a parent or guardian and you are aware that your child has provided us with personal information, please contact us so that we can take necessary actions.',
+            changes: 'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page with an updated effective date. In some cases, we may provide additional notice (such as adding a statement to our homepage or sending you an email notification). You are advised to review this Privacy Policy periodically for any changes.'
         }
     };
 }
@@ -256,7 +268,7 @@ app.post('/api/subscribe', async (req, res) => {
 app.get('/api/fomo-data', (req, res) => {
     const data = getData();
     const messages = [];
-    if (data.libraryUsers.length > 0) messages.push({ icon: "📚", text: `A new user joined the library! Total: ${data.libraryUsers.length}` });
+    if (data.libraryUsers.length > 0) messages.push({ icon: "📚", text: `A new user joined the library! Total Members: ${data.libraryUsers.length}` });
     if (data.blogPosts.length > 0) messages.push({ icon: "📰", text: `Trending: ${data.blogPosts[0].title.substring(0, 30)}...` });
     if (data.moneyLinks.some(l => l.clicks > 0)) {
         const topLink = data.moneyLinks.sort((a,b) => b.clicks - a.clicks)[0];
@@ -512,7 +524,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                 <button type="submit">Update Main Logo</button>
             </form>
             <h4 style="margin-top:30px;color:#10b981;">Current Logo Preview:</h4>
-            <img src="${data.settings?.logoUrl || ''}" style="max-width:200px; margin-top:10px; border-radius:10px; border:2px solid #334155; padding:10px; background:#0a0f1e;">
+            <img src="${data.settings?.logoUrl || 'https://images.unsplash.com/photo-1614064641936-a5926c8b939c?w=1200&q=80'}" style="max-width:100%; max-height:200px; margin-top:10px; border-radius:10px; border:2px solid #334155; padding:10px; background:#0a0f1e; object-fit:cover;">
         </div>
 
         <div id="blog" class="panel">
@@ -520,6 +532,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             <form action="/admin/create-blog" method="POST" enctype="multipart/form-data">
                 <input type="text" name="title" placeholder="Blog Title" required>
                 <textarea name="content" rows="6" placeholder="Write your blog content here. (HTML tags allowed)" required></textarea>
+                <label style="color:#94a3b8;font-size:12px;">Cover Image:</label>
                 <input type="file" name="image" accept="image/*">
                 <button type="submit">Publish Blog</button>
             </form>
@@ -532,6 +545,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             <h3>🎬 Video Upload Manager</h3>
             <form action="/admin/upload-video" method="POST" enctype="multipart/form-data">
                 <input type="text" name="title" placeholder="Video Title" required>
+                <label style="color:#94a3b8;font-size:12px;">Select Video (From Phone or PC, Max 500MB):</label>
                 <input type="file" name="video" accept="video/*, .mkv" required>
                 <button type="submit">Upload Video</button>
             </form>
@@ -552,9 +566,12 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         <div id="ads" class="panel">
             <h3>🎯 Real Ads Engine</h3>
             <form action="/admin/save-ads" method="POST">
-                <label>Top Ad Banner</label><textarea name="top" rows="3">${data.adSnippets?.top||''}</textarea>
-                <label>Middle Ad Banner</label><textarea name="middle" rows="3">${data.adSnippets?.middle||''}</textarea>
-                <label>Bottom Ad Banner</label><textarea name="bottom" rows="3">${data.adSnippets?.bottom||''}</textarea>
+                <label>Top Ad Banner (Below Hero)</label>
+                <textarea name="top" rows="3" placeholder="<script>...</script>">${data.adSnippets?.top||''}</textarea>
+                <label>Middle Ad Banner</label>
+                <textarea name="middle" rows="3">${data.adSnippets?.middle||''}</textarea>
+                <label>Bottom Ad Banner (Above Footer)</label>
+                <textarea name="bottom" rows="3">${data.adSnippets?.bottom||''}</textarea>
                 <button type="submit">Deploy Ads Live</button>
             </form>
         </div>
@@ -562,9 +579,9 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         <div id="inject" class="panel">
             <h3>🔌 Universal Injector</h3>
             <form action="/admin/save-injections" method="POST"><div class="grid">
-                <div><label>Head Tag</label><textarea name="head" rows="4">${data.injections.head || ''}</textarea></div>
-                <div><label>Custom CSS</label><textarea name="css" rows="4">${data.injections.css || ''}</textarea></div>
-                <div><label>Custom JavaScript</label><textarea name="js" rows="4">${data.injections.js || ''}</textarea></div>
+                <div><label>Head Tag (Meta/Scripts)</label><textarea name="head" rows="4">${data.injections.head || ''}</textarea></div>
+                <div><label>Global Custom CSS</label><textarea name="css" rows="4">${data.injections.css || ''}</textarea></div>
+                <div><label>Global Custom JavaScript</label><textarea name="js" rows="4">${data.injections.js || ''}</textarea></div>
                 <div><label>Custom HTML Widgets</label><textarea name="customHtml" rows="4" placeholder="<div>Your HTML Widget</div>">${data.injections.customHtml||''}</textarea></div>
             </div><button type="submit">Inject Code / HTML</button></form>
         </div>
@@ -651,7 +668,7 @@ app.post('/api/library/login', (req, res) => {
     else { res.status(401).json({error:'Invalid login'}); }
 });
 
-// ==================== FRONTEND HOMEPAGE (ENTERPRISE LAYOUT) ====================
+// ==================== FRONTEND HOMEPAGE (WITH MASSIVE BANNER LOGO & FULL LAYOUT) ====================
 app.get('/', (req, res) => {
     const data = getData();
     const inj = data.injections;
@@ -691,13 +708,12 @@ app.get('/', (req, res) => {
             </div>
         </div>`).join('');
 
-    // 3 BEAUTIFUL PLACEHOLDER IMAGES
-    const imgTop = "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200&q=80"; 
+    // High-End Placeholders
     const imgMid = "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&q=80"; 
     const imgBot = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"; 
     
-    // Uploaded Logo or Default
-    const imgLogo = data.settings?.logoUrl || "https://cdn-icons-png.flaticon.com/512/3208/3208945.png"; 
+    // THE HUGE BANNER LOGO
+    const imgLogo = data.settings?.logoUrl || "https://images.unsplash.com/photo-1614064641936-a5926c8b939c?w=1200&q=80"; 
 
     const algoliaScript = data.apiKeys.algoliaAppId && data.apiKeys.algoliaApiKey ? `
         <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
@@ -707,7 +723,7 @@ app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>3EESHER.CLOUD | Premium Digital Hub</title>
+    <title>3EESHER.CLOUD | The Ultimate Digital Wealth Hub</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     ${getMetaTags('3EESHER.CLOUD - Wealth & Knowledge', data.aboutContent.mission, BASE_URL, '')}
     
@@ -771,7 +787,7 @@ app.get('/', (req, res) => {
         .theme-toggle { background:none; border:none; color:var(--highlight); font-size:20px; cursor:pointer; margin-left:10px; }
 
         /* ENTERPRISE HERO */
-        .hero { position: relative; padding: 100px 5% 80px; text-align: center; overflow: hidden; background: linear-gradient(180deg, rgba(10,15,30,0.85) 0%, #0f172a 100%), url('${imgTop}') center/cover; border-bottom:1px solid var(--border);}
+        .hero { position: relative; padding: 60px 5% 80px; text-align: center; overflow: hidden; background: var(--bg); border-bottom:1px solid var(--border);}
         .hero-glow { position:absolute; top:-50%; left:50%; transform:translateX(-50%); width:800px; height:800px; background:radial-gradient(circle, rgba(16,185,129,0.15) 0%, rgba(10,15,30,0) 70%); z-index:0; pointer-events:none;}
         .clouds { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; opacity: 0.3; }
         .cloud { position: absolute; background: url('https://cdn.pixabay.com/photo/2014/04/10/11/24/clouds-320576_960_720.png') no-repeat center; background-size: contain; animation: floatCloud linear infinite; }
@@ -780,11 +796,12 @@ app.get('/', (req, res) => {
         @keyframes floatCloud { 0% { transform: translateX(0); } 100% { transform: translateX(100vw) translateX(600px); } }
         
         .hero-content { position:relative; z-index:2; max-width:900px; margin:0 auto; background:rgba(15,23,42,0.6); padding:40px; border-radius:20px; border:1px solid rgba(16,185,129,0.3); backdrop-filter:blur(10px);}
-        .main-logo-img { width: 140px; height: 140px; border-radius:20px; margin-bottom: 15px; filter: drop-shadow(0 10px 20px rgba(16,185,129,0.5)); animation: floatLogo 4s ease-in-out infinite; object-fit:cover; background:var(--bg);}
-        @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
         
-        .massive-logo { font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 900; background: linear-gradient(135deg, #fff 20%, var(--highlight) 60%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; letter-spacing: -2px; }
-        .hero-subtitle { color: #fbbf24; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+        /* 🔥 THE BIG PICTURE LOGO 🔥 */
+        .main-logo-img { width: 100%; max-width: 800px; max-height: 400px; object-fit: cover; border-radius: 24px; margin-bottom: 25px; border: 2px solid rgba(16,185,129,0.3); filter: drop-shadow(0 15px 30px rgba(0,0,0,0.6)); }
+        
+        .massive-logo { font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 900; background: linear-gradient(135deg, #fff 20%, var(--highlight) 60%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 15px; letter-spacing: -2px; }
+        
         .hero-desc { color:var(--text); font-size:16px; line-height: 1.6; text-align:left; margin-bottom:30px; background:rgba(0,0,0,0.3); padding:20px; border-radius:10px;}
         
         .hero-ctas { display:flex; gap:15px; justify-content:center; flex-wrap:wrap; margin-bottom: 15px; }
@@ -794,7 +811,8 @@ app.get('/', (req, res) => {
         .hero-btn-outline:hover { background:rgba(16,185,129,0.1); transform:translateY(-3px);}
         .sub-cta { display:block; color:var(--highlight); font-size:13px; font-weight:bold; letter-spacing:1px;}
 
-        .layout-wrapper { max-width: 1400px; margin: 40px auto; padding: 0 5%; }
+        /* EXACT LAYOUT WRAPPER (1 COLUMN, NO SIDEBAR) */
+        .layout-wrapper { max-width: 1200px; margin: 40px auto; padding: 0 5%; }
         .section-title{color:#fbbf24; font-size:26px; margin:0 0 25px; border-bottom:2px solid var(--highlight); padding-bottom:10px; display:inline-block;}
         
         .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom:50px;}
@@ -1094,6 +1112,6 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 3EESHER-CLOUD ENTERPRISE running on http://localhost:${PORT}`);
-    console.log(`🌟 Perfect Layout, Logo Uploader, and Wide Top Menu Active.`);
+    console.log(`🌟 Perfect Layout, Custom Big Logo Uploader, and Wide Top Menu Active.`);
     console.log(`🔐 Admin: http://localhost:${PORT}/super-admin`);
 });
