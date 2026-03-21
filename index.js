@@ -120,12 +120,7 @@ function getDefaultData() {
             { id: 2, title: 'Kendrick Lamar - Not Like Us', videoUrl: 'https://www.youtube.com/embed/H58vbez_m4E', thumbnail: 'https://img.youtube.com/vi/H58vbez_m4E/0.jpg', type: 'youtube' },
             { id: 3, title: 'Taylor Swift - Cruel Summer', videoUrl: 'https://www.youtube.com/embed/ic8j13piAhQ', thumbnail: 'https://img.youtube.com/vi/ic8j13piAhQ/0.jpg', type: 'youtube' },
             { id: 4, title: "Drake - God's Plan", videoUrl: 'https://www.youtube.com/embed/xpVfcZ0ZcFM', thumbnail: 'https://img.youtube.com/vi/xpVfcZ0ZcFM/0.jpg', type: 'youtube' },
-            { id: 5, title: 'The Weeknd - Blinding Lights', videoUrl: 'https://www.youtube.com/embed/4NRXx6U8ABQ', thumbnail: 'https://img.youtube.com/vi/4NRXx6U8ABQ/0.jpg', type: 'youtube' },
-            { id: 6, title: 'Bruno Mars - 24K Magic', videoUrl: 'https://www.youtube.com/embed/UqyT8IEBkvY', thumbnail: 'https://img.youtube.com/vi/UqyT8IEBkvY/0.jpg', type: 'youtube' },
-            { id: 7, title: 'Ed Sheeran - Shape of You', videoUrl: 'https://www.youtube.com/embed/JGwWNGJdvx8', thumbnail: 'https://img.youtube.com/vi/JGwWNGJdvx8/0.jpg', type: 'youtube' },
-            { id: 8, title: 'Post Malone - Sunflower', videoUrl: 'https://www.youtube.com/embed/ApXoWvfEYVU', thumbnail: 'https://img.youtube.com/vi/ApXoWvfEYVU/0.jpg', type: 'youtube' },
-            { id: 9, title: 'Doja Cat - Paint The Town Red', videoUrl: 'https://www.youtube.com/embed/Cwgg0FkqLr0', thumbnail: 'https://img.youtube.com/vi/Cwgg0FkqLr0/0.jpg', type: 'youtube' },
-            { id: 10, title: 'Miley Cyrus - Flowers', videoUrl: 'https://www.youtube.com/embed/G7KNmW9a75Y', thumbnail: 'https://img.youtube.com/vi/G7KNmW9a75Y/0.jpg', type: 'youtube' }
+            { id: 5, title: 'The Weeknd - Blinding Lights', videoUrl: 'https://www.youtube.com/embed/4NRXx6U8ABQ', thumbnail: 'https://img.youtube.com/vi/4NRXx6U8ABQ/0.jpg', type: 'youtube' }
         ],
         successStories: [
             { id: 1, name: 'Ahmed from Kano', age: 45, before: 'Civil servant earning N80,000/month', after: '$2,500/month online', story: 'Ahmed was a civil servant struggling to pay school fees. He started with Fiverr doing logo design, making just $47 in his first month. He didn\'t give up. He learned Canva, took online courses, and expanded to Upwork. By month 3, he was making $1,200. He added ClickBank affiliate marketing and reached $1,800 by month 6. Today, he earns $2,500/month, owns a house, a car, and his children are in private school. His secret: consistency and never giving up.', avatar: '👨‍💼', color: '#10b981' },
@@ -203,7 +198,7 @@ async function runAutoBlogger() {
 cron.schedule('0 8,20 * * *', runAutoBlogger);
 setTimeout(runAutoBlogger, 10000); 
 
-// ==================== NEW: AUTO-MONEY MAILER BOT ====================
+// ==================== AUTO-MONEY MAILER BOT ====================
 async function runEmailBlast() {
     const data = getData();
     if (!data.botSettings.autoMailer || data.subscribers.length === 0) return;
@@ -226,7 +221,7 @@ async function runEmailBlast() {
 }
 cron.schedule('0 10 */3 * *', runEmailBlast);
 
-// ==================== NEWSLETTER / MAILCHIMP API ====================
+// ==================== NEWSLETTER & MAILCHIMP API ====================
 app.post('/api/subscribe', async (req, res) => {
     const { email } = req.body;
     const data = getData();
@@ -237,21 +232,32 @@ app.post('/api/subscribe', async (req, res) => {
         saveData(data);
 
         if(data.apiKeys.mailchimpKey && data.apiKeys.mailchimpListId) {
-            const dc = data.apiKeys.mailchimpKey.split('-')[1]; 
+            const dc = data.apiKeys.mailchimpKey.split('-')[1];
             try {
                 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
                 await fetch(`https://${dc}.api.mailchimp.com/3.0/lists/${data.apiKeys.mailchimpListId}/members`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': 'apikey ' + data.apiKeys.mailchimpKey,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Authorization': 'apikey ' + data.apiKeys.mailchimpKey, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email_address: email, status: 'subscribed' })
                 });
             } catch(e) {}
         }
     }
     res.json({success: true});
+});
+
+// ==================== FOMO POPUP API ====================
+app.get('/api/fomo-data', (req, res) => {
+    const data = getData();
+    const messages = [];
+    if (data.libraryUsers.length > 0) messages.push({ icon: "📚", text: `A new user joined the library! Total Members: ${data.libraryUsers.length}` });
+    if (data.blogPosts.length > 0) messages.push({ icon: "📰", text: `Trending: ${data.blogPosts[0].title.substring(0, 30)}...` });
+    if (data.moneyLinks.some(l => l.clicks > 0)) {
+        const topLink = data.moneyLinks.sort((a,b) => b.clicks - a.clicks)[0];
+        messages.push({ icon: "🔥", text: `People are actively earning with ${topLink.name} right now!` });
+    }
+    if (messages.length === 0) messages.push({ icon: "🚀", text: "Welcome to 3EESHER CLOUD! Start exploring." });
+    res.json(messages[Math.floor(Math.random() * messages.length)]);
 });
 
 // ==================== ADMIN AUTHENTICATION ====================
@@ -264,8 +270,7 @@ app.post('/auth-admin', (req, res) => {
     const { username, password } = req.body;
     const data = getData();
     if (username === data.adminAuth.user && bcrypt.compareSync(password, data.adminAuth.hash)) {
-        req.session.isSuperAdmin = true;
-        res.redirect('/super-admin');
+        req.session.isSuperAdmin = true; res.redirect('/super-admin');
     } else {
         res.send('<script>alert("Invalid Credentials"); window.location.href="/admin-login";</script>');
     }
@@ -274,35 +279,23 @@ app.post('/auth-admin', (req, res) => {
 app.post('/admin/change-password', checkAdmin, (req, res) => {
     const { newUser, newPassword } = req.body;
     const data = getData();
-    data.adminAuth.user = newUser;
-    data.adminAuth.hash = bcrypt.hashSync(newPassword, 10);
+    data.adminAuth.user = newUser; data.adminAuth.hash = bcrypt.hashSync(newPassword, 10);
     saveData(data);
     res.send('<script>alert("🔐 Security Credentials Updated Successfully!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin-login', (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head><title>Super Admin Login</title>
-        <style>
-            body{background:#000;color:#0f0;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;}
-            .box{background:#111;padding:40px;border-radius:10px;width:350px;border:1px solid #0f0;box-shadow:0 0 20px rgba(0,255,0,0.2);text-align:center;}
-            input{width:100%;padding:12px;margin:10px 0;background:#000;border:1px solid #0f0;color:#0f0;border-radius:5px;font-family:monospace;}
-            button{width:100%;padding:12px;background:#0f0;color:#000;border:none;border-radius:5px;font-weight:bold;cursor:pointer;font-family:monospace;}
-            button:hover{background:#0c0;}
-        </style></head>
-        <body>
-            <div class="box">
-                <h2 style="margin-bottom:20px;">[ ROOT ACCESS ]</h2>
-                <form method="POST" action="/auth-admin">
-                    <input type="text" name="username" placeholder="Enter Username" required>
-                    <input type="password" name="password" placeholder="Enter Password" required>
-                    <button type="submit">INITIALIZE CONNECTION</button>
-                </form>
-            </div>
-        </body></html>
-    `);
+    res.send(`<!DOCTYPE html><html><head><title>Super Admin Login</title>
+        <style>body{background:#000;color:#0f0;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;}
+        .box{background:#111;padding:40px;border-radius:10px;width:350px;border:1px solid #0f0;box-shadow:0 0 20px rgba(0,255,0,0.2);text-align:center;}
+        input{width:100%;padding:12px;margin:10px 0;background:#000;border:1px solid #0f0;color:#0f0;border-radius:5px;}
+        button{width:100%;padding:12px;background:#0f0;color:#000;border:none;border-radius:5px;font-weight:bold;cursor:pointer;}</style></head>
+        <body><div class="box"><h2 style="margin-bottom:20px;">[ ROOT ACCESS ]</h2>
+        <form method="POST" action="/auth-admin">
+            <input type="text" name="username" placeholder="Enter Username" required>
+            <input type="password" name="password" placeholder="Enter Password" required>
+            <button type="submit">INITIALIZE CONNECTION</button>
+        </form></div></body></html>`);
 });
 
 app.get('/admin', (req, res) => res.redirect('/super-admin'));
@@ -312,46 +305,43 @@ app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
 app.post('/admin/create-blog', checkAdmin, upload.single('image'), (req, res) => {
     const data = getData();
     data.blogPosts.unshift({
-        id: Date.now(),
-        title: req.body.title,
-        content: req.body.content.replace(/\n/g, '<br>'),
+        id: Date.now(), title: req.body.title, content: req.body.content.replace(/\n/g, '<br>'),
         image: req.file ? `/uploads/${req.file.filename}` : 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
-        date: new Date().toISOString(),
-        views: 0, author: 'Admin'
+        date: new Date().toISOString(), views: 0, author: 'Admin'
     });
     saveData(data);
     res.send('<script>alert("✅ Blog Published Permanently!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin/delete-blog/:id', checkAdmin, (req, res) => {
-    const data = getData();
-    data.blogPosts = data.blogPosts.filter(p => p.id != req.params.id);
-    saveData(data);
-    res.redirect('/super-admin');
+    const data = getData(); data.blogPosts = data.blogPosts.filter(p => p.id != req.params.id); saveData(data); res.redirect('/super-admin');
 });
 
 app.post('/admin/upload-video', checkAdmin, upload.single('video'), (req, res) => {
-    if (!req.file) return res.send('<script>alert("No file selected!"); window.location.href="/super-admin";</script>');
+    if (!req.file) return res.send('<script>alert("No video selected"); window.location.href="/super-admin";</script>');
     const data = getData();
     const isVideoFolder = req.file.destination.includes('videos');
     const mediaUrl = isVideoFolder ? `/videos/${req.file.filename}` : `/uploads/${req.file.filename}`;
 
     data.videos.unshift({
-        id: Date.now(),
-        title: req.body.title || 'New Uploaded Video',
-        videoUrl: mediaUrl,
-        thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800',
-        type: 'local'
+        id: Date.now(), title: req.body.title || 'New Uploaded Video', videoUrl: mediaUrl,
+        thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800', type: 'local'
     });
     saveData(data);
     res.send('<script>alert("🎬 Video Uploaded & Live on Homepage!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin/delete-video/:id', checkAdmin, (req, res) => {
+    const data = getData(); data.videos = data.videos.filter(v => v.id != req.params.id); saveData(data); res.redirect('/super-admin');
+});
+
+// DOWNLOAD VIDEO ROUTE (NEW)
+app.get('/download/video/:id', (req, res) => {
     const data = getData();
-    data.videos = data.videos.filter(v => v.id != req.params.id);
-    saveData(data);
-    res.redirect('/super-admin');
+    const video = data.videos.find(v => v.id == req.params.id);
+    if (!video || video.type !== 'local') return res.status(404).send('Video not found or not downloadable.');
+    const filePath = path.join(__dirname, video.videoUrl);
+    res.download(filePath);
 });
 
 app.post('/admin/save-injections', checkAdmin, (req, res) => {
@@ -371,14 +361,7 @@ app.post('/admin/save-ads', checkAdmin, (req, res) => {
 app.post('/admin/save-keys', checkAdmin, (req, res) => {
     const data = getData();
     data.paymentKeys = { bankAccount: req.body.bankAccount, stripeKey: req.body.stripeKey, paypalEmail: req.body.paypalEmail, binancePay: req.body.binancePay };
-    data.apiKeys = { 
-        telegram: req.body.telegram, twitter: req.body.twitter, facebook: req.body.facebook, 
-        instagram: req.body.instagram, github: req.body.github, shodan: req.body.shodan, 
-        youtubeKey: req.body.youtubeKey, youtubeChannelId: req.body.youtubeChannelId,
-        mailchimpKey: req.body.mailchimpKey, mailchimpListId: req.body.mailchimpListId,
-        algoliaAppId: req.body.algoliaAppId, algoliaApiKey: req.body.algoliaApiKey,
-        semrushCode: req.body.semrushCode
-    };
+    data.apiKeys = { telegram: req.body.telegram, twitter: req.body.twitter, facebook: req.body.facebook, instagram: req.body.instagram, github: req.body.github, shodan: req.body.shodan, youtubeKey: req.body.youtubeKey, youtubeChannelId: req.body.youtubeChannelId, mailchimpKey: req.body.mailchimpKey, mailchimpListId: req.body.mailchimpListId, algoliaAppId: req.body.algoliaAppId, algoliaApiKey: req.body.algoliaApiKey, semrushCode: req.body.semrushCode };
     saveData(data);
     res.send('<script>alert("🔐 All API & Media Keys Saved!"); window.location.href="/super-admin";</script>');
 });
@@ -391,7 +374,7 @@ app.post('/admin/save-stores', checkAdmin, (req, res) => {
         store.active = req.body[`store_active_${i}`] === 'on';
     });
     saveData(data);
-    res.send('<script>alert("🏪 Store Links Updated! Bot will now use these for affiliate routing."); window.location.href="/super-admin";</script>');
+    res.send('<script>alert("🏪 Store Links Updated!"); window.location.href="/super-admin";</script>');
 });
 
 // ==================== ADVANCED STATEFUL MENU TERMINAL BOT ====================
@@ -402,66 +385,43 @@ app.post('/api/bot-command', checkAdmin, (req, res) => {
     let reply = "";
     let newPath = pathStr || "root";
 
-    if (text === 'exit' || text === 'back' || text === '..') {
-        const parts = newPath.split('/');
-        parts.pop(); 
-        newPath = parts.length > 0 ? parts.join('/') : 'root';
-        reply = `Returned to ${newPath === 'root' ? 'Main Menu' : newPath}.\nType 'help' to see options.`;
+    if (text === 'exit' || text === 'back') {
+        newPath = 'root'; reply = `Returned to Main Menu.`;
         return res.json({ reply, newPath });
     }
 
     if (newPath === "root") {
-        if (text === '1') {
-            reply = `[HACKING] Ping Target IP...\nPlease use: sys ping [ip_address]`;
-        } else if (text === '2') {
-            reply = `[HACKING] Whois Domain Lookup...\nPlease use: sys whois [domain_name]`;
-        } else if (text === '3') {
-            reply = `[HACKING] OSINT Email Search Module.\nStatus: Ready. (Requires Shodan Key in Settings)`;
-        } else if (text === '4') {
-            reply = `[HACKING] Network Port Scan...\nInitiating Nmap scanner protocols.`;
-        } else if (text === '5') {
-            reply = `[HACKING] Crypto Wallet Trace.\nStatus: Connecting to blockchain nodes...`;
-        } else if (text === '6') {
-            runEmailBlast();
-            reply = `[MARKETING] Run Email Blast (Affiliate).\nExecuting Auto-Mailer. Blasting affiliate links to ${data.subscribers.length} subscribers.`;
-        } else if (text === '7') {
-            reply = `[MARKETING] Sync Mailchimp Audience.\nPushing local DB to Mailchimp server... Done.`;
-        } else if (text === '8') {
-            data.moneyLinks.forEach(l => l.clicks++); saveData(data);
-            reply = `[MARKETING] Auto-Click Simulator.\nAdded +1 simulated click to all money links to boost algorithmic rank.`;
-        } else if (text === '9') {
-            reply = `[MARKETING] Broadcast FOMO Alert.\nLive users are now seeing custom notification popups.`;
-        } else if (text === '10') {
-            reply = `[MARKETING] Generate Lead Report.\nTotal Collected Emails: ${data.subscribers.length}\nLibrary Users: ${data.libraryUsers.length}`;
-        } else if (text === '11') {
-            runAutoBlogger();
-            reply = `[CONTENT & SEO] Force Auto-Blogger Now.\nBot triggered. Fetching latest trending news from RSS to publish immediately.`;
-        } else if (text === '12') {
+        if (text === '1') { reply = `[HACKING] Ping Target IP...\nPlease use: sys ping [ip_address]`; } 
+        else if (text === '2') { reply = `[HACKING] Whois Domain Lookup...\nPlease use: sys whois [domain_name]`; } 
+        else if (text === '3') { reply = `[HACKING] OSINT Email Search Module.\nStatus: Ready. (Requires Shodan Key in Settings)`; } 
+        else if (text === '4') { reply = `[HACKING] Network Port Scan...\nInitiating Nmap scanner protocols.`; } 
+        else if (text === '5') { reply = `[HACKING] Crypto Wallet Trace.\nStatus: Connecting to blockchain nodes...`; } 
+        else if (text === '6') { runEmailBlast(); reply = `[MARKETING] Run Email Blast (Affiliate).\nExecuting Auto-Mailer. Blasting affiliate links to ${data.subscribers.length} subscribers.`; } 
+        else if (text === '7') { reply = `[MARKETING] Sync Mailchimp Audience.\nPushing local DB to Mailchimp server... Done.`; } 
+        else if (text === '8') { data.moneyLinks.forEach(l => l.clicks++); saveData(data); reply = `[MARKETING] Auto-Click Simulator.\nAdded +1 simulated click to all money links to boost algorithmic rank.`; } 
+        else if (text === '9') { reply = `[MARKETING] Broadcast FOMO Alert.\nLive users are now seeing custom notification popups.`; } 
+        else if (text === '10') { reply = `[MARKETING] Generate Lead Report.\nTotal Collected Emails: ${data.subscribers.length}\nLibrary Users: ${data.libraryUsers.length}`; } 
+        else if (text === '11') { runAutoBlogger(); reply = `[CONTENT & SEO] Force Auto-Blogger Now.\nBot triggered. Fetching latest trending news from RSS to publish immediately.`; } 
+        else if (text === '12') {
             const activeMoney = data.moneyLinks.filter(l=>l.active).length;
             const activeStores = data.storeLinks.filter(l=>l.active).length;
             reply = `[CONTENT & SEO] Run SEO Audit.\nCrawling internal DB...\n[OK] ${data.blogPosts.length} Blogs Indexed.\n[OK] ${activeMoney} Money Links Active.\n[OK] ${activeStores} Store Affiliates Active.\n[OK] Sitemap mapped. Zero broken links found.`;
-        } else if (text === '13') {
-            reply = `[CONTENT & SEO] Update XML Sitemap.\nSitemap regenerated successfully. Pinged Google Search Console.`;
-        } else if (text === '14') {
-            reply = `[CONTENT & SEO] Clear Website Cache.\nServer memory dumped. Fresh pages will be served on next request.`;
-        } else if (text === '15') {
-            reply = `[CONTENT & SEO] Check Broken Links.\nScanning all 30 money links...\nAll connections responding with Status 200 (OK).`;
-        } else if (text === '16') {
+        } 
+        else if (text === '13') { reply = `[CONTENT & SEO] Update XML Sitemap.\nSitemap regenerated successfully. Pinged Google Search Console.`; } 
+        else if (text === '14') { reply = `[CONTENT & SEO] Clear Website Cache.\nServer memory dumped. Fresh pages will be served on next request.`; } 
+        else if (text === '15') { reply = `[CONTENT & SEO] Check Broken Links.\nScanning all 30 money links...\nAll connections responding with Status 200 (OK).`; } 
+        else if (text === '16') {
             const backupPath = path.join(__dirname, 'backups', `data_backup_${Date.now()}.json`);
             fs.copyFileSync(DATA_FILE, backupPath);
             reply = `[SYSTEM ADMIN] Database Backup.\nDatabase safely copied to /backups folder on Render server.`;
-        } else if (text === '17') {
-            reply = `[SYSTEM ADMIN] Check Server RAM/CPU.\nOS: Linux\nMemory Usage: 45MB / 1024MB (Free Tier Limit)\nStatus: Healthy`;
-        } else if (text === '18') {
-            reply = `[SYSTEM ADMIN] View Access Logs.\n[10:04] GET /library - 200\n[10:05] POST /api/subscribe - 200\n[10:06] GET /sitemap.xml - 200`;
-        } else if (text === '19') {
-            reply = `[SYSTEM ADMIN] Clear Logs.\nAccess logs wiped from memory.`;
-        } else if (text === '20') {
-            reply = `[SYSTEM ADMIN] System Reboot Simulation.\nRestarting Nginx and Node services... Done.`;
         } 
+        else if (text === '17') { reply = `[SYSTEM ADMIN] Check Server RAM/CPU.\nOS: Linux\nMemory Usage: 45MB / 1024MB (Free Tier Limit)\nStatus: Healthy`; } 
+        else if (text === '18') { reply = `[SYSTEM ADMIN] View Access Logs.\n[10:04] GET /library - 200\n[10:05] POST /api/subscribe - 200\n[10:06] GET /sitemap.xml - 200`; } 
+        else if (text === '19') { reply = `[SYSTEM ADMIN] Clear Logs.\nAccess logs wiped from memory.`; } 
+        else if (text === '20') { reply = `[SYSTEM ADMIN] System Reboot Simulation.\nRestarting Nginx and Node services... Done.`; } 
         else if (text.startsWith('sys ')) {
             exec(text.substring(4), { timeout: 15000 }, (error, stdout, stderr) => {
-                res.json({ reply: `[OS OUTPUT]\n${stdout || stderr || "Executed."}` });
+                res.json({ reply: `[OS OUTPUT]\n${stdout || stderr || "Executed."}`, newPath });
             }); return;
         } else if (text === 'menu' || text === 'help') {
             reply = `[MAIN MENU - TYPE A NUMBER 1-20]\n\n=== HACKING & RECON ===\n1. Ping Target IP\n2. Whois Domain Lookup\n3. OSINT Email Search\n4. Network Port Scan\n5. Crypto Wallet Trace\n\n=== MARKETING ===\n6. Run Email Blast (Affiliate)\n7. Sync Mailchimp Audience\n8. Auto-Click Simulator\n9. Broadcast FOMO Alert\n10. Generate Lead Report\n\n=== CONTENT & SEO ===\n11. Force Auto-Blogger Now\n12. Run SEO Audit\n13. Update XML Sitemap\n14. Clear Website Cache\n15. Check Broken Links\n\n=== SYSTEM ADMIN ===\n16. Database Backup\n17. Check Server RAM/CPU\n18. View Access Logs\n19. Clear Logs\n20. System Reboot Simulation\n\nOr type 'sys [cmd]' to run raw linux commands.`;
@@ -471,20 +431,6 @@ app.post('/api/bot-command', checkAdmin, (req, res) => {
     } 
 
     res.json({ reply, newPath });
-});
-
-// FOMO API
-app.get('/api/fomo-data', (req, res) => {
-    const data = getData();
-    const messages = [];
-    if (data.libraryUsers.length > 0) messages.push({ icon: "📚", text: `A new user joined the library! Total: ${data.libraryUsers.length}` });
-    if (data.blogPosts.length > 0) messages.push({ icon: "📰", text: `Trending: ${data.blogPosts[0].title.substring(0, 30)}...` });
-    if (data.moneyLinks.some(l => l.clicks > 0)) {
-        const topLink = data.moneyLinks.sort((a,b) => b.clicks - a.clicks)[0];
-        messages.push({ icon: "🔥", text: `People are actively earning with ${topLink.name} right now!` });
-    }
-    if (messages.length === 0) messages.push({ icon: "🚀", text: "Welcome to 3EESHER CLOUD! Start exploring." });
-    res.json(messages[Math.floor(Math.random() * messages.length)]);
 });
 
 // ==================== SUPER ADMIN DASHBOARD UI ====================
@@ -547,7 +493,6 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             <form action="/admin/create-blog" method="POST" enctype="multipart/form-data">
                 <input type="text" name="title" placeholder="Blog Title" required>
                 <textarea name="content" rows="6" placeholder="Write your blog content here. (HTML tags allowed)" required></textarea>
-                <label style="color:#94a3b8;font-size:12px;">Cover Image:</label>
                 <input type="file" name="image" accept="image/*">
                 <button type="submit">Publish Blog</button>
             </form>
@@ -636,6 +581,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
     </div>
 
     <script>
+        let currentPath = "root";
         function show(id){
             document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
             document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
@@ -650,8 +596,9 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             document.getElementById('botCmd').value = '';
             term.scrollTop = term.scrollHeight;
             try {
-                const res = await fetch('/api/bot-command', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd})});
+                const res = await fetch('/api/bot-command', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd, pathStr: currentPath})});
                 const d = await res.json();
+                currentPath = d.newPath; 
                 term.innerHTML = term.innerHTML.replace('<span style="color:#666">Executing...</span>', '<span style="color:#0f0">'+d.reply.replace(/\\n/g,'<br>')+'</span>');
                 term.scrollTop = term.scrollHeight;
             } catch(e) {}
@@ -677,7 +624,7 @@ app.post('/api/library/login', (req, res) => {
     else { res.status(401).json({error:'Invalid login'}); }
 });
 
-// ==================== FRONTEND HOMEPAGE ====================
+// ==================== FRONTEND HOMEPAGE (SAAS MEGA MENU & PLUGINS) ====================
 app.get('/', (req, res) => {
     const data = getData();
     const inj = data.injections;
@@ -694,12 +641,16 @@ app.get('/', (req, res) => {
         </div>
     `).join('');
 
+    // NEW: ADDED "DOWNLOAD VIDEO" BUTTON FOR LOCAL VIDEOS
     const vidHtml = data.videos.map((v, index) => `
         <div class="card" data-aos="zoom-in" data-aos-delay="${index * 50}">
             ${v.type === 'youtube' 
                 ? `<iframe src="${v.videoUrl}" frameborder="0" style="width:100%;height:200px;background:#000;"></iframe>` 
                 : `<video src="${v.videoUrl}" controls poster="${v.thumbnail}" style="width:100%;height:200px;background:#000;object-fit:cover;"></video>`}
-            <div class="card-body"><h3 class="card-title" style="color:#fbbf24;">${v.title}</h3></div>
+            <div class="card-body">
+                <h3 class="card-title" style="color:#fbbf24;">${v.title}</h3>
+                ${v.type === 'local' ? `<a href="/download/video/${v.id}" style="display:inline-block; margin-top:10px; padding:8px 15px; background:#10b981; color:#000; border-radius:5px; font-weight:bold; font-size:12px;">⬇️ Download Video</a>` : ''}
+            </div>
         </div>
     `).join('');
 
@@ -712,10 +663,10 @@ app.get('/', (req, res) => {
             <p style="color:#94a3b8;font-size:13px;line-height:1.5;">${s.story}</p>
         </div>`).join('');
 
-    // High-End Placeholders & Logo Image
-    const imgLogo = "https://cdn-icons-png.flaticon.com/512/3208/3208945.png"; 
+    const imgTop = "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200&q=80"; 
     const imgMid = "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&q=80"; 
     const imgBot = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"; 
+    const imgLogo = "https://cdn-icons-png.flaticon.com/512/3208/3208945.png"; 
 
     const algoliaScript = data.apiKeys.algoliaAppId && data.apiKeys.algoliaApiKey ? `
         <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
@@ -740,30 +691,55 @@ app.get('/', (req, res) => {
 
     ${inj.head || ''}
     <style>
-        body{font-family:-apple-system, sans-serif; background:#0a0f1e; color:#e2e8f0; margin:0; padding:0; overflow-x:hidden;}
+        /* CSS VARIABLES FOR LIGHT/DARK THEME TOGGLE */
+        :root {
+            --bg: #0a0f1e;
+            --card: #1e293b;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --border: #334155;
+            --highlight: #10b981;
+        }
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #475569;
+            --border: #cbd5e1;
+        }
+
+        body{font-family:-apple-system, sans-serif; background:var(--bg); color:var(--text); margin:0; padding:0; overflow-x:hidden; transition:background 0.3s, color 0.3s;}
         a{text-decoration:none;}
         
         /* PROGRESS SCROLLBAR */
         ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #0a0f1e; }
-        ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--highlight); border-radius: 5px; }
         
-        .ticker-wrap { width: 100%; overflow: hidden; background: #000; color: #10b981; padding: 8px 0; font-family: monospace; font-size: 14px; border-bottom: 1px solid #10b981; }
+        .ticker-wrap { width: 100%; overflow: hidden; background: #000; color: var(--highlight); padding: 8px 0; font-family: monospace; font-size: 14px; border-bottom: 1px solid var(--highlight); }
         .ticker { display: inline-block; white-space: nowrap; padding-left: 100%; animation: ticker 25s linear infinite; }
         .ticker-item { display: inline-block; padding: 0 30px; }
         @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
 
-        /* FLOATING GLASS NAV */
+        /* FLOATING GLASS SAAS NAV */
         .nav-container { position:sticky; top:20px; z-index:100; padding:0 5%; pointer-events:none; }
-        header { pointer-events:auto; background:rgba(15,23,42,0.75); border:1px solid rgba(16,185,129,0.3); padding:10px 30px; border-radius:50px; backdrop-filter:blur(15px); display:flex; justify-content:space-between; align-items:center; max-width:1200px; margin:0 auto; box-shadow:0 10px 40px rgba(0,0,0,0.5);}
-        .logo{font-size:22px; font-weight:900; background:linear-gradient(to right, #10b981, #fbbf24); -webkit-background-clip:text; color:transparent; letter-spacing:-1px;}
-        .nav-links a{color:#94a3b8; margin-left:20px; font-weight:600; font-size:14px; transition:0.3s;}
-        .nav-links a:hover{color:#10b981;}
-        .nav-links a.cta{background:#10b981; color:#0a0f1e; padding:8px 20px; border-radius:30px; box-shadow:0 4px 15px rgba(16,185,129,0.4);}
-        .algolia-search-bar { background:rgba(255,255,255,0.1); border:1px solid #334155; padding:8px 15px; border-radius:20px; color:#fff; margin-left:20px; outline:none;}
+        header { pointer-events:auto; background:rgba(15,23,42,0.85); border:1px solid rgba(16,185,129,0.3); padding:10px 30px; border-radius:50px; backdrop-filter:blur(15px); display:flex; justify-content:space-between; align-items:center; max-width:1300px; margin:0 auto; box-shadow:0 10px 40px rgba(0,0,0,0.5);}
+        .logo{font-size:22px; font-weight:900; background:linear-gradient(to right, var(--highlight), #fbbf24); -webkit-background-clip:text; color:transparent; letter-spacing:-1px;}
         
+        /* MEGA MENU DROPDOWNS */
+        .nav-links { display:flex; align-items:center; gap:20px; }
+        .dropdown { position:relative; display:inline-block; }
+        .dropbtn { color:var(--text); font-weight:600; font-size:14px; background:none; border:none; cursor:pointer; padding:10px; }
+        .dropdown-content { display:none; position:absolute; background-color:var(--card); min-width:200px; box-shadow:0px 8px 16px 0px rgba(0,0,0,0.5); z-index:1; border-radius:12px; border:1px solid var(--border); top:100%; left:0; overflow:hidden;}
+        .dropdown-content a { color:var(--text); padding:12px 16px; text-decoration:none; display:block; font-size:13px; transition:0.2s;}
+        .dropdown-content a:hover { background-color:rgba(16,185,129,0.1); color:var(--highlight); }
+        .dropdown:hover .dropdown-content { display:block; }
+
+        .nav-links a.cta{background:var(--highlight); color:#000; padding:10px 20px; border-radius:30px; box-shadow:0 4px 15px rgba(16,185,129,0.4); font-weight:bold;}
+        .theme-toggle { background:none; border:none; color:var(--highlight); font-size:20px; cursor:pointer; margin-left:10px; }
+
         /* NEW REDESIGNED ENTERPRISE HERO */
-        .hero { position: relative; padding: 100px 5% 60px; text-align: center; overflow: hidden; background: #0a0f1e; border-bottom:1px solid #334155;}
+        .hero { position: relative; padding: 140px 5% 80px; text-align: center; overflow: hidden; background: var(--bg); border-bottom:1px solid var(--border);}
         .hero-glow { position:absolute; top:-50%; left:50%; transform:translateX(-50%); width:800px; height:800px; background:radial-gradient(circle, rgba(16,185,129,0.15) 0%, rgba(10,15,30,0) 70%); z-index:0; pointer-events:none;}
         .clouds { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; opacity: 0.3; }
         .cloud { position: absolute; background: url('https://cdn.pixabay.com/photo/2014/04/10/11/24/clouds-320576_960_720.png') no-repeat center; background-size: contain; animation: floatCloud linear infinite; }
@@ -771,59 +747,63 @@ app.get('/', (req, res) => {
         .cloud2 { width: 600px; height: 300px; top: -10%; left: -600px; animation-duration: 55s; animation-delay: -20s; }
         @keyframes floatCloud { 0% { transform: translateX(0); } 100% { transform: translateX(100vw) translateX(600px); } }
         
-        .hero-content { position:relative; z-index:2; max-width:900px; margin:0 auto; }
-        .main-logo-img { width: 120px; height: 120px; margin-bottom: 10px; filter: drop-shadow(0 10px 20px rgba(16,185,129,0.5)); animation: floatLogo 4s ease-in-out infinite; }
+        .hero-content { position:relative; z-index:2; max-width:900px; margin:0 auto; background:rgba(15,23,42,0.6); padding:40px; border-radius:20px; border:1px solid rgba(16,185,129,0.3); backdrop-filter:blur(10px);}
+        .main-logo-img { width: 100px; height: 100px; margin-bottom: 10px; filter: drop-shadow(0 10px 20px rgba(16,185,129,0.5)); animation: floatLogo 4s ease-in-out infinite; }
         @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
         
-        .trust-badges { display:inline-flex; align-items:center; gap:10px; background:rgba(30,41,59,0.6); padding:8px 20px; border-radius:30px; border:1px solid #334155; margin-bottom:20px; }
+        .trust-badges { display:inline-flex; align-items:center; gap:10px; background:var(--card); padding:8px 20px; border-radius:30px; border:1px solid var(--border); margin-bottom:20px; }
         .avatar-group { display:flex; margin-right:5px; }
-        .avatar-group div { width:28px; height:28px; border-radius:50%; background:#10b981; border:2px solid #0a0f1e; margin-left:-10px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; color:#000; }
+        .avatar-group div { width:28px; height:28px; border-radius:50%; background:var(--highlight); border:2px solid var(--bg); margin-left:-10px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; color:#000; }
         .avatar-group div:first-child { margin-left:0; background:#fbbf24; }
-        .avatar-group div:last-child { background:#3b82f6; }
 
-        .massive-logo { font-size: clamp(3rem, 7vw, 5.5rem); font-weight: 900; background: linear-gradient(135deg, #fff 20%, #10b981 60%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; letter-spacing: -2px; }
-        .hero-subtitle { color: #94a3b8; font-size: clamp(1rem, 2vw, 1.4rem); font-weight: normal; margin-bottom: 30px; max-width:700px; margin-left:auto; margin-right:auto; line-height:1.6; }
+        .massive-logo { font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 900; background: linear-gradient(135deg, #fff 20%, var(--highlight) 60%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; letter-spacing: -2px; }
+        .hero-subtitle { color: #fbbf24; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+        .hero-desc { color:var(--text); font-size:16px; line-height: 1.6; text-align:left; margin-bottom:30px; background:rgba(0,0,0,0.3); padding:20px; border-radius:10px;}
         
         .hero-ctas { display:flex; gap:15px; justify-content:center; flex-wrap:wrap; margin-bottom: 20px; }
-        .hero-btn { background:#10b981; color:#000; padding:16px 35px; border-radius:30px; font-weight:900; font-size:18px; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
+        .hero-btn { background:var(--highlight); color:#000; padding:16px 30px; border-radius:30px; font-weight:900; font-size:16px; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
         .hero-btn:hover{transform:translateY(-3px); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.6);}
-        .hero-btn-outline { background:transparent; color:#10b981; border:2px solid #10b981; padding:16px 35px; border-radius:30px; font-weight:900; font-size:18px; display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
+        .hero-btn-outline { background:transparent; color:var(--highlight); border:2px solid var(--highlight); padding:16px 30px; border-radius:30px; font-weight:900; font-size:16px; display: inline-flex; align-items:center; gap:8px; transition:0.3s;}
         .hero-btn-outline:hover { background:rgba(16,185,129,0.1); transform:translateY(-3px);}
-        .sub-cta { display:block; color:#fbbf24; font-size:13px; font-weight:bold; letter-spacing:1px;}
 
         /* WHY 3EESHER FEATURE GRID */
         .feature-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:20px; max-width:1200px; margin:40px auto 0; position:relative; z-index:2; text-align:left;}
-        .feat-card { background:rgba(15,23,42,0.8); border:1px solid #334155; padding:30px; border-radius:16px; backdrop-filter:blur(10px); transition:0.3s; }
-        .feat-card:hover { border-color:#10b981; transform:translateY(-5px); }
+        .feat-card { background:var(--card); border:1px solid var(--border); padding:30px; border-radius:16px; transition:0.3s; }
+        .feat-card:hover { border-color:var(--highlight); transform:translateY(-5px); }
         .feat-icon { font-size:30px; margin-bottom:15px; display:inline-block; padding:15px; background:rgba(16,185,129,0.1); border-radius:12px; }
-        .feat-card h3 { color:#e2e8f0; font-size:18px; margin-bottom:10px; }
-        .feat-card p { color:#94a3b8; font-size:14px; line-height:1.6; }
+        .feat-card h3 { color:var(--text); font-size:18px; margin-bottom:10px; }
+        .feat-card p { color:var(--muted); font-size:14px; line-height:1.6; }
 
         .layout-wrapper { display: grid; grid-template-columns: 1fr 340px; gap: 40px; max-width: 1400px; margin: 40px auto; padding: 0 5%; }
-        .section-title{color:#fbbf24; font-size:24px; margin:0 0 20px; border-bottom:2px solid #10b981; padding-bottom:10px; display:inline-block;}
+        .section-title{color:#fbbf24; font-size:24px; margin:0 0 20px; border-bottom:2px solid var(--highlight); padding-bottom:10px; display:inline-block;}
         
         .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom:50px;}
-        .card { background: #1e293b; border-radius: 12px; overflow: hidden; border: 1px solid #334155; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .card:hover { transform: translateY(-5px); border-color: #10b981; box-shadow: 0 10px 30px rgba(16,185,129,0.15); }
+        .card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .card:hover { transform: translateY(-5px); border-color: var(--highlight); box-shadow: 0 10px 30px rgba(16,185,129,0.15); }
         .card-img { width: 100%; height: 180px; object-fit: cover; }
         .card-body { padding: 20px; }
-        .card-title { font-size: 18px; margin-bottom: 10px; color: #e2e8f0; }
-        .card-desc { font-size: 14px; color: #94a3b8; margin-bottom: 15px; line-height: 1.5; }
-        .card-link { color: #10b981; font-weight: bold; font-size: 14px; }
+        .card-title { font-size: 18px; margin-bottom: 10px; color: var(--text); }
+        .card-desc { font-size: 14px; color: var(--muted); margin-bottom: 15px; line-height: 1.5; }
+        .card-link { color: var(--highlight); font-weight: bold; font-size: 14px; }
 
-        .money-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; margin-bottom:50px;}
-        .m-link { background:rgba(30,41,59,0.6); padding:15px; border-radius:8px; color:#e2e8f0; border-left:3px solid #10b981; font-size:14px; font-weight:600; transition:0.3s; display:flex; align-items:center; gap:10px;}
-        .m-link:hover { background:#1e293b; transform:translateX(5px); border-left-color:#fbbf24;}
+        .money-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px; margin-bottom:50px;}
+        .m-link-wrap { display:flex; align-items:center; background:rgba(30,41,59,0.6); border-radius:8px; border-left:3px solid var(--highlight); overflow:hidden; transition:0.3s;}
+        .m-link-wrap:hover { transform:translateX(5px); border-left-color:#fbbf24; background:var(--card);}
+        .m-link { flex:1; padding:15px; color:var(--text); font-size:14px; font-weight:600; display:flex; align-items:center; gap:10px;}
+        
+        /* VIRAL SHARE BUTTONS */
+        .share-btn { padding:15px 10px; color:var(--muted); font-size:12px; transition:0.3s; border-left:1px solid var(--border); cursor:pointer;}
+        .share-btn:hover { background:var(--highlight); color:#000;}
 
-        .sidebar { position: sticky; top: 100px; height: fit-content; }
-        .widget { background: rgba(30,41,59,0.4); border: 1px solid #334155; border-radius: 12px; padding: 25px; margin-bottom: 25px; }
-        .widget h3 { color: #10b981; font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
-        .store-item { display:block; background:#0f172a; padding:12px; border-radius:6px; border:1px solid #334155; margin-bottom:8px; color:#fbbf24; font-size:13px; font-weight:bold;}
+        .sidebar { position: sticky; top: 120px; height: fit-content; }
+        .widget { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 25px; }
+        .widget h3 { color: var(--highlight); font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .store-item { display:block; background:var(--bg); padding:12px; border-radius:6px; border:1px solid var(--border); margin-bottom:8px; color:#fbbf24; font-size:13px; font-weight:bold;}
 
-        .banner-img { width:100%; height:200px; object-fit:cover; border-radius:12px; margin: 40px 0; border:1px solid #334155; box-shadow:0 10px 30px rgba(0,0,0,0.5);}
-        footer { background:#0f172a; padding:40px 5%; text-align:center; border-top:1px solid #334155; margin-top:40px;}
+        .banner-img { width:100%; height:200px; object-fit:cover; border-radius:12px; margin: 40px 0; border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+        footer { background:var(--card); padding:40px 5%; text-align:center; border-top:1px solid var(--border); margin-top:40px;}
 
-        .fomo-popup { position:fixed; bottom:-100px; left:20px; background:rgba(15,23,42,0.95); border:1px solid #10b981; padding:15px; border-radius:10px; display:flex; gap:15px; align-items:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); transition:0.5s; z-index:9999; }
+        .fomo-popup { position:fixed; bottom:-100px; left:20px; background:var(--card); border:1px solid var(--highlight); padding:15px; border-radius:10px; display:flex; gap:15px; align-items:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); transition:0.5s; z-index:9999; }
         .fomo-popup.show { bottom:20px; }
 
         @media(max-width: 992px) { .layout-wrapper { grid-template-columns: 1fr; } .sidebar { position: static; } .nav-links { display: none; } }
@@ -838,38 +818,57 @@ app.get('/', (req, res) => {
         <div class="ticker">
             <div class="ticker-item">BTC $68,402.10 ▲</div>
             <div class="ticker-item">ETH $3,501.20 ▲</div>
-            <div class="ticker-item">SOL $340.50 ▼</div>
             <div class="ticker-item">🎉 Ahmed earned $47 on Fiverr</div>
             <div class="ticker-item">💰 Fatima made $87 on Upwork</div>
             <div class="ticker-item">🛒 Emeka earned ₦12k on Jumia</div>
-            <!-- Duplicate for infinite scroll -->
             <div class="ticker-item">BTC $68,402.10 ▲</div>
             <div class="ticker-item">ETH $3,501.20 ▲</div>
-            <div class="ticker-item">SOL $340.50 ▼</div>
+            <div class="ticker-item">🎉 Ahmed earned $47 on Fiverr</div>
         </div>
     </div>
 
-    <!-- FLOATING NAV -->
+    <!-- SAAS MEGA MENU -->
     <div class="nav-container">
         <header>
             <div style="display:flex; align-items:center;">
                 <a href="/" class="logo">☁️ 3EESHER</a>
-                <input type="text" class="algolia-search-bar" placeholder="Algolia Search...">
             </div>
-            <div id="google_translate_element" style="margin-left:20px;"></div>
+            
             <div class="nav-links">
-                <a href="#saas">⚙️ SaaS Tools</a>
-                <a href="#blog">Blog</a>
-                <a href="#videos">Videos</a>
-                <a href="#money">Make Money</a>
-                <div style="display:inline-block; text-align:center;">
-                    <a href="/library" class="cta">📚 Free Library</a>
+                <div class="dropdown">
+                    <button class="dropbtn">Resources ▼</button>
+                    <div class="dropdown-content">
+                        <a href="/library">📚 Free Library</a>
+                        <a href="#blog">📝 Tech Blogs</a>
+                        <a href="#stories">🏆 Success Stories</a>
+                    </div>
+                </div>
+                
+                <div class="dropdown">
+                    <button class="dropbtn">Income Streams ▼</button>
+                    <div class="dropdown-content">
+                        <a href="#money">💰 30 Money Links</a>
+                        <a href="#stores">🏪 Affiliate Stores</a>
+                    </div>
+                </div>
+
+                <div class="dropdown">
+                    <button class="dropbtn">Media ▼</button>
+                    <div class="dropdown-content">
+                        <a href="#videos">🎬 Watch Videos</a>
+                    </div>
+                </div>
+
+                <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+                <div id="google_translate_element" style="margin-left:10px;"></div>
+
+                <div style="display:inline-block; text-align:center; margin-left:20px;">
+                    <a href="/library" class="cta">✨ Free Sign Up</a>
                 </div>
             </div>
         </header>
     </div>
 
-    <!-- ENTERPRISE HERO -->
     <div class="hero">
         <div class="hero-glow"></div>
         <div class="clouds">
@@ -883,40 +882,55 @@ app.get('/', (req, res) => {
                 <div class="avatar-group">
                     <div>👨‍💼</div><div>👩‍🎓</div><div>🚀</div>
                 </div>
-                <span style="font-size:13px; font-weight:bold; color:#e2e8f0;">⭐️ Trusted by 10,492+ Africans</span>
+                <span style="font-size:13px; font-weight:bold; color:var(--text);">⭐️ Trusted by 10,492+ Africans</span>
             </div>
 
             <h1 class="massive-logo">3EESHER.CLOUD</h1>
-            <p class="hero-subtitle">The Ultimate Digital Wealth & Skills Hub. Stop paying for expensive courses. Get free access to premium education, auto-generated daily news, and 30 direct earning portals in one dashboard.</p>
+            <h2 class="hero-subtitle">The Ultimate Hub for Digital Wealth & Skills</h2>
             
-            <div class="hero-ctas">
-                <a href="/library" class="hero-btn">📚 Unlock Free Library</a>
-                <a href="#money" class="hero-btn-outline">💰 See Money Links</a>
+            <div class="hero-desc">
+                <h3 style="color:var(--highlight); margin-bottom:5px;">What is this website about?</h3>
+                <p>We provide a centralized platform for Africans and global users to access premium digital education and instant money-making tools.</p>
+                
+                <h3 style="color:var(--highlight); margin-bottom:5px;">Why did we create it?</h3>
+                <p>Because financial freedom shouldn't be locked behind expensive paywalls. We built this to solve real problems for real people.</p>
+                
+                <h3 style="color:var(--highlight); margin-bottom:5px;">Benefits for you:</h3>
+                <ul style="margin-left:20px; color:#fbbf24;">
+                    <li>Free Premium Google Books Library</li>
+                    <li>30 Verified Affiliate Income Links</li>
+                    <li>Automated Daily Tech & Crypto News</li>
+                </ul>
             </div>
-            <span class="sub-cta">✨ 100% Free. Sign up in 10 seconds.</span>
+
+            <div class="hero-ctas">
+                <a href="/library" class="hero-btn">📚 Access Free Google Books</a>
+                <a href="#money" class="hero-btn-outline">💰 View Earning Portals</a>
+                <a href="#videos" class="hero-btn-outline" style="border-color:#fbbf24; color:#fbbf24;">🎬 Watch Videos</a>
+            </div>
+            <span class="sub-cta" style="margin-top:10px; display:block; color:var(--highlight); font-weight:bold;">✨ 100% Free. Register in 10 seconds.</span>
         </div>
 
-        <!-- NEW: WHY 3EESHER GRID -->
         <div class="feature-cards">
             <div class="feat-card" data-aos="fade-up" data-aos-delay="100">
                 <div class="feat-icon">🎯</div>
                 <h3>What is it?</h3>
-                <p>A fully autonomous money-making platform and premium digital library. It hosts $10,000+ worth of knowledge in one secure place.</p>
+                <p>A fully autonomous money-making platform and premium digital library hosting $10,000+ worth of knowledge.</p>
             </div>
             <div class="feat-card" data-aos="fade-up" data-aos-delay="200">
                 <div class="feat-icon">🌍</div>
                 <h3>Who is it for?</h3>
-                <p>Ambitious Africans, freelancers, and digital entrepreneurs ready to build sustainable wealth without large upfront investments.</p>
+                <p>Ambitious Africans, freelancers, and digital entrepreneurs ready to build sustainable wealth.</p>
             </div>
             <div class="feat-card" data-aos="fade-up" data-aos-delay="300">
                 <div class="feat-icon">💡</div>
                 <h3>Why use it?</h3>
-                <p>Stop paying for gatekept information. We provide direct access to global earning portals and the exact skills needed to monetize them.</p>
+                <p>Stop paying for gatekept info. Get direct access to global earning portals and the skills needed to monetize them.</p>
             </div>
             <div class="feat-card" data-aos="fade-up" data-aos-delay="400">
                 <div class="feat-icon">⚡</div>
                 <h3>How it helps</h3>
-                <p>We connect you directly to Jumia, Fiverr, and ClickBank. Our auto-bot provides you with daily updates and real success templates to follow.</p>
+                <p>We connect you directly to Jumia, Fiverr, and ClickBank. Our auto-bot provides daily updates to follow.</p>
             </div>
         </div>
     </div>
@@ -925,8 +939,8 @@ app.get('/', (req, res) => {
         <div class="main-content">
             ${ads.top ? `<div style="margin-bottom:40px; text-align:center;">${ads.top}</div>` : ''}
 
-            <h2 class="section-title" id="videos" data-aos="fade-right">🎬 Latest Videos</h2>
-            <div class="card-grid">${vidHtml || '<p style="color:#94a3b8">No videos uploaded yet.</p>'}</div>
+            <h2 class="section-title" id="videos" data-aos="fade-right">🎬 Watch & Download Free Videos</h2>
+            <div class="card-grid">${vidHtml || '<p style="color:var(--muted)">No videos uploaded yet.</p>'}</div>
 
             <img src="${imgMid}" class="banner-img" alt="Business Success" data-aos="fade-up">
 
@@ -935,16 +949,21 @@ app.get('/', (req, res) => {
 
             <h2 class="section-title" id="money" data-aos="fade-right">💰 30 Money Making Links</h2>
             <div class="money-grid">
-                ${data.moneyLinks.map((l,i)=>`<a href="${l.url}" target="_blank" class="m-link" data-aos="flip-up" data-aos-delay="${(i%5)*50}">${l.icon} ${l.name}</a>`).join('')}
+                ${data.moneyLinks.map((l,i)=>`
+                <div class="m-link-wrap" data-aos="flip-up" data-aos-delay="${(i%5)*50}">
+                    <a href="${l.url}" target="_blank" class="m-link">${l.icon} ${l.name}</a>
+                    <a href="https://api.whatsapp.com/send?text=Start earning on ${l.name} via 3EESHER.CLOUD: ${BASE_URL}" target="_blank" class="share-btn" title="Share to WhatsApp">💬</a>
+                    <a href="https://twitter.com/intent/tweet?text=Start earning on ${l.name} via 3EESHER.CLOUD&url=${BASE_URL}" target="_blank" class="share-btn" title="Share to Twitter">🐦</a>
+                </div>`).join('')}
             </div>
 
             <img src="${imgBot}" class="banner-img" alt="Library" data-aos="fade-up">
 
-            <div data-aos="fade-up" style="background:rgba(30,41,59,0.4); padding:40px; border-radius:12px; border:1px solid #334155; margin-top:20px;">
-                <h2 style="color:#10b981; margin-bottom:20px;">About Us & Privacy</h2>
-                <p style="color:#94a3b8; line-height:1.8;">${data.aboutContent.mission}<br><br>${data.aboutContent.history}</p>
-                <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
-                <p style="color:#94a3b8; line-height:1.8;">${data.privacyContent.introduction} ${data.privacyContent.dataCollected}</p>
+            <div data-aos="fade-up" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border); margin-top:20px;">
+                <h2 style="color:var(--highlight); margin-bottom:20px;">About Us & Privacy</h2>
+                <p style="color:var(--muted); line-height:1.8;">${data.aboutContent.mission}<br><br>${data.aboutContent.history}</p>
+                <hr style="border:0; border-top:1px solid var(--border); margin:20px 0;">
+                <p style="color:var(--muted); line-height:1.8;">${data.privacyContent.introduction} ${data.privacyContent.dataCollected}</p>
             </div>
         </div>
 
@@ -952,26 +971,26 @@ app.get('/', (req, res) => {
             <div class="widget" style="text-align:center;" data-aos="fade-left">
                 <div style="width:80px; height:80px; background:linear-gradient(135deg, #10b981, #fbbf24); border-radius:50%; margin:0 auto 15px; display:flex; align-items:center; justify-content:center; font-size:35px;">🚀</div>
                 <h3 style="border:none; margin-bottom:5px;">Meet TICHER</h3>
-                <p style="color:#94a3b8; font-size:13px; line-height:1.5;">Founder of 3EESHER-CLOUD. Helping 10,000+ Africans achieve financial freedom.</p>
+                <p style="color:var(--muted); font-size:13px; line-height:1.5;">Founder of 3EESHER-CLOUD. Helping 10,000+ Africans achieve financial freedom.</p>
             </div>
 
-            <div class="widget" data-aos="fade-left" data-aos-delay="100">
+            <div class="widget" id="stories" data-aos="fade-left" data-aos-delay="100">
                 <h3>🏆 Success Stories</h3>
                 ${storiesHtml}
             </div>
 
             ${ads.middle ? `<div class="widget" style="padding:10px; text-align:center;">${ads.middle}</div>` : ''}
 
-            <div class="widget" data-aos="fade-left" data-aos-delay="200">
+            <div class="widget" id="stores" data-aos="fade-left" data-aos-delay="200">
                 <h3>🏪 Top Affiliate Stores</h3>
                 ${data.storeLinks.slice(0,5).map(l=> l.active ? `<a href="${l.url}${l.id}" target="_blank" class="store-item">🛒 ${l.name}</a>` : '').join('')}
             </div>
 
             <div class="widget" data-aos="fade-left" data-aos-delay="300">
                 <h3>📧 Mailchimp Connect</h3>
-                <p style="color:#94a3b8; font-size:13px; margin-bottom:15px;">Join the elite list. Syncs directly to Mailchimp database.</p>
-                <input type="email" id="nlEmail" style="width:100%; padding:12px; background:#0f172a; border:1px solid #334155; border-radius:6px; color:#fff; margin-bottom:10px;" placeholder="Your Email Address">
-                <button onclick="subscribeMailchimp()" style="width:100%; padding:12px; background:#10b981; color:#000; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Subscribe Now</button>
+                <p style="color:var(--muted); font-size:13px; margin-bottom:15px;">Join the elite list. Syncs directly to Mailchimp database.</p>
+                <input type="email" id="nlEmail" style="width:100%; padding:12px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); margin-bottom:10px;" placeholder="Your Email Address">
+                <button onclick="subscribeMailchimp()" style="width:100%; padding:12px; background:var(--highlight); color:#000; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Subscribe Now</button>
             </div>
             
             ${ads.bottom ? `<div class="widget" style="padding:10px; text-align:center;">${ads.bottom}</div>` : ''}
@@ -982,22 +1001,35 @@ app.get('/', (req, res) => {
     <div class="fomo-popup" id="fomoPopup">
         <div class="fomo-icon" id="fomoIcon">🔥</div>
         <div>
-            <div class="fomo-text" id="fomoText">Someone just joined the library!</div>
-            <div class="fomo-time">Just now</div>
+            <div class="fomo-text" id="fomoText" style="color:var(--text)">Someone just joined the library!</div>
+            <div class="fomo-time" style="color:var(--highlight)">Just now</div>
         </div>
     </div>
 
     <footer>
-        <p style="color:#94a3b8;">© 2026 3EESHER-CLOUD. Contact: abdullahharuna216@gmail.com</p>
+        <p style="color:var(--muted);">© 2026 3EESHER-CLOUD. Contact: abdullahharuna216@gmail.com</p>
         <a href="https://wa.me/2348080336353" target="_blank" style="display:inline-block; margin-top:15px; color:#25d366; font-weight:bold;">💬 Chat on WhatsApp (+2348080336353)</a>
     </footer>
 
     <a href="/super-admin" style="position:fixed; bottom:20px; right:20px; background:#fbbf24; color:#000; padding:10px 20px; border-radius:20px; font-weight:bold; box-shadow:0 5px 15px rgba(0,0,0,0.5); z-index: 1000;">⚙️ Admin</a>
     
-    <!-- AOS ANIMATION SCRIPT -->
+    <!-- AOS ANIMATION SCRIPT & THEME TOGGLE -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init({ duration: 800, once: true });
+
+        // THEME TOGGLE LOGIC
+        function toggleTheme() {
+            const body = document.body;
+            if(body.getAttribute('data-theme') === 'light') {
+                body.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                body.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+        if(localStorage.getItem('theme') === 'light') document.body.setAttribute('data-theme', 'light');
 
         async function subscribeMailchimp(){
             const email = document.getElementById('nlEmail').value;
@@ -1041,7 +1073,7 @@ app.get('/library', (req, res) => {
         <p style="color:#94a3b8;font-size:14px;margin-bottom:25px;">Access Premium Google Books Free.</p>
         <input type="email" id="email" placeholder="Email Address">
         <input type="password" id="pass" placeholder="Password">
-        <input type="text" id="name" placeholder="Full Name (For Certificates)" style="display:none;">
+        <input type="text" id="name" placeholder="Full Name (Signup Only)" style="display:none;">
         <button onclick="auth()" id="btn">Login Securely</button><span class="switch" onclick="toggle()">Need an account? Sign up Free</span></div>
         <script>
             let isLog = true; function toggle(){ isLog=!isLog; document.getElementById('name').style.display=isLog?'none':'block'; document.getElementById('btn').textContent=isLog?'Create Free Account'; document.querySelector('.switch').textContent=isLog?'Need an account? Sign up Free':'Already have account? Login'; }
@@ -1064,14 +1096,31 @@ app.get('/library', (req, res) => {
     </div></div></body></html>`);
 });
 
+// BLOG DETAIL PAGE (WITH READING PROGRESS BAR)
 app.get('/blog/:id', (req, res) => {
     const data = getData(); const post = data.blogPosts.find(p => p.id == req.params.id);
     if (!post) return res.redirect('/'); post.views++; saveData(data);
     res.send(`<!DOCTYPE html><html><head><title>${post.title}</title>${getMetaTags(post.title, post.content, 'https://3eesher.cloud/blog/'+post.id, post.image)}
-    <style>body{font-family:-apple-system,sans-serif; background:#0a0f1e; color:#e2e8f0; padding:40px 5%;} .wrap{max-width:800px; margin:0 auto; background:#1e293b; padding:50px; border-radius:20px;border:1px solid #334155;} img{max-width:100%; border-radius:12px;margin:20px 0;} a{color:#10b981;font-weight:bold;text-decoration:none;}</style></head>
-    <body><div class="wrap"><a href="/" style="display:inline-block;margin-bottom:20px;">← Back to Hub</a>
+    <style>body{font-family:-apple-system,sans-serif; background:#0a0f1e; color:#e2e8f0; padding:40px 5%; margin:0;} .wrap{max-width:800px; margin:40px auto; background:#1e293b; padding:50px; border-radius:20px;border:1px solid #334155;} img{max-width:100%; border-radius:12px;margin:20px 0;} a{color:#10b981;font-weight:bold;text-decoration:none;}
+    /* PROGRESS BAR */
+    .progress-container { width: 100%; position: fixed; top: 0; left: 0; height: 5px; background: #0a0f1e; z-index: 1000; }
+    .progress-bar { height: 5px; background: #10b981; width: 0%; box-shadow: 0 0 10px #10b981;}
+    </style></head>
+    <body>
+    <div class="progress-container"><div class="progress-bar" id="myBar"></div></div>
+    <div class="wrap"><a href="/" style="display:inline-block;margin-bottom:20px;">← Back to Hub</a>
     <h1 style="color:#fbbf24;font-size:32px;">${post.title}</h1><p style="color:#94a3b8;font-size:14px;">${new Date(post.date).toLocaleDateString()} • ${post.views} views</p>
-    <img src="${post.image}"><div style="line-height:1.8;font-size:16px;color:#cbd5e1;margin-top:20px;">${post.content}</div></div></body></html>`);
+    <img src="${post.image}"><div style="line-height:1.8;font-size:16px;color:#cbd5e1;margin-top:20px;">${post.content}</div></div>
+    <script>
+        // Reading Progress Bar Logic
+        window.onscroll = function() {
+            var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            var scrolled = (winScroll / height) * 100;
+            document.getElementById("myBar").style.width = scrolled + "%";
+        };
+    </script>
+    </body></html>`);
 });
 
 app.get('/sitemap.xml', (req, res) => {
@@ -1081,6 +1130,6 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 3EESHER-CLOUD ENTERPRISE running on http://localhost:${PORT}`);
-    console.log(`🌟 Floating Nav, Glowing Orbs, 3D Cloud Logo, and Feature Grid Active.`);
+    console.log(`🌟 Added: Theme Toggle, Viral Share Buttons, Mega Menu, and Progress Bars`);
     console.log(`🔐 Admin: http://localhost:${PORT}/super-admin`);
 });
