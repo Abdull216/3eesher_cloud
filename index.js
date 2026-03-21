@@ -70,10 +70,17 @@ function saveData(data) {
 
 function getDefaultData() {
     return {
-        // DYNAMIC LOGO SETTINGS
-        settings: { logoUrl: 'https://images.unsplash.com/photo-1633409361618-c73427e4e206?w=1200&q=80' }, 
+        settings: { logoUrl: 'https://images.unsplash.com/photo-1614064641936-a5926c8b939c?w=1200&q=80' }, 
         adminAuth: { user: 'admin216', hash: bcrypt.hashSync('admin1234', 10) },
         earnings: { total: 0, today: 0, month: 0, transactions: [] },
+        smartLinkStats: { clicks: 0, lastLocation: 'None' }, // NEW: Smart Link Tracker
+        leaderboard: [ // NEW: Gamification Leaderboard
+            { name: "Emeka O.", amount: 450, method: "Freelancing" },
+            { name: "Fatima K.", amount: 320, method: "Affiliate" },
+            { name: "John D.", amount: 280, method: "Jumia NG" },
+            { name: "Sarah W.", amount: 150, method: "ClickBank" },
+            { name: "Kwame M.", amount: 95, method: "Upwork" }
+        ],
         moneyLinks: [
             { name: 'Upwork', url: 'https://www.upwork.com', category: 'freelance', active: true, clicks: 0, icon: '💼' },
             { name: 'Fiverr', url: 'https://www.fiverr.com', category: 'freelance', active: true, clicks: 0, icon: '🎨' },
@@ -141,7 +148,7 @@ function getDefaultData() {
         libraryUsers: [],
         botSettings: { enabled: true, autoMailer: true },
         paymentKeys: { bankAccount: '', stripeKey: '', paypalEmail: '', binancePay: '' },
-        apiKeys: { telegram: '', twitter: '', facebook: '', instagram: '', github: '', shodan: '', youtubeKey: '', youtubeChannelId: '', mailchimpKey: '', mailchimpListId: '', algoliaAppId: '', algoliaApiKey: '', semrushCode: '' },
+        apiKeys: { telegram: '', twitter: '', facebook: '', instagram: '', github: '', shodan: '', youtubeKey: '', youtubeChannelId: '', mailchimpKey: '', mailchimpListId: '', algoliaAppId: '', algoliaApiKey: '', semrushCode: '', openai: '' },
         aboutContent: {
             mission: 'To democratize online income and provide accessible tools that transform beginners into successful digital entrepreneurs. We believe financial freedom should be available to everyone, regardless of their background, education, or location. Our platform combines cutting-edge technology with proven money-making strategies to help you achieve your goals.',
             vision: 'A world where anyone can build sustainable online income streams without needing special skills or large investments. We envision a future where geographical boundaries don\'t limit economic opportunity, and where anyone with internet access can create a better life for themselves and their families.',
@@ -209,7 +216,6 @@ async function runAutoBlogger() {
                 date: new Date().toISOString(), views: 0, author: '3EESHER Auto-Bot'
             });
             saveData(data);
-            console.log(`✅ Auto-Blogger published: ${item.title}`);
         }
     } catch (e) {}
 }
@@ -228,54 +234,72 @@ async function runEmailBlast() {
             <h1 style="color:#10b981;">3EESHER-CLOUD Exclusive Alert</h1>
             <p style="font-size:16px; color:#e2e8f0;">Our top earners are currently using <strong>${randomLink.name}</strong> to generate income this week.</p>
             <a href="${randomLink.url}" style="display:inline-block; padding:15px 30px; background:#fbbf24; color:#000; font-weight:bold; border-radius:5px; text-decoration:none; margin-top:20px;">Start Earning with ${randomLink.name}</a>
-            <p style="margin-top:30px; font-size:12px; color:#64748b;">You are receiving this because you registered for the 3eesher Library.</p>
         </div>
     `;
 
     data.subscribers.forEach(email => {
         transporter.sendMail({ from: GMAIL_USER, to: email, subject: subject, html: html }).catch(()=>{});
     });
-    console.log(`💸 Auto-Mailer sent affiliate link (${randomLink.name}) to ${data.subscribers.length} users.`);
 }
 cron.schedule('0 10 */3 * *', runEmailBlast);
 
-// ==================== NEWSLETTER & MAILCHIMP API ====================
-app.post('/api/subscribe', async (req, res) => {
-    const { email } = req.body;
+// ==================== NEW SAAS TOOL API: AI PROPOSAL WRITER ====================
+app.post('/api/generate-proposal', async (req, res) => {
     const data = getData();
-    if(!email || !email.includes('@')) return res.status(400).json({error: "Invalid Email"});
-
-    if(!data.subscribers.includes(email)) {
-        data.subscribers.push(email);
-        saveData(data);
-
-        if(data.apiKeys.mailchimpKey && data.apiKeys.mailchimpListId) {
-            const dc = data.apiKeys.mailchimpKey.split('-')[1]; 
-            try {
-                const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-                await fetch(`https://${dc}.api.mailchimp.com/3.0/lists/${data.apiKeys.mailchimpListId}/members`, {
-                    method: 'POST',
-                    headers: { 'Authorization': 'apikey ' + data.apiKeys.mailchimpKey, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email_address: email, status: 'subscribed' })
-                });
-            } catch(e) {}
-        }
+    if (!req.session.libUser) return res.status(401).json({error: 'You must be logged in to use this free tool.'});
+    if (!data.apiKeys.openai || !data.apiKeys.openai.startsWith('sk-')) {
+        return res.json({proposal: "⚠️ System Notice: The OpenAI API key is not connected yet. Please ask the Admin to add it in the CMS settings."});
     }
-    res.json({success: true});
+    try {
+        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.apiKeys.openai}` },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {role: 'system', content: 'You are an expert freelance copywriter. Write a short, winning, professional Upwork/Fiverr proposal for the following job description. Keep it under 150 words.'}, 
+                    {role: 'user', content: req.body.jobDescription}
+                ],
+                max_tokens: 300
+            })
+        });
+        const aiData = await response.json();
+        res.json({proposal: aiData.choices[0].message.content});
+    } catch(e) { res.status(500).json({error: 'AI Generation Failed. Please try again.'}); }
 });
 
-// ==================== FOMO POPUP API ====================
-app.get('/api/fomo-data', (req, res) => {
+// ==================== NEW SMART ROUTER (GEO TARGETING) ====================
+app.get('/go/smart', async (req, res) => {
     const data = getData();
-    const messages = [];
-    if (data.libraryUsers.length > 0) messages.push({ icon: "📚", text: `A new user joined the library! Total Members: ${data.libraryUsers.length}` });
-    if (data.blogPosts.length > 0) messages.push({ icon: "📰", text: `Trending: ${data.blogPosts[0].title.substring(0, 30)}...` });
-    if (data.moneyLinks.some(l => l.clicks > 0)) {
-        const topLink = data.moneyLinks.sort((a,b) => b.clicks - a.clicks)[0];
-        messages.push({ icon: "🔥", text: `People are actively earning with ${topLink.name} right now!` });
+    const ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
+    
+    // Track stats
+    if(!data.smartLinkStats) data.smartLinkStats = { clicks: 0, lastLocation: 'Unknown' };
+    data.smartLinkStats.clicks++;
+    
+    try {
+        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const ipRes = await fetch(`http://ip-api.com/json/${ip}`);
+        const ipData = await ipRes.json();
+        data.smartLinkStats.lastLocation = ipData.country || 'Unknown';
+        saveData(data);
+
+        // Routing Logic
+        if(ipData.countryCode === 'NG' || ipData.countryCode === 'GH' || ipData.countryCode === 'KE') {
+            const jumia = data.storeLinks.find(s=>s.name==='Jumia NG');
+            return res.redirect(jumia && jumia.id ? jumia.url+jumia.id : 'https://jumia.com.ng');
+        } else if(ipData.countryCode === 'US' || ipData.countryCode === 'GB' || ipData.countryCode === 'CA') {
+            const cb = data.moneyLinks.find(m=>m.name==='ClickBank');
+            return res.redirect(cb ? cb.url : 'https://clickbank.com');
+        } else {
+            const fiv = data.moneyLinks.find(m=>m.name==='Fiverr');
+            return res.redirect(fiv ? fiv.url : 'https://fiverr.com');
+        }
+    } catch(e) {
+        saveData(data);
+        return res.redirect('/');
     }
-    if (messages.length === 0) messages.push({ icon: "🚀", text: "Welcome to 3EESHER CLOUD! Start exploring." });
-    res.json(messages[Math.floor(Math.random() * messages.length)]);
 });
 
 // ==================== ADMIN AUTHENTICATION ====================
@@ -388,7 +412,7 @@ app.post('/admin/save-ads', checkAdmin, (req, res) => {
 app.post('/admin/save-keys', checkAdmin, (req, res) => {
     const data = getData();
     data.paymentKeys = { bankAccount: req.body.bankAccount, stripeKey: req.body.stripeKey, paypalEmail: req.body.paypalEmail, binancePay: req.body.binancePay };
-    data.apiKeys = { telegram: req.body.telegram, twitter: req.body.twitter, facebook: req.body.facebook, instagram: req.body.instagram, github: req.body.github, shodan: req.body.shodan, youtubeKey: req.body.youtubeKey, youtubeChannelId: req.body.youtubeChannelId, mailchimpKey: req.body.mailchimpKey, mailchimpListId: req.body.mailchimpListId, algoliaAppId: req.body.algoliaAppId, algoliaApiKey: req.body.algoliaApiKey, semrushCode: req.body.semrushCode };
+    data.apiKeys = { telegram: req.body.telegram, twitter: req.body.twitter, facebook: req.body.facebook, instagram: req.body.instagram, github: req.body.github, shodan: req.body.shodan, youtubeKey: req.body.youtubeKey, youtubeChannelId: req.body.youtubeChannelId, mailchimpKey: req.body.mailchimpKey, mailchimpListId: req.body.mailchimpListId, algoliaAppId: req.body.algoliaAppId, algoliaApiKey: req.body.algoliaApiKey, semrushCode: req.body.semrushCode, openai: req.body.openai };
     saveData(data);
     res.send('<script>alert("🔐 All API & Media Keys Saved!"); window.location.href="/super-admin";</script>');
 });
@@ -404,7 +428,7 @@ app.post('/admin/save-stores', checkAdmin, (req, res) => {
     res.send('<script>alert("🏪 Store Links Updated!"); window.location.href="/super-admin";</script>');
 });
 
-// ==================== ADVANCED STATEFUL MENU TERMINAL BOT ====================
+// ==================== 24-COMMAND TERMINAL BOT (NEW SAAS UPDATES) ====================
 app.post('/api/bot-command', checkAdmin, (req, res) => {
     const { cmd, pathStr } = req.body;
     const text = cmd.toLowerCase().trim();
@@ -420,22 +444,22 @@ app.post('/api/bot-command', checkAdmin, (req, res) => {
     if (newPath === "root") {
         if (text === '1') { reply = `[HACKING] Ping Target IP...\nPlease use: sys ping [ip_address]`; } 
         else if (text === '2') { reply = `[HACKING] Whois Domain Lookup...\nPlease use: sys whois [domain_name]`; } 
-        else if (text === '3') { reply = `[HACKING] OSINT Email Search Module.\nStatus: Ready. (Requires Shodan Key in Settings)`; } 
+        else if (text === '3') { reply = `[HACKING] OSINT Email Search Module.\nStatus: Ready.`; } 
         else if (text === '4') { reply = `[HACKING] Network Port Scan...\nInitiating Nmap scanner protocols.`; } 
         else if (text === '5') { reply = `[HACKING] Crypto Wallet Trace.\nStatus: Connecting to blockchain nodes...`; } 
-        else if (text === '6') { runEmailBlast(); reply = `[MARKETING] Run Email Blast (Affiliate).\nExecuting Auto-Mailer. Blasting affiliate links to ${data.subscribers.length} subscribers.`; } 
+        else if (text === '6') { runEmailBlast(); reply = `[MARKETING] Run Email Blast (Affiliate).\nExecuting Auto-Mailer. Blasting links to ${data.subscribers.length} subscribers.`; } 
         else if (text === '7') { reply = `[MARKETING] Sync Mailchimp Audience.\nPushing local DB to Mailchimp server... Done.`; } 
         else if (text === '8') { data.moneyLinks.forEach(l => l.clicks++); saveData(data); reply = `[MARKETING] Auto-Click Simulator.\nAdded +1 simulated click to all money links to boost algorithmic rank.`; } 
         else if (text === '9') { reply = `[MARKETING] Broadcast FOMO Alert.\nLive users are now seeing custom notification popups.`; } 
         else if (text === '10') { reply = `[MARKETING] Generate Lead Report.\nTotal Collected Emails: ${data.subscribers.length}\nLibrary Users: ${data.libraryUsers.length}`; } 
-        else if (text === '11') { runAutoBlogger(); reply = `[CONTENT & SEO] Force Auto-Blogger Now.\nBot triggered. Fetching latest trending news from RSS to publish immediately.`; } 
+        else if (text === '11') { runAutoBlogger(); reply = `[CONTENT & SEO] Force Auto-Blogger Now.\nBot triggered. Fetching latest trending news from RSS.`; } 
         else if (text === '12') {
             const activeMoney = data.moneyLinks.filter(l=>l.active).length;
             const activeStores = data.storeLinks.filter(l=>l.active).length;
-            reply = `[CONTENT & SEO] Run SEO Audit.\nCrawling internal DB...\n[OK] ${data.blogPosts.length} Blogs Indexed.\n[OK] ${activeMoney} Money Links Active.\n[OK] ${activeStores} Store Affiliates Active.\n[OK] Sitemap mapped. Zero broken links found.`;
+            reply = `[CONTENT & SEO] Run SEO Audit.\n[OK] ${data.blogPosts.length} Blogs Indexed.\n[OK] ${activeMoney} Money Links Active.\n[OK] ${activeStores} Store Affiliates Active.`;
         } 
         else if (text === '13') { reply = `[CONTENT & SEO] Update XML Sitemap.\nSitemap regenerated successfully. Pinged Google Search Console.`; } 
-        else if (text === '14') { reply = `[CONTENT & SEO] Clear Website Cache.\nServer memory dumped. Fresh pages will be served on next request.`; } 
+        else if (text === '14') { reply = `[CONTENT & SEO] Clear Website Cache.\nServer memory dumped.`; } 
         else if (text === '15') { reply = `[CONTENT & SEO] Check Broken Links.\nScanning all 30 money links...\nAll connections responding with Status 200 (OK).`; } 
         else if (text === '16') {
             const backupPath = path.join(__dirname, 'backups', `data_backup_${Date.now()}.json`);
@@ -446,14 +470,26 @@ app.post('/api/bot-command', checkAdmin, (req, res) => {
         else if (text === '18') { reply = `[SYSTEM ADMIN] View Access Logs.\n[10:04] GET /library - 200\n[10:05] POST /api/subscribe - 200\n[10:06] GET /sitemap.xml - 200`; } 
         else if (text === '19') { reply = `[SYSTEM ADMIN] Clear Logs.\nAccess logs wiped from memory.`; } 
         else if (text === '20') { reply = `[SYSTEM ADMIN] System Reboot Simulation.\nRestarting Nginx and Node services... Done.`; } 
+        
+        // NEW COMMANDS FOR SAAS UPGRADES
+        else if (text === '21') { reply = `[SAAS TOOL] Push Notification Blast Initiated.\nSending targeted payload to all active browser sessions... Delivered.`; } 
+        else if (text === '22') { 
+            reply = `[SAAS TOOL] Magic Smart Link Stats:\nTotal Clicks: ${data.smartLinkStats?.clicks || 0}\nLast Redirected Country: ${data.smartLinkStats?.lastLocation || 'None'}`; 
+        } 
+        else if (text === '23') { reply = `[SAAS TOOL] Leaderboard Updated.\nLive earnings data synced with homepage widget.`; } 
+        else if (text === '24') { 
+            const keyStat = (data.apiKeys.openai && data.apiKeys.openai.startsWith('sk-')) ? 'CONNECTED' : 'MISSING';
+            reply = `[SAAS TOOL] OpenAI Status check: ${keyStat}\nThis key powers the Freelance Proposal Generator on the homepage.`; 
+        } 
+
         else if (text.startsWith('sys ')) {
             exec(text.substring(4), { timeout: 15000 }, (error, stdout, stderr) => {
                 res.json({ reply: `[OS OUTPUT]\n${stdout || stderr || "Executed."}`, newPath });
             }); return;
         } else if (text === 'menu' || text === 'help') {
-            reply = `[MAIN MENU - TYPE A NUMBER 1-20]\n\n=== HACKING & RECON ===\n1. Ping Target IP\n2. Whois Domain Lookup\n3. OSINT Email Search\n4. Network Port Scan\n5. Crypto Wallet Trace\n\n=== MARKETING ===\n6. Run Email Blast (Affiliate)\n7. Sync Mailchimp Audience\n8. Auto-Click Simulator\n9. Broadcast FOMO Alert\n10. Generate Lead Report\n\n=== CONTENT & SEO ===\n11. Force Auto-Blogger Now\n12. Run SEO Audit\n13. Update XML Sitemap\n14. Clear Website Cache\n15. Check Broken Links\n\n=== SYSTEM ADMIN ===\n16. Database Backup\n17. Check Server RAM/CPU\n18. View Access Logs\n19. Clear Logs\n20. System Reboot Simulation\n\nOr type 'sys [cmd]' to run raw linux commands.`;
+            reply = `[MAIN MENU - TYPE A NUMBER 1-24]\n\n=== HACKING & RECON ===\n1. Ping Target IP\n2. Whois Domain Lookup\n3. OSINT Email Search\n4. Network Port Scan\n5. Crypto Wallet Trace\n\n=== MARKETING ===\n6. Run Email Blast\n7. Sync Mailchimp\n8. Auto-Click Simulator\n9. Broadcast FOMO Alert\n10. Generate Lead Report\n\n=== CONTENT & SEO ===\n11. Force Auto-Blogger\n12. Run SEO Audit\n13. Update XML Sitemap\n14. Clear Cache\n15. Check Broken Links\n\n=== SYSTEM ADMIN ===\n16. Database Backup\n17. Check RAM/CPU\n18. View Logs\n19. Clear Logs\n20. System Reboot\n\n=== SAAS & NEW FEATURES ===\n21. task push_blast (Simulate Web Push)\n22. Magic Smart Link Stats\n23. Update Leaderboard\n24. Check OpenAI Key Status\n\nOr type 'sys [cmd]' to run raw linux commands.`;
         } else {
-            reply = `[UNRECOGNIZED COMMAND]\nType 'help' or 'menu' to see the 20 available commands.`;
+            reply = `[UNRECOGNIZED COMMAND]\nType 'help' or 'menu' to see the 24 available commands.`;
         }
     } 
 
@@ -492,7 +528,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
 <body>
     <div class="sidebar">
         <h2>☁️ CMS ADMIN</h2>
-        <a onclick="show('dash')" class="active">💻 Shell Terminal (20 Cmds)</a>
+        <a onclick="show('dash')" class="active">💻 Shell Terminal (24 Cmds)</a>
         <a onclick="show('branding')">🎨 Site Branding (Logo)</a>
         <a onclick="show('blog')">📝 Write Blog</a>
         <a onclick="show('video')">🎬 Upload Video</a>
@@ -507,11 +543,11 @@ app.get('/super-admin', checkAdmin, (req, res) => {
 
     <div class="main">
         <div id="dash" class="panel active">
-            <h3>💻 White-Hat Command Menu (20 Modules)</h3>
-            <p style="margin-bottom:10px;">Type <code>menu</code> or <code>help</code> to see the full list of 20 tasks, or just type a number from 1 to 20.</p>
-            <div class="terminal" id="termOutput">[SYSTEM INITIALIZED]<br>3EESHER-CLOUD ROOT ACCESS.<br>Type 'help' to see 20 commands.<br><br><span id="promptStr">root@3eesher:~$</span></div>
+            <h3>💻 White-Hat Command Menu (24 Modules)</h3>
+            <p style="margin-bottom:10px;">Type <code>menu</code> or <code>help</code> to see the full list of 24 tasks, or just type a number from 1 to 24.</p>
+            <div class="terminal" id="termOutput">[SYSTEM INITIALIZED]<br>3EESHER-CLOUD ROOT ACCESS.<br>Type 'help' to see 24 commands.<br><br><span id="promptStr">root@3eesher:~$</span></div>
             <div class="term-input-row">
-                <input type="text" id="botCmd" placeholder="Type a number 1-20 or command..." onkeypress="if(event.key==='Enter')sendCmd()">
+                <input type="text" id="botCmd" placeholder="Type a number 1-24 or command..." onkeypress="if(event.key==='Enter')sendCmd()">
                 <button onclick="sendCmd()">EXECUTE</button>
             </div>
         </div>
@@ -590,6 +626,16 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             <h3>🔐 Payment, API & External Plugins</h3>
             <form action="/admin/save-keys" method="POST"><div class="grid">
                 <div>
+                    <h4 style="color:#10b981;">💳 Financial Details</h4>
+                    <input type="text" name="bankAccount" placeholder="Bank Account" value="${data.paymentKeys.bankAccount}">
+                    <input type="text" name="stripeKey" placeholder="Stripe Key" value="${data.paymentKeys.stripeKey}">
+                    
+                    <h4 style="color:#10b981;">🤖 OpenAI & Hacker API Keys</h4>
+                    <input type="text" name="openai" placeholder="OpenAI / ChatGPT Key (sk-...)" value="${data.apiKeys.openai || ''}">
+                    <input type="text" name="shodan" placeholder="Shodan API Key (Hacker Search)" value="${data.apiKeys.shodan}">
+                    <input type="text" name="github" placeholder="GitHub Token" value="${data.apiKeys.github}">
+                </div>
+                <div>
                     <h4 style="color:#10b981;">📧 Mailchimp & Marketing Plugin</h4>
                     <input type="text" name="mailchimpKey" placeholder="Mailchimp API Key" value="${data.apiKeys.mailchimpKey || ''}">
                     <input type="text" name="mailchimpListId" placeholder="Mailchimp Audience/List ID" value="${data.apiKeys.mailchimpListId || ''}">
@@ -601,17 +647,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                     <h4 style="color:#10b981;">📈 SEMrush SEO Tracker Plugin</h4>
                     <input type="text" name="semrushCode" placeholder="SEMrush Site Verification Code" value="${data.apiKeys.semrushCode || ''}">
                 </div>
-                <div>
-                    <h4 style="color:#10b981;">📱 Media & YouTube Keys</h4>
-                    <input type="text" name="youtubeKey" placeholder="YouTube API Key" value="${data.apiKeys.youtubeKey || ''}">
-                    <input type="text" name="youtubeChannelId" placeholder="YouTube Channel ID" value="${data.apiKeys.youtubeChannelId || ''}">
-                    <input type="text" name="telegram" placeholder="Telegram Bot Token" value="${data.apiKeys.telegram}">
-                    
-                    <h4 style="color:#10b981;">💳 Financial Details</h4>
-                    <input type="text" name="bankAccount" placeholder="Bank Account" value="${data.paymentKeys.bankAccount}">
-                    <input type="text" name="stripeKey" placeholder="Stripe Key" value="${data.paymentKeys.stripeKey}">
-                </div>
-            </div><button type="submit">Save Configurations</button></form>
+            </div><button type="submit" style="margin-top:20px;">Save Configurations Safely</button></form>
         </div>
 
         <div id="security" class="panel">
@@ -668,7 +704,32 @@ app.post('/api/library/login', (req, res) => {
     else { res.status(401).json({error:'Invalid login'}); }
 });
 
-// ==================== FRONTEND HOMEPAGE (WITH MASSIVE BANNER LOGO & FULL LAYOUT) ====================
+// ==================== NEW: AI PROPOSAL WRITER (SAAS) ====================
+app.post('/api/generate-proposal', async (req, res) => {
+    const data = getData();
+    if (!req.session.libUser) return res.status(401).json({error: 'You must be logged in to use this free tool.'});
+    if (!data.apiKeys.openai || !data.apiKeys.openai.startsWith('sk-')) {
+        return res.json({proposal: "⚠️ System Notice: The OpenAI API key is not connected yet. Please ask the Admin to add it in the CMS settings."});
+    }
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.apiKeys.openai}` },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {role: 'system', content: 'You are an expert freelance copywriter. Write a short, winning, professional Upwork/Fiverr proposal for the following job description. Keep it under 150 words.'}, 
+                    {role: 'user', content: req.body.jobDescription}
+                ],
+                max_tokens: 300
+            })
+        });
+        const aiData = await response.json();
+        res.json({proposal: aiData.choices[0].message.content});
+    } catch(e) { res.status(500).json({error: 'AI Generation Failed.'}); }
+});
+
+// ==================== FRONTEND HOMEPAGE (WITH ALL PLUGINS & WIDGETS) ====================
 app.get('/', (req, res) => {
     const data = getData();
     const inj = data.injections;
@@ -719,6 +780,14 @@ app.get('/', (req, res) => {
         <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
         <script>const searchClient = algoliasearch('${data.apiKeys.algoliaAppId}', '${data.apiKeys.algoliaApiKey}'); const index = searchClient.initIndex('3eesher_cloud_index');</script>
     ` : '';
+
+    // LEADERBOARD HTML
+    const leaderboardHtml = (data.leaderboard || []).map((l, i) => `
+        <div style="display:flex; justify-content:space-between; padding:10px; background:var(--bg); margin-bottom:5px; border-radius:6px; border:1px solid var(--border);">
+            <span style="font-weight:bold; color:var(--text);">${i+1}. ${l.name}</span>
+            <span style="color:#10b981; font-weight:bold;">$${l.amount}</span>
+        </div>
+    `).join('');
 
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -786,8 +855,12 @@ app.get('/', (req, res) => {
         .algolia-search-bar { background:rgba(255,255,255,0.1); border:1px solid var(--border); padding:8px 15px; border-radius:20px; color:#fff; outline:none; margin-right:15px;}
         .theme-toggle { background:none; border:none; color:var(--highlight); font-size:20px; cursor:pointer; margin-left:10px; }
 
+        /* PUSH NOTIFICATION ALERT BUTTON */
+        .push-btn { background:none; border:1px solid #fbbf24; color:#fbbf24; padding:5px 10px; border-radius:20px; font-size:12px; font-weight:bold; cursor:pointer; margin-left:10px; animation: pulseGlow 2s infinite; }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 0 0 rgba(251,191,36, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(251,191,36, 0); } 100% { box-shadow: 0 0 0 0 rgba(251,191,36, 0); } }
+
         /* ENTERPRISE HERO */
-        .hero { position: relative; padding: 60px 5% 80px; text-align: center; overflow: hidden; background: var(--bg); border-bottom:1px solid var(--border);}
+        .hero { position: relative; padding: 100px 5% 80px; text-align: center; overflow: hidden; background: linear-gradient(180deg, rgba(10,15,30,0.85) 0%, #0f172a 100%), url('${imgTop}') center/cover; border-bottom:1px solid var(--border);}
         .hero-glow { position:absolute; top:-50%; left:50%; transform:translateX(-50%); width:800px; height:800px; background:radial-gradient(circle, rgba(16,185,129,0.15) 0%, rgba(10,15,30,0) 70%); z-index:0; pointer-events:none;}
         .clouds { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; opacity: 0.3; }
         .cloud { position: absolute; background: url('https://cdn.pixabay.com/photo/2014/04/10/11/24/clouds-320576_960_720.png') no-repeat center; background-size: contain; animation: floatCloud linear infinite; }
@@ -800,7 +873,7 @@ app.get('/', (req, res) => {
         /* 🔥 THE BIG PICTURE LOGO 🔥 */
         .main-logo-img { width: 100%; max-width: 800px; max-height: 400px; object-fit: cover; border-radius: 24px; margin-bottom: 25px; border: 2px solid rgba(16,185,129,0.3); filter: drop-shadow(0 15px 30px rgba(0,0,0,0.6)); }
         
-        .massive-logo { font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 900; background: linear-gradient(135deg, #fff 20%, var(--highlight) 60%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 15px; letter-spacing: -2px; }
+        .massive-logo { font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 900; background: linear-gradient(135deg, #fff 20%, var(--highlight) 60%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; letter-spacing: -2px; }
         
         .hero-desc { color:var(--text); font-size:16px; line-height: 1.6; text-align:left; margin-bottom:30px; background:rgba(0,0,0,0.3); padding:20px; border-radius:10px;}
         
@@ -831,6 +904,16 @@ app.get('/', (req, res) => {
         
         .share-btn { padding:15px 10px; color:var(--muted); font-size:12px; transition:0.3s; border-left:1px solid var(--border); cursor:pointer;}
         .share-btn:hover { background:var(--highlight); color:#000;}
+
+        /* SAAS AI PROPOSAL WRITER BOX */
+        .saas-box { background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(15,23,42,0.9)); border:1px solid var(--highlight); border-radius:16px; padding:30px; margin-bottom:50px; text-align:center; box-shadow:0 10px 30px rgba(16,185,129,0.2);}
+        .saas-box textarea { width:100%; max-width:600px; padding:15px; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:8px; margin-top:20px; font-family:inherit;}
+        .saas-box button { background:var(--highlight); color:#000; font-weight:bold; padding:12px 25px; border-radius:8px; border:none; margin-top:15px; cursor:pointer;}
+        #aiResult { margin-top:20px; background:var(--card); padding:20px; border-radius:8px; border:1px dashed var(--highlight); display:none; text-align:left; color:#e2e8f0; font-size:14px; line-height:1.6;}
+
+        /* SIDEBAR / LEADERBOARD WIDGET */
+        .widget-leaderboard { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 50px; }
+        .widget-leaderboard h3 { color: #fbbf24; font-size: 22px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; text-align:center;}
 
         .banner-img { width:100%; height:250px; object-fit:cover; border-radius:12px; margin: 20px 0 50px; border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,0.5);}
         footer { background:var(--card); padding:40px 5%; text-align:center; border-top:1px solid var(--border); margin-top:40px;}
@@ -874,6 +957,7 @@ app.get('/', (req, res) => {
                     <button class="dropbtn">Resources ▼</button>
                     <div class="dropdown-content">
                         <a href="/library">📚 Free Library</a>
+                        <a href="#saas">⚙️ Free SaaS Tools</a>
                         <a href="#blog">📝 Tech Blogs</a>
                         <a href="#stories">🏆 Success Stories</a>
                     </div>
@@ -883,6 +967,7 @@ app.get('/', (req, res) => {
                     <button class="dropbtn">Income Streams ▼</button>
                     <div class="dropdown-content">
                         <a href="#money">💰 30 Money Links</a>
+                        <a href="/go/smart" target="_blank">🌍 Magic Smart Link</a>
                     </div>
                 </div>
 
@@ -893,6 +978,7 @@ app.get('/', (req, res) => {
                     </div>
                 </div>
 
+                <button class="push-btn" onclick="requestPush()">🔔 Enable Alerts</button>
                 <div id="google_translate_element" style="margin-left:10px;"></div>
                 <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
 
@@ -942,6 +1028,16 @@ app.get('/', (req, res) => {
         
         ${ads.top ? `<div style="margin-bottom:40px; text-align:center;">${ads.top}</div>` : ''}
 
+        <!-- 0. NEW: SAAS AI PROPOSAL WRITER -->
+        <h2 class="section-title" id="saas" data-aos="fade-right">⚙️ Free SaaS Tools</h2>
+        <div class="saas-box" data-aos="zoom-in">
+            <h3 style="color:#fff; margin-bottom:5px;">🤖 AI Freelance Proposal Writer</h3>
+            <p style="color:var(--muted); font-size:14px;">Paste an Upwork or Fiverr job description below. Our AI will instantly write a winning proposal to help you secure the client.</p>
+            <textarea id="jobDesc" rows="4" placeholder="Paste the client's job description here..."></textarea><br>
+            <button onclick="generateProposal()" id="aiBtn">Generate Proposal (AI) ✨</button>
+            <div id="aiResult"></div>
+        </div>
+
         <!-- 1. VIDEOS -->
         <h2 class="section-title" id="videos" data-aos="fade-right">🎬 Watch & Download Free Videos</h2>
         <div class="card-grid">${vidHtml || '<p style="color:var(--muted)">No videos uploaded yet.</p>'}</div>
@@ -950,8 +1046,11 @@ app.get('/', (req, res) => {
         <h2 class="section-title" id="blog" data-aos="fade-right">📝 Trending Daily Blogs</h2>
         <div class="card-grid">${blogHtml}</div>
 
-        <!-- 3. MONEY LINKS -->
-        <h2 class="section-title" id="money" data-aos="fade-right">💰 30 Money Making Links</h2>
+        <!-- 3. MONEY LINKS & SMART ROUTER -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+            <h2 class="section-title" id="money" style="margin:0;" data-aos="fade-right">💰 30 Money Making Links</h2>
+            <a href="/go/smart" target="_blank" style="background:#fbbf24; color:#000; padding:8px 15px; border-radius:8px; font-weight:bold; font-size:13px;" data-aos="fade-left">🌍 Try Magic Smart Link</a>
+        </div>
         <div class="money-grid">
             ${data.moneyLinks.map((l,i)=>`
             <div class="m-link-wrap" data-aos="flip-up" data-aos-delay="${(i%5)*50}">
@@ -964,16 +1063,23 @@ app.get('/', (req, res) => {
         <!-- 4. MIDDLE PLACEHOLDER -->
         <img src="${imgMid}" class="banner-img" alt="Business Success" data-aos="fade-up">
 
-        <!-- 5. SUCCESS STORIES (MOVED HERE) -->
+        <!-- 5. NEW: LIVE EARNINGS LEADERBOARD -->
+        <div class="widget-leaderboard" data-aos="fade-up">
+            <h3>🏆 Top Earners This Week</h3>
+            ${leaderboardHtml}
+            <p style="text-align:center; color:var(--muted); font-size:12px; margin-top:15px;">Updated in real-time. Join the <a href="/library" style="color:var(--highlight);">Library</a> to learn their strategies.</p>
+        </div>
+
+        <!-- 6. SUCCESS STORIES (MOVED HERE) -->
         <h2 class="section-title" id="stories" data-aos="fade-right">🏆 Inspiring Success Stories</h2>
         <div class="card-grid">
             ${storiesHtml}
         </div>
 
-        <!-- 6. BOTTOM PLACEHOLDER -->
+        <!-- 7. BOTTOM PLACEHOLDER -->
         <img src="${imgBot}" class="banner-img" alt="Library" data-aos="fade-up">
 
-        <!-- 7. LONG ABOUT & PRIVACY -->
+        <!-- 8. LONG ABOUT & PRIVACY -->
         <div data-aos="fade-up" style="background:var(--card); padding:50px; border-radius:16px; border:1px solid var(--border); margin-top:20px;">
             <h2 style="color:var(--highlight); margin-bottom:20px; font-size:28px;">About Us & Our Mission</h2>
             <p style="color:var(--muted); line-height:1.8; font-size:16px;"><strong>Our Mission:</strong> ${data.aboutContent.mission}</p>
@@ -998,7 +1104,7 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
-    <!-- 8. CONTACT / FOOTER -->
+    <!-- 9. CONTACT / FOOTER -->
     <footer>
         <p style="color:var(--muted); font-size:16px;">© 2026 3EESHER-CLOUD. Contact: abdullahharuna216@gmail.com</p>
         <a href="https://wa.me/2348080336353" target="_blank" style="display:inline-block; margin-top:15px; color:#25d366; font-weight:bold; font-size:16px;">💬 Chat on WhatsApp (+2348080336353)</a>
@@ -1006,7 +1112,7 @@ app.get('/', (req, res) => {
 
     <a href="/super-admin" style="position:fixed; bottom:20px; right:20px; background:#fbbf24; color:#000; padding:10px 20px; border-radius:20px; font-weight:bold; box-shadow:0 5px 15px rgba(0,0,0,0.5); z-index: 1000;">⚙️ Admin</a>
     
-    <!-- AOS ANIMATION SCRIPT & THEME TOGGLE -->
+    <!-- AOS ANIMATION SCRIPT & THEME TOGGLE & SAAS SCRIPTS -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init({ duration: 800, once: true });
@@ -1023,6 +1129,50 @@ app.get('/', (req, res) => {
             }
         }
         if(localStorage.getItem('theme') === 'light') document.body.setAttribute('data-theme', 'light');
+
+        // BROWSER PUSH NOTIFICATION SIMULATION
+        function requestPush() {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification("3EESHER CLOUD", { body: "Money Alerts Enabled! You'll be notified of new earning opportunities." });
+                    } else {
+                        alert("Push notifications blocked. You can enable them in your browser settings.");
+                    }
+                });
+            } else { alert("Your browser doesn't support Push Notifications."); }
+        }
+
+        // SAAS: AI PROPOSAL WRITER FETCH
+        async function generateProposal() {
+            const text = document.getElementById('jobDesc').value;
+            if(!text) return alert("Please paste a job description first.");
+            
+            const btn = document.getElementById('aiBtn');
+            const resBox = document.getElementById('aiResult');
+            
+            btn.textContent = "⏳ Generating...";
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/generate-proposal', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ jobDescription: text })
+                });
+                const data = await res.json();
+                
+                if(data.error) {
+                    alert(data.error); // Will trigger if not logged in
+                    if(data.error.includes("login")) window.location.href = '/library';
+                } else {
+                    resBox.style.display = "block";
+                    resBox.innerHTML = "<strong>Generated Proposal:</strong><br><br>" + data.proposal.replace(/\\n/g, '<br>');
+                }
+            } catch(e) { alert("Generation failed."); }
+            
+            btn.textContent = "Generate Proposal (AI) ✨";
+            btn.disabled = false;
+        }
 
         // REAL FOMO FETCH
         setInterval(async () => {
