@@ -33,7 +33,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/videos', express.static(path.join(__dirname, 'videos')));
 app.use('/backups', express.static(path.join(__dirname, 'backups')));
 
-// Multer Config (Max 500MB per file) - FIXED FOR ALL MOBILE FORMATS
+// Multer Config (Max 500MB per file)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
@@ -117,15 +117,15 @@ function getDefaultData() {
             { name: 'Teespring', url: 'https://teespring.com', category: 'pod', active: true, clicks: 0, icon: '🛍️' }
         ],
         storeLinks: [
-            { name: 'Jumia NG', url: 'https://www.jumia.com.ng/?aff_id=', id: 'allarbaa216-20', active: true },
-            { name: 'Amazon Store', url: 'https://www.amazon.com/?tag=', id: '', active: false },
-            { name: 'eBay Store', url: 'https://www.ebay.com/?campid=', id: '', active: false },
-            { name: 'AliExpress', url: 'https://s.click.aliexpress.com/e/', id: '', active: false },
-            { name: 'Walmart', url: 'https://goto.walmart.com/c/', id: '', active: false },
-            { name: 'Konga', url: 'https://www.konga.com/?aff_id=', id: '', active: false },
-            { name: 'PayPorte', url: 'https://www.payporte.com/?aff_id=', id: '', active: false },
-            { name: 'Jiji', url: 'https://jiji.ng/?aff_id=', id: '', active: false },
-            { name: 'ClickBank', url: 'https://hop.clickbank.net/?affiliate=', id: '', active: false }
+            { name: 'Jumia NG', url: 'https://www.jumia.com.ng/?aff_id=', id: 'allarbaa216-20', active: true, clicks: 0 },
+            { name: 'Amazon Store', url: 'https://www.amazon.com/?tag=', id: '', active: false, clicks: 0 },
+            { name: 'eBay Store', url: 'https://www.ebay.com/?campid=', id: '', active: false, clicks: 0 },
+            { name: 'AliExpress', url: 'https://s.click.aliexpress.com/e/', id: '', active: false, clicks: 0 },
+            { name: 'Walmart', url: 'https://goto.walmart.com/c/', id: '', active: false, clicks: 0 },
+            { name: 'Konga', url: 'https://www.konga.com/?aff_id=', id: '', active: false, clicks: 0 },
+            { name: 'PayPorte', url: 'https://www.payporte.com/?aff_id=', id: '', active: false, clicks: 0 },
+            { name: 'Jiji', url: 'https://jiji.ng/?aff_id=', id: '', active: false, clicks: 0 },
+            { name: 'ClickBank', url: 'https://hop.clickbank.net/?affiliate=', id: '', active: false, clicks: 0 }
         ],
         videos: [
             { id: 1, title: 'Eminem - Houdini', videoUrl: 'https://www.youtube.com/embed/bkSJZwQF6I4', thumbnail: 'https://img.youtube.com/vi/bkSJZwQF6I4/0.jpg', type: 'youtube' },
@@ -207,6 +207,7 @@ async function runAutoBlogger() {
     
     const feedToUse = feeds[Math.floor(Math.random() * feeds.length)];
     try {
+        console.log(`🤖 Bot fetching real news from: ${feedToUse.url}`);
         const feed = await rssParser.parseURL(feedToUse.url);
         const item = feed.items[0]; 
 
@@ -217,8 +218,8 @@ async function runAutoBlogger() {
                 image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800', 
                 date: new Date().toISOString(), views: 0, author: '3EESHER Auto-Bot'
             });
-            // PERFECT FIX: Removed the automatic pop. Blogs now stay forever until you delete them!
             saveData(data);
+            console.log(`✅ Auto-Blogger published: ${item.title}`);
         }
     } catch (e) {}
 }
@@ -244,8 +245,35 @@ async function runEmailBlast() {
     data.subscribers.forEach(email => {
         transporter.sendMail({ from: GMAIL_USER, to: email, subject: subject, html: html }).catch(()=>{});
     });
+    console.log(`💸 Auto-Mailer sent affiliate link (${randomLink.name}) to ${data.subscribers.length} users.`);
 }
 cron.schedule('0 10 */3 * *', runEmailBlast);
+
+// ==================== NEW SAAS TOOL API: BUSINESS BUILDER ====================
+app.post('/api/generate-business', async (req, res) => {
+    const data = getData();
+    if (!req.session.libUser) return res.status(401).json({error: 'You must be logged in to use this free tool.'});
+    if (!data.apiKeys.openai || !data.apiKeys.openai.startsWith('sk-')) {
+        return res.json({result: "⚠️ System Notice: The OpenAI API key is not connected yet. Please ask the Admin to add it in the CMS settings."});
+    }
+    try {
+        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.apiKeys.openai}` },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {role: 'system', content: 'You are an expert digital marketing consultant. The user will give you a niche. Provide: 1. A catchy business name. 2. A 3-step marketing plan. 3. Recommended affiliate products to sell. 4. One viral Twitter post.'}, 
+                    {role: 'user', content: req.body.niche}
+                ],
+                max_tokens: 400
+            })
+        });
+        const aiData = await response.json();
+        res.json({result: aiData.choices[0].message.content});
+    } catch(e) { res.status(500).json({error: 'AI Generation Failed. Please try again.'}); }
+});
 
 // ==================== NEWSLETTER / MAILCHIMP API ====================
 app.post('/api/subscribe', async (req, res) => {
@@ -257,16 +285,21 @@ app.post('/api/subscribe', async (req, res) => {
         data.subscribers.push(email);
         saveData(data);
 
+        // Real Mailchimp Integration
         if(data.apiKeys.mailchimpKey && data.apiKeys.mailchimpListId) {
             const dc = data.apiKeys.mailchimpKey.split('-')[1]; 
             try {
                 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
                 await fetch(`https://${dc}.api.mailchimp.com/3.0/lists/${data.apiKeys.mailchimpListId}/members`, {
                     method: 'POST',
-                    headers: { 'Authorization': 'apikey ' + data.apiKeys.mailchimpKey, 'Content-Type': 'application/json' },
+                    headers: {
+                        'Authorization': 'apikey ' + data.apiKeys.mailchimpKey,
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ email_address: email, status: 'subscribed' })
                 });
-            } catch(e) {}
+                console.log(`📧 Mailchimp synced: ${email}`);
+            } catch(e) { console.error('Mailchimp API error:', e.message); }
         }
     }
     res.json({success: true});
@@ -277,6 +310,7 @@ app.get('/go/smart', async (req, res) => {
     const data = getData();
     const ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
     
+    // Track stats
     if(!data.smartLinkStats) data.smartLinkStats = { clicks: 0, lastLocation: 'Unknown' };
     data.smartLinkStats.clicks++;
     
@@ -287,6 +321,7 @@ app.get('/go/smart', async (req, res) => {
         data.smartLinkStats.lastLocation = ipData.country || 'Unknown';
         saveData(data);
 
+        // Routing Logic
         if(ipData.countryCode === 'NG' || ipData.countryCode === 'GH' || ipData.countryCode === 'KE') {
             const jumia = data.storeLinks.find(s=>s.name==='Jumia NG');
             return res.redirect(jumia && jumia.id ? jumia.url+jumia.id : 'https://jumia.com.ng');
@@ -303,18 +338,28 @@ app.get('/go/smart', async (req, res) => {
     }
 });
 
-// ==================== FOMO POPUP API ====================
+// ==================== FOMO POPUP API (REAL DATA) ====================
 app.get('/api/fomo-data', (req, res) => {
     const data = getData();
     const messages = [];
-    if (data.libraryUsers.length > 0) messages.push({ icon: "📚", text: `A new user joined the library! Total Members: ${data.libraryUsers.length}` });
-    if (data.blogPosts.length > 0) messages.push({ icon: "📰", text: `Trending: ${data.blogPosts[0].title.substring(0, 30)}...` });
+    
+    if (data.libraryUsers.length > 0) {
+        messages.push({ icon: "📚", text: `A new user joined the library! Total Members: ${data.libraryUsers.length}` });
+    }
+    if (data.blogPosts.length > 0) {
+        messages.push({ icon: "📰", text: `Trending: ${data.blogPosts[0].title.substring(0, 30)}...` });
+    }
     if (data.moneyLinks.some(l => l.clicks > 0)) {
         const topLink = data.moneyLinks.sort((a,b) => b.clicks - a.clicks)[0];
         messages.push({ icon: "🔥", text: `People are actively earning with ${topLink.name} right now!` });
     }
-    if (messages.length === 0) messages.push({ icon: "🚀", text: "Welcome to 3EESHER CLOUD! Start exploring." });
-    res.json(messages[Math.floor(Math.random() * messages.length)]);
+    
+    if (messages.length === 0) {
+        messages.push({ icon: "🚀", text: "Welcome to 3EESHER CLOUD! Start exploring." });
+    }
+    
+    const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+    res.json(randomMsg);
 });
 
 // ==================== ADMIN AUTHENTICATION ====================
@@ -327,7 +372,8 @@ app.post('/auth-admin', (req, res) => {
     const { username, password } = req.body;
     const data = getData();
     if (username === data.adminAuth.user && bcrypt.compareSync(password, data.adminAuth.hash)) {
-        req.session.isSuperAdmin = true; res.redirect('/super-admin');
+        req.session.isSuperAdmin = true;
+        res.redirect('/super-admin');
     } else {
         res.send('<script>alert("Invalid Credentials"); window.location.href="/admin-login";</script>');
     }
@@ -336,30 +382,41 @@ app.post('/auth-admin', (req, res) => {
 app.post('/admin/change-password', checkAdmin, (req, res) => {
     const { newUser, newPassword } = req.body;
     const data = getData();
-    data.adminAuth.user = newUser; data.adminAuth.hash = bcrypt.hashSync(newPassword, 10);
+    data.adminAuth.user = newUser;
+    data.adminAuth.hash = bcrypt.hashSync(newPassword, 10);
     saveData(data);
     res.send('<script>alert("🔐 Security Credentials Updated Successfully!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin-login', (req, res) => {
-    res.send(`<!DOCTYPE html><html><head><title>Super Admin Login</title>
-        <style>body{background:#000;color:#0f0;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;}
-        .box{background:#111;padding:40px;border-radius:10px;width:350px;border:1px solid #0f0;box-shadow:0 0 20px rgba(0,255,0,0.2);text-align:center;}
-        input{width:100%;padding:12px;margin:10px 0;background:#000;border:1px solid #0f0;color:#0f0;border-radius:5px;}
-        button{width:100%;padding:12px;background:#0f0;color:#000;border:none;border-radius:5px;font-weight:bold;cursor:pointer;}</style></head>
-        <body><div class="box"><h2 style="margin-bottom:20px;">[ ROOT ACCESS ]</h2>
-        <form method="POST" action="/auth-admin">
-            <input type="text" name="username" placeholder="Enter Username" required>
-            <input type="password" name="password" placeholder="Enter Password" required>
-            <button type="submit">INITIALIZE CONNECTION</button>
-        </form></div></body></html>`);
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head><title>Super Admin Login</title>
+        <style>
+            body{background:#000;color:#0f0;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;}
+            .box{background:#111;padding:40px;border-radius:10px;width:350px;border:1px solid #0f0;box-shadow:0 0 20px rgba(0,255,0,0.2);text-align:center;}
+            input{width:100%;padding:12px;margin:10px 0;background:#000;border:1px solid #0f0;color:#0f0;border-radius:5px;font-family:monospace;}
+            button{width:100%;padding:12px;background:#0f0;color:#000;border:none;border-radius:5px;font-weight:bold;cursor:pointer;font-family:monospace;}
+            button:hover{background:#0c0;}
+        </style></head>
+        <body>
+            <div class="box">
+                <h2 style="margin-bottom:20px;">[ ROOT ACCESS ]</h2>
+                <form method="POST" action="/auth-admin">
+                    <input type="text" name="username" placeholder="Enter Username" required>
+                    <input type="password" name="password" placeholder="Enter Password" required>
+                    <button type="submit">INITIALIZE CONNECTION</button>
+                </form>
+            </div>
+        </body></html>
+    `);
 });
 
 app.get('/admin', (req, res) => res.redirect('/super-admin'));
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
 
 // ==================== SUPER ADMIN CMS WORKERS ====================
-
 app.post('/admin/upload-logo', checkAdmin, upload.single('logo'), (req, res) => {
     if (!req.file) return res.send('<script>alert("No file selected!"); window.location.href="/super-admin";</script>');
     const data = getData();
@@ -369,41 +426,49 @@ app.post('/admin/upload-logo', checkAdmin, upload.single('logo'), (req, res) => 
     res.send('<script>alert("🎨 Logo Updated Successfully!"); window.location.href="/super-admin";</script>');
 });
 
-// FIXED MANUAL BLOG UPLOAD: No deletion rules.
 app.post('/admin/create-blog', checkAdmin, upload.single('image'), (req, res) => {
     const data = getData();
     data.blogPosts.unshift({
-        id: Date.now(), title: req.body.title, content: req.body.content.replace(/\n/g, '<br>'),
+        id: Date.now(),
+        title: req.body.title,
+        content: req.body.content.replace(/\n/g, '<br>'),
         image: req.file ? `/uploads/${req.file.filename}` : 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
-        date: new Date().toISOString(), views: 0, author: 'Admin'
+        date: new Date().toISOString(),
+        views: 0, author: 'Admin'
     });
     saveData(data);
     res.send('<script>alert("✅ Blog Published Permanently!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin/delete-blog/:id', checkAdmin, (req, res) => {
-    const data = getData(); data.blogPosts = data.blogPosts.filter(p => p.id != req.params.id); saveData(data); res.redirect('/super-admin');
+    const data = getData();
+    data.blogPosts = data.blogPosts.filter(p => p.id != req.params.id);
+    saveData(data);
+    res.redirect('/super-admin');
 });
 
-// PERFECTED VIDEO UPLOAD LOGIC (Works on all mobile OS)
 app.post('/admin/upload-video', checkAdmin, upload.single('video'), (req, res) => {
-    if (!req.file) return res.send('<script>alert("No video selected"); window.location.href="/super-admin";</script>');
+    if (!req.file) return res.send('<script>alert("No file selected!"); window.location.href="/super-admin";</script>');
     const data = getData();
-    
-    // Safely figure out where multer placed it to build the URL
-    const folder = req.file.destination.includes('videos') ? 'videos' : 'uploads';
-    const mediaUrl = `/${folder}/${req.file.filename}`;
+    const isVideoFolder = req.file.destination.includes('videos');
+    const mediaUrl = isVideoFolder ? `/videos/${req.file.filename}` : `/uploads/${req.file.filename}`;
 
     data.videos.unshift({
-        id: Date.now(), title: req.body.title || 'New Uploaded Video', videoUrl: mediaUrl,
-        thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800', type: 'local'
+        id: Date.now(),
+        title: req.body.title || 'New Uploaded Video',
+        videoUrl: mediaUrl,
+        thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800',
+        type: 'local'
     });
     saveData(data);
     res.send('<script>alert("🎬 Video Uploaded & Live on Homepage!"); window.location.href="/super-admin";</script>');
 });
 
 app.get('/admin/delete-video/:id', checkAdmin, (req, res) => {
-    const data = getData(); data.videos = data.videos.filter(v => v.id != req.params.id); saveData(data); res.redirect('/super-admin');
+    const data = getData();
+    data.videos = data.videos.filter(v => v.id != req.params.id);
+    saveData(data);
+    res.redirect('/super-admin');
 });
 
 app.get('/download/video/:id', (req, res) => {
@@ -431,7 +496,14 @@ app.post('/admin/save-ads', checkAdmin, (req, res) => {
 app.post('/admin/save-keys', checkAdmin, (req, res) => {
     const data = getData();
     data.paymentKeys = { bankAccount: req.body.bankAccount, stripeKey: req.body.stripeKey, paypalEmail: req.body.paypalEmail, binancePay: req.body.binancePay };
-    data.apiKeys = { telegram: req.body.telegram, twitter: req.body.twitter, facebook: req.body.facebook, instagram: req.body.instagram, github: req.body.github, shodan: req.body.shodan, youtubeKey: req.body.youtubeKey, youtubeChannelId: req.body.youtubeChannelId, mailchimpKey: req.body.mailchimpKey, mailchimpListId: req.body.mailchimpListId, algoliaAppId: req.body.algoliaAppId, algoliaApiKey: req.body.algoliaApiKey, semrushCode: req.body.semrushCode, openai: req.body.openai };
+    data.apiKeys = { 
+        telegram: req.body.telegram, twitter: req.body.twitter, facebook: req.body.facebook, 
+        instagram: req.body.instagram, github: req.body.github, shodan: req.body.shodan, 
+        youtubeKey: req.body.youtubeKey, youtubeChannelId: req.body.youtubeChannelId,
+        mailchimpKey: req.body.mailchimpKey, mailchimpListId: req.body.mailchimpListId,
+        algoliaAppId: req.body.algoliaAppId, algoliaApiKey: req.body.algoliaApiKey,
+        semrushCode: req.body.semrushCode, openai: req.body.openai
+    };
     saveData(data);
     res.send('<script>alert("🔐 All API & Media Keys Saved!"); window.location.href="/super-admin";</script>');
 });
@@ -444,7 +516,7 @@ app.post('/admin/save-stores', checkAdmin, (req, res) => {
         store.active = req.body[`store_active_${i}`] === 'on';
     });
     saveData(data);
-    res.send('<script>alert("🏪 Store Links Updated!"); window.location.href="/super-admin";</script>');
+    res.send('<script>alert("🏪 Store Links Updated! Bot will now use these for affiliate routing."); window.location.href="/super-admin";</script>');
 });
 
 // ==================== ADVANCED STATEFUL MENU TERMINAL BOT ====================
@@ -464,47 +536,68 @@ app.post('/api/bot-command', checkAdmin, (req, res) => {
     }
 
     if (newPath === "root") {
-        if (text === '1') { reply = `[HACKING] Ping Target IP...\nPlease use: sys ping [ip_address]`; } 
-        else if (text === '2') { reply = `[HACKING] Whois Domain Lookup...\nPlease use: sys whois [domain_name]`; } 
-        else if (text === '3') { reply = `[HACKING] OSINT Email Search Module.\nStatus: Ready. (Requires Shodan Key in Settings)`; } 
-        else if (text === '4') { reply = `[HACKING] Network Port Scan...\nInitiating Nmap scanner protocols.`; } 
-        else if (text === '5') { reply = `[HACKING] Crypto Wallet Trace.\nStatus: Connecting to blockchain nodes...`; } 
-        else if (text === '6') { runEmailBlast(); reply = `[MARKETING] Run Email Blast (Affiliate).\nExecuting Auto-Mailer. Blasting affiliate links to ${data.subscribers.length} subscribers.`; } 
-        else if (text === '7') { reply = `[MARKETING] Sync Mailchimp Audience.\nPushing local DB to Mailchimp server... Done.`; } 
-        else if (text === '8') { data.moneyLinks.forEach(l => l.clicks++); saveData(data); reply = `[MARKETING] Auto-Click Simulator.\nAdded +1 simulated click to all money links to boost algorithmic rank.`; } 
-        else if (text === '9') { reply = `[MARKETING] Broadcast FOMO Alert.\nLive users are now seeing custom notification popups.`; } 
-        else if (text === '10') { reply = `[MARKETING] Generate Lead Report.\nTotal Collected Emails: ${data.subscribers.length}\nLibrary Users: ${data.libraryUsers.length}`; } 
-        else if (text === '11') { runAutoBlogger(); reply = `[CONTENT & SEO] Force Auto-Blogger Now.\nBot triggered. Fetching latest trending news from RSS to publish immediately.`; } 
-        else if (text === '12') {
+        if (text === '1') {
+            reply = `[HACKING] Ping Target IP...\nPlease use: sys ping [ip_address]`;
+        } else if (text === '2') {
+            reply = `[HACKING] Whois Domain Lookup...\nPlease use: sys whois [domain_name]`;
+        } else if (text === '3') {
+            reply = `[HACKING] OSINT Email Search Module.\nStatus: Ready. (Requires Shodan Key in Settings)`;
+        } else if (text === '4') {
+            reply = `[HACKING] Network Port Scan...\nInitiating Nmap scanner protocols.`;
+        } else if (text === '5') {
+            reply = `[HACKING] Crypto Wallet Trace.\nStatus: Connecting to blockchain nodes...`;
+        } else if (text === '6') {
+            runEmailBlast();
+            reply = `[MARKETING] Run Email Blast (Affiliate).\nExecuting Auto-Mailer. Blasting affiliate links to ${data.subscribers.length} subscribers.`;
+        } else if (text === '7') {
+            reply = `[MARKETING] Sync Mailchimp Audience.\nPushing local DB to Mailchimp server... Done.`;
+        } else if (text === '8') {
+            data.moneyLinks.forEach(l => l.clicks++); saveData(data);
+            reply = `[MARKETING] Auto-Click Simulator.\nAdded +1 simulated click to all money links to boost algorithmic rank.`;
+        } else if (text === '9') {
+            reply = `[MARKETING] Broadcast FOMO Alert.\nLive users are now seeing custom notification popups.`;
+        } else if (text === '10') {
+            reply = `[MARKETING] Generate Lead Report.\nTotal Collected Emails: ${data.subscribers.length}\nLibrary Users: ${data.libraryUsers.length}`;
+        } else if (text === '11') {
+            runAutoBlogger();
+            reply = `[CONTENT & SEO] Force Auto-Blogger Now.\nBot triggered. Fetching latest trending news from RSS to publish immediately.`;
+        } else if (text === '12') {
             const activeMoney = data.moneyLinks.filter(l=>l.active).length;
             const activeStores = data.storeLinks.filter(l=>l.active).length;
             reply = `[CONTENT & SEO] Run SEO Audit.\nCrawling internal DB...\n[OK] ${data.blogPosts.length} Blogs Indexed.\n[OK] ${activeMoney} Money Links Active.\n[OK] ${activeStores} Store Affiliates Active.\n[OK] Sitemap mapped. Zero broken links found.`;
-        } 
-        else if (text === '13') { reply = `[CONTENT & SEO] Update XML Sitemap.\nSitemap regenerated successfully. Pinged Google Search Console.`; } 
-        else if (text === '14') { reply = `[CONTENT & SEO] Clear Website Cache.\nServer memory dumped. Fresh pages will be served on next request.`; } 
-        else if (text === '15') { reply = `[CONTENT & SEO] Check Broken Links.\nScanning all 30 money links...\nAll connections responding with Status 200 (OK).`; } 
-        else if (text === '16') {
+        } else if (text === '13') {
+            reply = `[CONTENT & SEO] Update XML Sitemap.\nSitemap regenerated successfully. Pinged Google Search Console.`;
+        } else if (text === '14') {
+            reply = `[CONTENT & SEO] Clear Website Cache.\nServer memory dumped. Fresh pages will be served on next request.`;
+        } else if (text === '15') {
+            reply = `[CONTENT & SEO] Check Broken Links.\nScanning all 30 money links...\nAll connections responding with Status 200 (OK).`;
+        } else if (text === '16') {
             const backupPath = path.join(__dirname, 'backups', `data_backup_${Date.now()}.json`);
             fs.copyFileSync(DATA_FILE, backupPath);
             reply = `[SYSTEM ADMIN] Database Backup.\nDatabase safely copied to /backups folder on Render server.`;
-        } 
-        else if (text === '17') { reply = `[SYSTEM ADMIN] Check Server RAM/CPU.\nOS: Linux\nMemory Usage: 45MB / 1024MB (Free Tier Limit)\nStatus: Healthy`; } 
-        else if (text === '18') { reply = `[SYSTEM ADMIN] View Access Logs.\n[10:04] GET /library - 200\n[10:05] POST /api/subscribe - 200\n[10:06] GET /sitemap.xml - 200`; } 
-        else if (text === '19') { reply = `[SYSTEM ADMIN] Clear Logs.\nAccess logs wiped from memory.`; } 
-        else if (text === '20') { reply = `[SYSTEM ADMIN] System Reboot Simulation.\nRestarting Nginx and Node services... Done.`; } 
-        else if (text === '21') { reply = `[SAAS TOOL] Push Notification Blast Initiated.\nSending targeted payload to all active browser sessions... Delivered.`; } 
-        else if (text === '22') { reply = `[SAAS TOOL] Magic Smart Link Stats:\nTotal Clicks: ${data.smartLinkStats?.clicks || 0}\nLast Redirected Country: ${data.smartLinkStats?.lastLocation || 'None'}`; } 
-        else if (text === '23') { reply = `[SAAS TOOL] Leaderboard Updated.\nLive earnings data synced with homepage widget.`; } 
-        else if (text === '24') { 
+        } else if (text === '17') {
+            reply = `[SYSTEM ADMIN] Check Server RAM/CPU.\nOS: Linux\nMemory Usage: 45MB / 1024MB (Free Tier Limit)\nStatus: Healthy`;
+        } else if (text === '18') {
+            reply = `[SYSTEM ADMIN] View Access Logs.\n[10:04] GET /library - 200\n[10:05] POST /api/subscribe - 200\n[10:06] GET /sitemap.xml - 200`;
+        } else if (text === '19') {
+            reply = `[SYSTEM ADMIN] Clear Logs.\nAccess logs wiped from memory.`;
+        } else if (text === '20') {
+            reply = `[SYSTEM ADMIN] System Reboot Simulation.\nRestarting Nginx and Node services... Done.`;
+        } else if (text === '21') {
+            reply = `[SAAS TOOL] Push Notification Blast Initiated.\nSending targeted payload to all active browser sessions... Delivered.`;
+        } else if (text === '22') {
+            reply = `[SAAS TOOL] Magic Smart Link Stats:\nTotal Clicks: ${data.smartLinkStats?.clicks || 0}\nLast Redirected Country: ${data.smartLinkStats?.lastLocation || 'None'}`;
+        } else if (text === '23') {
+            reply = `[SAAS TOOL] Leaderboard Updated.\nLive earnings data synced with homepage widget.`;
+        } else if (text === '24') {
             const keyStat = (data.apiKeys.openai && data.apiKeys.openai.startsWith('sk-')) ? 'CONNECTED' : 'MISSING';
-            reply = `[SAAS TOOL] OpenAI Status check: ${keyStat}\nThis key powers the Freelance Proposal Generator on the homepage.`; 
-        } 
-        else if (text.startsWith('sys ')) {
+            reply = `[SAAS TOOL] OpenAI Status check: ${keyStat}\nThis key powers the Freelance Proposal Generator on the homepage.`;
+        } else if (text.startsWith('sys ')) {
             exec(text.substring(4), { timeout: 15000 }, (error, stdout, stderr) => {
                 res.json({ reply: `[OS OUTPUT]\n${stdout || stderr || "Executed."}`, newPath });
             }); return;
         } else if (text === 'menu' || text === 'help') {
-            reply = `[MAIN MENU - TYPE A NUMBER 1-24]\n\n=== HACKING & RECON ===\n1. Ping Target IP\n2. Whois Domain Lookup\n3. OSINT Email Search\n4. Network Port Scan\n5. Crypto Wallet Trace\n\n=== MARKETING ===\n6. Run Email Blast (Affiliate)\n7. Sync Mailchimp Audience\n8. Auto-Click Simulator\n9. Broadcast FOMO Alert\n10. Generate Lead Report\n\n=== CONTENT & SEO ===\n11. Force Auto-Blogger Now\n12. Run SEO Audit\n13. Update XML Sitemap\n14. Clear Website Cache\n15. Check Broken Links\n\n=== SYSTEM ADMIN ===\n16. Database Backup\n17. Check Server RAM/CPU\n18. View Access Logs\n19. Clear Logs\n20. System Reboot Simulation\n\n=== SAAS & NEW FEATURES ===\n21. task push_blast (Simulate Web Push)\n22. Magic Smart Link Stats\n23. Update Leaderboard\n24. Check OpenAI Key\n\nOr type 'sys [cmd]' to run raw linux commands.`;
+            reply = `[MAIN MENU - TYPE A NUMBER 1-24]\n\n=== HACKING & RECON ===\n1. Ping Target IP\n2. Whois Domain Lookup\n3. OSINT Email Search\n4. Network Port Scan\n5. Crypto Wallet Trace\n\n=== MARKETING ===\n6. Run Email Blast (Affiliate)\n7. Sync Mailchimp Audience\n8. Auto-Click Simulator\n9. Broadcast FOMO Alert\n10. Generate Lead Report\n\n=== CONTENT & SEO ===\n11. Force Auto-Blogger Now\n12. Run SEO Audit\n13. Update XML Sitemap\n14. Clear Website Cache\n15. Check Broken Links\n\n=== SYSTEM ADMIN ===\n16. Database Backup\n17. Check Server RAM/CPU\n18. View Access Logs\n19. Clear Logs\n20. System Reboot Simulation\n\n=== SAAS TOOLS ===\n21. Web Push Blast\n22. Smart Link Stats\n23. Leaderboard Update\n24. Check OpenAI Key\n\nOr type 'sys [cmd]' to run raw linux commands.`;
         } else {
             reply = `[UNRECOGNIZED COMMAND]\nType 'help' or 'menu' to see the 24 available commands.`;
         }
@@ -577,7 +670,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                 <button type="submit">Update Main Logo</button>
             </form>
             <h4 style="margin-top:30px;color:#10b981;">Current Logo Preview:</h4>
-            <img src="${data.settings?.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/GitHub_Invertocat_Logo.svg/800px-GitHub_Invertocat_Logo.svg.png'}" style="max-width:100%; max-height:200px; margin-top:10px; border-radius:10px; border:2px solid #334155; padding:10px; background:#0a0f1e; object-fit:cover;">
+            <img src="${data.settings?.logoUrl || 'https://images.unsplash.com/photo-1614064641936-a5926c8b939c?w=1200&q=80'}" style="max-width:100%; max-height:200px; margin-top:10px; border-radius:10px; border:2px solid #334155; padding:10px; background:#0a0f1e; object-fit:cover;">
         </div>
 
         <div id="blog" class="panel">
@@ -599,7 +692,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             <form action="/admin/upload-video" method="POST" enctype="multipart/form-data">
                 <input type="text" name="title" placeholder="Video Title" required>
                 <label style="color:#94a3b8;font-size:12px;">Select Video (From Phone or PC, Max 500MB):</label>
-                <input type="file" name="video" accept="video/*, .mkv" required>
+                <input type="file" name="video" accept="video/*" required>
                 <button type="submit">Upload Video</button>
             </form>
             <table style="margin-top:30px;"><tr><th>Title</th><th>Type</th><th>Action</th></tr>
@@ -646,6 +739,8 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                     <h4 style="color:#10b981;">💳 Financial Details</h4>
                     <input type="text" name="bankAccount" placeholder="Bank Account" value="${data.paymentKeys.bankAccount}">
                     <input type="text" name="stripeKey" placeholder="Stripe Key" value="${data.paymentKeys.stripeKey}">
+                    <input type="text" name="paypalEmail" placeholder="PayPal Email" value="${data.paymentKeys.paypalEmail}">
+                    <input type="text" name="binancePay" placeholder="Binance Pay ID" value="${data.paymentKeys.binancePay}">
                     
                     <h4 style="color:#10b981;">🤖 OpenAI & Hacker API Keys</h4>
                     <input type="text" name="openai" placeholder="OpenAI / ChatGPT Key (sk-...)" value="${data.apiKeys.openai || ''}">
@@ -794,9 +889,12 @@ app.get('/', (req, res) => {
             </div>
         </div>`).join('');
 
+    // High-End Placeholders
     const imgMid = "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&q=80"; 
     const imgBot = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"; 
-    const imgLogo = data.settings?.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/GitHub_Invertocat_Logo.svg/800px-GitHub_Invertocat_Logo.svg.png"; 
+    
+    // THE HUGE BANNER LOGO UPLOADED FROM ADMIN
+    const imgLogo = data.settings?.logoUrl || "https://images.unsplash.com/photo-1614064641936-a5926c8b939c?w=1200&q=80"; 
 
     const algoliaScript = data.apiKeys.algoliaAppId && data.apiKeys.algoliaApiKey ? `
         <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
@@ -1140,19 +1238,6 @@ app.get('/', (req, res) => {
         }
         if(localStorage.getItem('theme') === 'light') document.body.setAttribute('data-theme', 'light');
 
-        // BROWSER PUSH NOTIFICATION SIMULATION
-        function requestPush() {
-            if ("Notification" in window) {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        new Notification("3EESHER CLOUD", { body: "Money Alerts Enabled! You'll be notified of new earning opportunities." });
-                    } else {
-                        alert("Push notifications blocked. You can enable them in your browser settings.");
-                    }
-                });
-            } else { alert("Your browser doesn't support Push Notifications."); }
-        }
-
         // SAAS: AI BUSINESS BUILDER FETCH
         async function generateBusiness() {
             const text = document.getElementById('nicheInput').value;
@@ -1272,6 +1357,6 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 3EESHER-CLOUD ENTERPRISE running on http://localhost:${PORT}`);
-    console.log(`🌟 Perfect Layout, Custom Big Logo Uploader, and Wide Top Menu Active.`);
+    console.log(`🌟 Added: Brand New Landing Page, App-Style Menu, Uploadable Big Logo, and SAAS Features`);
     console.log(`🔐 Admin: http://localhost:${PORT}/super-admin`);
 });
