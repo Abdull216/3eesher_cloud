@@ -9,6 +9,7 @@ const multer = require('multer');
 const Parser = require('rss-parser');
 const { exec } = require('child_process');
 const os = require('os');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -50,29 +51,39 @@ app.use(session({
     cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }
 }));
 
-// ==================== 🎬 STREAMING ENGINE — PATH BUG FIXED ====================
+// ==================== 🎬 STREAMING ENGINE — FIXED MIME + CACHE + MOBILE ====================
 app.get('/stream/video/:id', (req, res) => {
     const data = getData();
     const video = data.videos.find(v => v.id == req.params.id);
     if (!video || video.type !== 'local') return res.status(404).send('Missing');
-    // FIX: handle both relative and absolute paths
     const videoPath = video.videoUrl.startsWith('/') ? video.videoUrl : path.join(DISK_PATH, video.videoUrl);
     if (!fs.existsSync(videoPath)) return res.status(404).send('Not Found');
     const stat = fs.statSync(videoPath);
+    // FIXED: Detect correct MIME type from file extension
+    const ext = path.extname(videoPath).toLowerCase();
+    const mimeMap = { '.mp4':'video/mp4', '.webm':'video/webm', '.ogg':'video/ogg', '.mov':'video/mp4', '.avi':'video/x-msvideo', '.mkv':'video/x-matroska', '.m4v':'video/mp4' };
+    const contentType = mimeMap[ext] || 'video/mp4';
     const range = req.headers.range;
     if (range) {
         const parts = range.replace(/bytes=/, "").split("-");
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+        const chunkSize = (end - start) + 1;
         res.writeHead(206, {
             'Content-Range': `bytes ${start}-${end}/${stat.size}`,
             'Accept-Ranges': 'bytes',
-            'Content-Length': (end - start) + 1,
-            'Content-Type': 'video/mp4'
+            'Content-Length': chunkSize,
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=3600'
         });
         fs.createReadStream(videoPath, { start, end }).pipe(res);
     } else {
-        res.writeHead(200, { 'Content-Length': stat.size, 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes' });
+        res.writeHead(200, {
+            'Content-Length': stat.size,
+            'Content-Type': contentType,
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'public, max-age=3600'
+        });
         fs.createReadStream(videoPath).pipe(res);
     }
 });
@@ -105,6 +116,7 @@ app.get('/sitemap.xml', (req, res) => {
     const xml = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
         '<url><loc>' + siteUrl + '/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>' +
         '<url><loc>' + siteUrl + '/library</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>' +
+        '<url><loc>' + siteUrl + '/links</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>' +
         data.blogPosts.map(p => '<url><loc>' + siteUrl + '/blog/' + p.id + '</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>').join('') +
         '</urlset>';
     res.set('Content-Type', 'application/xml');
@@ -115,7 +127,7 @@ app.get('/sitemap.xml', (req, res) => {
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
-        cb(null, (file.mimetype.includes('video') || ['.mp4', '.mov', '.avi', '.mkv'].includes(ext)) ? VIDEOS_DIR : UPLOADS_DIR);
+        cb(null, (file.mimetype.includes('video') || ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'].includes(ext)) ? VIDEOS_DIR : UPLOADS_DIR);
     },
     filename: (req, file, cb) => { cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')); }
 });
@@ -123,7 +135,14 @@ const upload = multer({ storage, limits: { fileSize: 500 * 1024 * 1024 } });
 
 // ==================== 🗄️ DATABASE ====================
 function getData() {
-    try { if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) {}
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const d = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+            // Ensure new fields exist in older data files
+            if (!d.socialLinks) d.socialLinks = { whatsapp:'', telegram:'', instagram:'', facebook:'', twitter:'', tiktok:'', youtube:'', linkedin:'', linkinbio_title:'3EESHER-CLOUD', linkinbio_bio:'Digital Wealth Platform | Affiliate Marketing | Free Library' };
+            return d;
+        }
+    } catch (e) {}
     const defaults = getDefaultData(); saveData(defaults); return defaults;
 }
 function saveData(data) { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
@@ -202,6 +221,18 @@ function getDefaultData() {
         privacyContent: {
             introduction: '3EESHER-CLOUD is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclosure, and safeguard your information when you visit our website.',
             details: 'We collect information you provide directly to us, such as email address and name when you register for the library. We also automatically collect IP addresses and browser types to improve your experience.'
+        },
+        socialLinks: {
+            whatsapp: '',
+            telegram: '',
+            instagram: '',
+            facebook: '',
+            twitter: '',
+            tiktok: '',
+            youtube: '',
+            linkedin: '',
+            linkinbio_title: '3EESHER-CLOUD',
+            linkinbio_bio: 'Digital Wealth Platform | Affiliate Marketing | Free Library'
         }
     };
 }
@@ -276,6 +307,25 @@ app.post('/admin/add-store', checkAdmin, (req, res) => {
     data.storeLinks.push({ name: req.body.name, url: req.body.url, id: req.body.id || '', active: true });
     saveData(data);
     res.send('<script>alert("New Store Added!"); window.location.href="/super-admin";</script>');
+});
+
+// ==================== 🌐 NEW: SAVE SOCIAL LINKS ====================
+app.post('/admin/save-social', checkAdmin, (req, res) => {
+    const data = getData();
+    data.socialLinks = {
+        whatsapp: req.body.whatsapp || '',
+        telegram: req.body.telegram || '',
+        instagram: req.body.instagram || '',
+        facebook: req.body.facebook || '',
+        twitter: req.body.twitter || '',
+        tiktok: req.body.tiktok || '',
+        youtube: req.body.youtube || '',
+        linkedin: req.body.linkedin || '',
+        linkinbio_title: req.body.linkinbio_title || '3EESHER-CLOUD',
+        linkinbio_bio: req.body.linkinbio_bio || 'Digital Wealth Platform | Affiliate Marketing | Free Library'
+    };
+    saveData(data);
+    res.send('<script>alert("Social Links Saved! Your /links page is live."); window.location.href="/super-admin";</script>');
 });
 
 // ==================== 🤖 REAL BOT — 24 COMMANDS ====================
@@ -475,16 +525,141 @@ app.get('/api/library/logout', (req, res) => {
     res.redirect('/');
 });
 
+// ==================== 🔗 NEW: LINK IN BIO PAGE ====================
+app.get('/links', (req, res) => {
+    const data = getData();
+    const sl = data.socialLinks || {};
+    const title = sl.linkinbio_title || '3EESHER-CLOUD';
+    const bio = sl.linkinbio_bio || 'Digital Wealth Platform';
+
+    const socialDefs = [
+        { key: 'whatsapp', label: 'WhatsApp', icon: '💬', color: '#25D366', prefix: 'https://wa.me/' },
+        { key: 'telegram', label: 'Telegram', icon: '✈️', color: '#2CA5E0', prefix: 'https://t.me/' },
+        { key: 'instagram', label: 'Instagram', icon: '📸', color: '#E1306C', prefix: 'https://instagram.com/' },
+        { key: 'facebook', label: 'Facebook', icon: '👥', color: '#1877F2', prefix: 'https://facebook.com/' },
+        { key: 'twitter', label: 'Twitter / X', icon: '🐦', color: '#1DA1F2', prefix: 'https://x.com/' },
+        { key: 'tiktok', label: 'TikTok', icon: '🎵', color: '#FF0050', prefix: 'https://tiktok.com/@' },
+        { key: 'youtube', label: 'YouTube', icon: '🎬', color: '#FF0000', prefix: 'https://youtube.com/' },
+        { key: 'linkedin', label: 'LinkedIn', icon: '💼', color: '#0A66C2', prefix: 'https://linkedin.com/in/' }
+    ];
+
+    const linkButtons = socialDefs.filter(s => sl[s.key]).map(s => {
+        const val = sl[s.key];
+        const url = val.startsWith('http') ? val : s.prefix + val.replace('@','');
+        return `<a href="${url}" target="_blank" rel="noopener" class="lnk-btn" style="border-left:4px solid ${s.color};">
+            <span style="font-size:22px;">${s.icon}</span>
+            <span class="lnk-label">${s.label}</span>
+            <span style="margin-left:auto;color:#64748b;font-size:18px;">→</span>
+        </a>`;
+    }).join('');
+
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} — Links</title>
+    <meta name="description" content="${bio}">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');</script>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{background:linear-gradient(135deg,#0a0f1e 0%,#0f2027 50%,#0a0f1e 100%);min-height:100vh;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;padding:20px;}
+        .wrap{width:100%;max-width:480px;}
+        .profile{text-align:center;margin-bottom:32px;}
+        .avatar{width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#10b981,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 16px;border:3px solid #10b981;box-shadow:0 0 30px rgba(16,185,129,0.4);}
+        .profile h1{color:#fbbf24;font-size:1.5rem;margin-bottom:8px;}
+        .profile p{color:#94a3b8;font-size:0.9rem;line-height:1.5;}
+        .lnk-btn{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 20px;margin-bottom:12px;text-decoration:none;color:#fff;transition:all 0.2s;backdrop-filter:blur(10px);}
+        .lnk-btn:hover{background:rgba(255,255,255,0.1);transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,0.3);}
+        .lnk-label{font-size:1rem;font-weight:600;}
+        .site-btn{display:block;text-align:center;background:linear-gradient(135deg,#10b981,#3b82f6);color:#fff;border-radius:14px;padding:16px;margin-top:20px;text-decoration:none;font-weight:700;font-size:1rem;transition:transform 0.2s;}
+        .site-btn:hover{transform:translateY(-2px);}
+        .footer{text-align:center;margin-top:24px;color:#475569;font-size:0.75rem;}
+        .footer a{color:#10b981;text-decoration:none;}
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="profile">
+        <div class="avatar">🚀</div>
+        <h1>${title}</h1>
+        <p>${bio}</p>
+    </div>
+    ${linkButtons || '<p style="text-align:center;color:#64748b;padding:20px;">No social links configured yet.<br>Admin: add links in the Social Links panel.</p>'}
+    <a href="/" class="site-btn">🌐 Visit 3EESHER-CLOUD Website</a>
+    <a href="/library" class="site-btn" style="margin-top:10px;background:linear-gradient(135deg,#f59e0b,#ef4444);">📚 Free Digital Library</a>
+    <div class="footer">
+        <p>Powered by <a href="/">3EESHER-CLOUD</a> | Contact: <a href="mailto:abdullahharuna216@gmail.com">abdullahharuna216@gmail.com</a></p>
+    </div>
+</div>
+</body></html>`);
+});
+
+// ==================== 🔍 NEW: INTERNAL SEARCH ====================
+app.get('/search', (req, res) => {
+    const q = (req.query.q || '').toLowerCase().trim();
+    const data = getData();
+    if (!q) return res.redirect('/');
+
+    const blogResults = data.blogPosts.filter(p =>
+        p.title.toLowerCase().includes(q) || (p.content || '').toLowerCase().includes(q)
+    ).slice(0, 8);
+
+    const linkResults = data.moneyLinks.filter(l =>
+        l.name.toLowerCase().includes(q) || l.category.toLowerCase().includes(q)
+    ).slice(0, 8);
+
+    const resultsHtml = [
+        ...blogResults.map(p => `<div class="res-card"><div class="res-tag">📝 Blog</div><a href="/blog/${p.id}" class="res-title">${p.title}</a><p class="res-meta">${new Date(p.date).toLocaleDateString()}</p></div>`),
+        ...linkResults.map((l, i) => `<div class="res-card"><div class="res-tag">💰 Money Link</div><a href="/go/${data.moneyLinks.indexOf(l)}" class="res-title" target="_blank">${l.icon} ${l.name}</a><p class="res-meta">${l.category} · ${l.clicks||0} clicks</p></div>`)
+    ].join('') || `<div style="text-align:center;color:#94a3b8;padding:60px 20px;"><div style="font-size:48px;margin-bottom:16px;">🔍</div><p>No results found for "<strong style="color:#fbbf24;">${q}</strong>"</p><p style="margin-top:8px;">Try different keywords.</p></div>`;
+
+    res.send(`<!DOCTYPE html>
+<html><head>
+<title>Search: ${q} — 3EESHER-CLOUD</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box;} body{background:#0a0f1e;color:#fff;font-family:'Segoe UI',sans-serif;margin:0;padding:20px;}
+.container{max-width:800px;margin:0 auto;padding:20px;}
+h2{color:#fbbf24;margin-bottom:4px;}
+.sub{color:#64748b;margin-bottom:24px;font-size:0.9rem;}
+.search-form{display:flex;gap:10px;margin-bottom:32px;}
+.search-form input{flex:1;padding:12px 16px;background:#1e293b;border:1px solid #334155;color:#fff;border-radius:10px;font-size:1rem;}
+.search-form button{padding:12px 20px;background:#10b981;border:none;border-radius:10px;color:#000;font-weight:700;cursor:pointer;}
+.res-card{background:#1e293b;border:1px solid #1e3a2a;border-radius:12px;padding:16px 20px;margin-bottom:12px;}
+.res-tag{font-size:11px;color:#64748b;margin-bottom:6px;}
+.res-title{color:#10b981;text-decoration:none;font-size:1rem;font-weight:600;display:block;margin-bottom:4px;}
+.res-title:hover{color:#fbbf24;}
+.res-meta{color:#64748b;font-size:12px;}
+.back{color:#10b981;text-decoration:none;display:inline-block;margin-bottom:20px;}
+</style>
+</head><body>
+<div class="container">
+    <a href="/" class="back">← Back to Home</a>
+    <h2>Search Results</h2>
+    <p class="sub">${blogResults.length + linkResults.length} result(s) for "<strong>${q}</strong>"</p>
+    <form class="search-form" action="/search" method="GET">
+        <input name="q" value="${q}" placeholder="Search blogs, links...">
+        <button>🔍 Search</button>
+    </form>
+    ${resultsHtml}
+</div>
+</body></html>`);
+});
+
 // ==================== 🌐 HOMEPAGE ====================
 app.get('/', (req, res) => {
     const data = getData();
     const inj = data.injections;
+    const sl = data.socialLinks || {};
 
+    // FIXED: YouTube-like video player with proper buffering & mobile support
     const vidHtml = data.videos.map(v =>
         '<div class="card">' +
         (v.type === 'youtube'
-            ? '<iframe src="' + v.videoUrl + '" style="width:100%;height:200px;border:none;" allowfullscreen loading="lazy"></iframe>'
-            : '<video src="/stream/video/' + v.id + '" controls style="width:100%;height:200px;background:#000;" preload="metadata"></video>') +
+            ? '<iframe src="' + v.videoUrl + '" style="width:100%;height:210px;border:none;" allowfullscreen loading="lazy"></iframe>'
+            : '<video src="/stream/video/' + v.id + '" controls playsinline preload="auto" style="width:100%;height:210px;background:#000;display:block;" onerror="this.parentElement.innerHTML=\'<div style=&quot;height:210px;display:flex;align-items:center;justify-content:center;background:#1e293b;color:#ef4444;&quot;>⚠️ Video unavailable</div>\'"></video>') +
         '<div style="padding:15px;"><h4 style="margin:0 0 10px;">' + v.title + '</h4>' +
         (v.type === 'local' ? '<a href="/download/video/' + v.id + '" style="background:#3b82f6;color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:bold;" download>⬇ Download</a>' : '') +
         '</div></div>'
@@ -497,6 +672,23 @@ app.get('/', (req, res) => {
     const linksHtml = data.moneyLinks.map((l, i) =>
         '<div class="m-link"><a href="/go/' + i + '" target="_blank" style="color:#fff;text-decoration:none;">' + l.icon + ' ' + l.name + '</a><span style="float:right;color:#64748b;font-size:11px;">' + (l.clicks||0) + ' clicks</span></div>'
     ).join('');
+
+    // Social sidebar — only show icons that have a value set
+    const socialSidebarDefs = [
+        { key: 'whatsapp', icon: '💬', color: '#25D366', prefix: 'https://wa.me/' },
+        { key: 'telegram', icon: '✈️', color: '#2CA5E0', prefix: 'https://t.me/' },
+        { key: 'instagram', icon: '📸', color: '#E1306C', prefix: 'https://instagram.com/' },
+        { key: 'facebook', icon: '👥', color: '#1877F2', prefix: 'https://facebook.com/' },
+        { key: 'twitter', icon: '🐦', color: '#1DA1F2', prefix: 'https://x.com/' },
+        { key: 'tiktok', icon: '🎵', color: '#FF0050', prefix: 'https://tiktok.com/@' },
+        { key: 'youtube', icon: '🎬', color: '#FF0000', prefix: 'https://youtube.com/' },
+        { key: 'linkedin', icon: '💼', color: '#0A66C2', prefix: 'https://linkedin.com/in/' }
+    ];
+    const socialSidebarHtml = socialSidebarDefs.filter(s => sl[s.key]).map(s => {
+        const val = sl[s.key];
+        const url = val.startsWith('http') ? val : s.prefix + val.replace('@','');
+        return `<a href="${url}" target="_blank" rel="noopener" class="soc-icon" style="background:${s.color};" title="${s.key}">${s.icon}</a>`;
+    }).join('');
 
     res.send(`<!DOCTYPE html>
 <html lang="en" id="htmlRoot">
@@ -529,16 +721,32 @@ app.get('/', (req, res) => {
         .lib-btn{background:#fbbf24;color:#000;padding:18px 40px;border-radius:40px;font-weight:900;text-decoration:none;display:inline-block;font-size:18px;margin-top:20px;transition:transform 0.2s;}
         .lib-btn:hover{transform:scale(1.05);}
         .section-title{color:#fbbf24;border-bottom:2px solid var(--highlight);padding-bottom:10px;margin-bottom:25px;}
+        /* SOCIAL SIDEBAR */
+        .soc-sidebar{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:999;display:flex;flex-direction:column;gap:6px;padding-right:0;}
+        .soc-icon{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:8px 0 0 8px;font-size:18px;text-decoration:none;opacity:0.85;transition:all 0.2s;box-shadow:-2px 2px 8px rgba(0,0,0,0.4);}
+        .soc-icon:hover{opacity:1;width:52px;box-shadow:-4px 2px 16px rgba(0,0,0,0.5);}
+        /* FOOTER */
+        .site-footer{background:#0d1117;border-top:1px solid #1e3a2a;padding:30px 5%;text-align:center;color:#64748b;font-size:13px;}
+        .site-footer a{color:#10b981;text-decoration:none;}
+        .site-footer .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px;}
+        /* SEARCH BAR */
+        .search-wrap{max-width:500px;margin:0 auto 40px;display:flex;gap:10px;}
+        .search-wrap input{flex:1;padding:12px 16px;background:#1e293b;border:1px solid #334155;color:#fff;border-radius:10px;font-size:14px;outline:none;}
+        .search-wrap button{padding:12px 18px;background:var(--highlight);border:none;border-radius:10px;color:#000;font-weight:700;cursor:pointer;}
         ${inj.css}
     </style>
 </head>
 <body>
 ${inj.bodyStart}
+
+${socialSidebarHtml ? '<div class="soc-sidebar">' + socialSidebarHtml + '</div>' : ''}
+
 <nav class="navbar">
     <div style="font-size:20px;font-weight:900;color:var(--highlight);" data-i18n="brand">${data.settings.siteName}</div>
     <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
         <a href="/" data-i18n="nav_home">HOME</a>
         <a href="/library" style="color:#fbbf24;" data-i18n="nav_lib">📚 LIBRARY</a>
+        <a href="/links">🔗 LINKS</a>
         <a href="/admin-login" data-i18n="nav_ceo">⚙️ CEO</a>
         <button class="lang-btn active" onclick="setLang('en')">EN</button>
         <button class="lang-btn" onclick="setLang('ha')">HA</button>
@@ -557,6 +765,12 @@ ${inj.bodyStart}
 </header>
 
 <div class="container">
+
+    <form class="search-wrap" action="/search" method="GET">
+        <input name="q" placeholder="🔍 Search blogs, links, resources...">
+        <button type="submit">Search</button>
+    </form>
+
     <h2 class="section-title" data-i18n="sec_videos">🎬 Latest Videos</h2>
     <div class="grid">${vidHtml}</div>
 
@@ -597,6 +811,18 @@ ${inj.bodyStart}
 ${inj.customHtml}
 <script>${inj.js}</script>
 
+<footer class="site-footer">
+    <div class="footer-links">
+        <a href="/">Home</a>
+        <a href="/library">📚 Library</a>
+        <a href="/links">🔗 Social Links</a>
+        <a href="/sitemap.xml">Sitemap</a>
+        <a href="mailto:abdullahharuna216@gmail.com">📧 Contact</a>
+    </div>
+    <p>© ${new Date().getFullYear()} 3EESHER-CLOUD — All Rights Reserved</p>
+    <p style="margin-top:6px;">Contact: <a href="mailto:abdullahharuna216@gmail.com">abdullahharuna216@gmail.com</a></p>
+</footer>
+
 <script>
 const T = {
   en: { nav_home:'HOME', nav_lib:'📚 LIBRARY', nav_ceo:'⚙️ CEO', hero_title:'3EESHER-CLOUD', hero_sub:'Why Build This Platform?', hero_desc:'To empower the next generation of digital entrepreneurs with verified tools and education hidden from the masses.', sec_videos:'🎬 Latest Videos', sec_blogs:'📝 Tech Blogs', sec_links:'💰 30 Verified Money Links', sec_stories:'🏆 Success Stories', sec_mission:'Our Mission & History', sec_privacy:'Privacy & Policy', cta_title:'📚 UNLOCK PREMIUM DIGITAL KNOWLEDGE', cta_desc:'Register now to read thousands of premium Google Books on AI, Coding, and Wealth for FREE.', cta_btn:'GET FREE ACCESS NOW →' },
@@ -616,7 +842,6 @@ function setLang(lang) {
     document.getElementById('htmlRoot').setAttribute('lang', lang);
     localStorage.setItem('3eesher_lang', lang);
 }
-// Restore saved language
 const saved = localStorage.getItem('3eesher_lang');
 if (saved && saved !== 'en') setTimeout(() => { const btn = document.querySelector('.lang-btn[onclick="setLang(\'' + saved + '\')"]'); if(btn) btn.click(); }, 100);
 </script>
@@ -628,6 +853,7 @@ ${inj.bodyEnd}
 // ==================== 💻 SUPER ADMIN DASHBOARD ====================
 app.get('/super-admin', checkAdmin, (req, res) => {
     const data = getData();
+    const sl = data.socialLinks || {};
     const storeRows = data.storeLinks.map((s, i) =>
         '<tr><td><input name="sname" value="' + s.name + '" style="width:120px;background:#0f172a;color:#fff;border:1px solid #334155;padding:6px;border-radius:4px;"></td>' +
         '<td><input name="surl" value="' + s.url + '" style="width:220px;background:#0f172a;color:#fff;border:1px solid #334155;padding:6px;border-radius:4px;"></td>' +
@@ -658,6 +884,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
     td,th{padding:8px 10px;border-bottom:1px solid #1e3a2a;text-align:left;}
     th{color:#10b981;}
     .badge{background:#10b981;color:#000;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:bold;}
+    label{color:#94a3b8;font-size:13px;display:block;margin-bottom:4px;}
     </style></head><body>
     <div class="sidebar">
         <h2>🏴 CEO EMPIRE</h2>
@@ -667,10 +894,12 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         <a onclick="show('video')" id="tab_video">🎬 Videos</a>
         <a onclick="show('subscribers')" id="tab_subscribers">👥 Subscribers <span class="badge">${data.libraryUsers.length}</span></a>
         <a onclick="show('stores')" id="tab_stores">🏪 Store IDs</a>
+        <a onclick="show('social')" id="tab_social">🌐 Social Links</a>
         <a onclick="show('gmail')" id="tab_gmail">📧 Gmail Settings</a>
         <a onclick="show('inject')" id="tab_inject">💉 Injectors</a>
         <a onclick="show('security')" id="tab_security">🛡️ Security</a>
         <a href="/" style="color:#fbbf24;">🌐 View Site</a>
+        <a href="/links" style="color:#f59e0b;">🔗 View /links</a>
     </div>
     <div class="main">
 
@@ -686,7 +915,7 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         <div id="branding" class="panel">
             <h3>🖼️ Website Logo Card</h3>
             <form action="/admin/upload-logo" method="POST" enctype="multipart/form-data">
-                <label style="color:#94a3b8;">Upload New Logo Image</label>
+                <label>Upload New Logo Image</label>
                 <input type="file" name="logo" accept="image/*" required>
                 <button>Update Logo</button>
             </form>
@@ -746,6 +975,40 @@ app.get('/super-admin', checkAdmin, (req, res) => {
             </form>
         </div>
 
+        <div id="social" class="panel">
+            <h3>🌐 Social Media Links</h3>
+            <p style="color:#94a3b8;font-size:13px;">Enter your social media handles or full URLs. They will appear as a floating sidebar on your website and on the <a href="/links" target="_blank" style="color:#10b981;">/links</a> page (Link in Bio).</p>
+            <div style="background:#0f172a;padding:12px 16px;border-radius:8px;margin-bottom:20px;border:1px solid #f59e0b;">
+                <p style="color:#f59e0b;font-size:13px;margin:0;">💡 You can enter just your username (e.g. <strong>tisher216</strong>) or the full URL. Leave blank to hide that platform.</p>
+            </div>
+            <form action="/admin/save-social" method="POST">
+                <label>Link in Bio Title</label>
+                <input type="text" name="linkinbio_title" value="${sl.linkinbio_title || '3EESHER-CLOUD'}" placeholder="3EESHER-CLOUD">
+                <label>Link in Bio Bio Text</label>
+                <input type="text" name="linkinbio_bio" value="${sl.linkinbio_bio || ''}" placeholder="Digital Wealth Platform | Affiliate Marketing">
+                <hr style="border-color:#1e3a2a;margin:16px 0;">
+                <label>💬 WhatsApp (number with country code, e.g. 2348012345678)</label>
+                <input type="text" name="whatsapp" value="${sl.whatsapp || ''}" placeholder="2348012345678">
+                <label>✈️ Telegram (username)</label>
+                <input type="text" name="telegram" value="${sl.telegram || ''}" placeholder="tisher216">
+                <label>📸 Instagram (username)</label>
+                <input type="text" name="instagram" value="${sl.instagram || ''}" placeholder="tisher216">
+                <label>👥 Facebook (username or page)</label>
+                <input type="text" name="facebook" value="${sl.facebook || ''}" placeholder="tisher216">
+                <label>🐦 Twitter / X (username)</label>
+                <input type="text" name="twitter" value="${sl.twitter || ''}" placeholder="tisher216">
+                <label>🎵 TikTok (username)</label>
+                <input type="text" name="tiktok" value="${sl.tiktok || ''}" placeholder="tisher216">
+                <label>🎬 YouTube (channel URL or handle)</label>
+                <input type="text" name="youtube" value="${sl.youtube || ''}" placeholder="@tisher216 or full URL">
+                <label>💼 LinkedIn (username)</label>
+                <input type="text" name="linkedin" value="${sl.linkedin || ''}" placeholder="tisher216">
+                <button>💾 Save Social Links</button>
+            </form>
+            <hr style="border-color:#1e3a2a;margin:20px 0;">
+            <p style="color:#94a3b8;font-size:13px;">🔍 Your social links also appear in site search results at <a href="/search?q=instagram" target="_blank" style="color:#10b981;">/search</a>. Anyone searching your name or platform on your website will find your links.</p>
+        </div>
+
         <div id="gmail" class="panel">
             <h3>📧 Gmail Bot Settings</h3>
             <p style="color:#94a3b8;font-size:13px;">Your Gmail address is needed for the bot to send real emails. The App Password is already saved.</p>
@@ -754,9 +1017,9 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                 <p style="margin:5px 0 0;font-size:13px;">App Password: <strong style="color:#10b981">✅ Already saved (Google security password)</strong></p>
             </div>
             <form action="/admin/update-gmail" method="POST">
-                <label style="color:#94a3b8;font-size:13px;">Your Gmail Address (e.g. youremail@gmail.com)</label>
+                <label>Your Gmail Address (e.g. youremail@gmail.com)</label>
                 <input type="email" name="gmailUser" placeholder="youremail@gmail.com" value="${data.apiKeys.gmailUser || ''}" required>
-                <label style="color:#94a3b8;font-size:13px;">App Password (leave blank to keep existing)</label>
+                <label>App Password (leave blank to keep existing)</label>
                 <input type="text" name="gmailSecret" placeholder="Leave blank to keep: ipdbessasmzubdyk">
                 <button>💾 Save Gmail Settings</button>
             </form>
@@ -768,17 +1031,17 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         <div id="inject" class="panel">
             <h3>💉 Universal Injectors</h3>
             <form action="/admin/save-injections" method="POST">
-                <label style="color:#94a3b8;">Head Tag (Analytics, Meta)</label>
+                <label>Head Tag (Analytics, Meta)</label>
                 <textarea name="head" placeholder="Head Tag HTML/Scripts">${data.injections.head}</textarea>
-                <label style="color:#94a3b8;">Custom CSS</label>
+                <label>Custom CSS</label>
                 <textarea name="css" placeholder="CSS">${data.injections.css}</textarea>
-                <label style="color:#94a3b8;">Custom JavaScript</label>
+                <label>Custom JavaScript</label>
                 <textarea name="js" placeholder="JavaScript">${data.injections.js}</textarea>
-                <label style="color:#94a3b8;">Body Start HTML</label>
+                <label>Body Start HTML</label>
                 <textarea name="bodyStart" placeholder="Body Start">${data.injections.bodyStart}</textarea>
-                <label style="color:#94a3b8;">Body End HTML</label>
+                <label>Body End HTML</label>
                 <textarea name="bodyEnd" placeholder="Body End">${data.injections.bodyEnd}</textarea>
-                <label style="color:#94a3b8;">Custom HTML Snippet</label>
+                <label>Custom HTML Snippet</label>
                 <textarea name="customHtml" placeholder="HTML Snippet">${data.injections.customHtml}</textarea>
                 <button>💾 Save All Injectors</button>
             </form>
@@ -787,9 +1050,9 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         <div id="security" class="panel">
             <h3>🛡️ Admin Credentials</h3>
             <form action="/admin/change-password" method="POST">
-                <label style="color:#94a3b8;">New Username</label>
+                <label>New Username</label>
                 <input type="text" name="newUser" value="${data.adminAuth.user}">
-                <label style="color:#94a3b8;">New Password</label>
+                <label>New Password</label>
                 <input type="password" name="newPassword" required placeholder="Enter new password">
                 <button>🔐 Update Access</button>
             </form>
@@ -842,6 +1105,128 @@ app.get('/admin-logout', (req, res) => {
     req.session.isSuperAdmin = false;
     res.redirect('/admin-login');
 });
+
+// ==================== 🤖 AUTO DAILY BLOG ENGINE ====================
+const AUTO_BLOG_DATA = [
+    { topic: 'How Artificial Intelligence Is Changing Africa in 2026', tag: 'Tech', img: 'artificial intelligence technology' },
+    { topic: 'Top 10 Ways to Make Money Online in Nigeria Right Now', tag: 'Money', img: 'make money online' },
+    { topic: '5 Health Habits Every Busy African Entrepreneur Must Know', tag: 'Health', img: 'health wellness lifestyle' },
+    { topic: 'Crypto vs Stocks: What Is Better for Nigerians in 2026?', tag: 'Finance', img: 'cryptocurrency investment' },
+    { topic: 'The Digital Skills That Are Making Young Nigerians Rich', tag: 'Skills', img: 'digital skills learning computer' },
+    { topic: 'Solar Energy Business Opportunities in Northern Nigeria', tag: 'Energy', img: 'solar energy africa' },
+    { topic: 'How to Build a Profitable Online Business With Zero Capital', tag: 'Business', img: 'online business entrepreneur' },
+    { topic: 'Affiliate Marketing: The Silent Income Stream Most Nigerians Ignore', tag: 'Affiliate', img: 'affiliate marketing income' },
+    { topic: 'Mental Health Tips for African Entrepreneurs Under Pressure', tag: 'Health', img: 'mental health meditation' },
+    { topic: 'Social Media Strategies That Actually Work in 2026', tag: 'Marketing', img: 'social media marketing strategy' },
+    { topic: 'How to Invest Wisely When You Earn Below 200,000 Naira Monthly', tag: 'Finance', img: 'investment savings money' },
+    { topic: 'Remote Work: How Nigerians Are Earning Dollars From Home', tag: 'Work', img: 'remote work home office' },
+    { topic: 'The Truth About Freelancing: What Nobody Tells You Before You Start', tag: 'Freelance', img: 'freelancing laptop work' },
+    { topic: 'Web3 and Blockchain: Real Opportunities for Young Africans', tag: 'Tech', img: 'blockchain web3 technology' },
+    { topic: 'How to Rank Your Business on Google in Nigeria — Free Guide', tag: 'SEO', img: 'google search seo marketing' },
+    { topic: 'E-Commerce in Nigeria: From Zero to Your First 100 Sales', tag: 'Business', img: 'ecommerce online shopping' },
+    { topic: 'The Power of Email Marketing: How to Turn Subscribers Into Sales', tag: 'Marketing', img: 'email marketing business' },
+    { topic: 'AI Tools That Are Replacing Jobs — And Creating New Ones', tag: 'Tech', img: 'artificial intelligence robots future' },
+    { topic: 'Why Financial Literacy Is the Most Valuable Skill in Africa Today', tag: 'Finance', img: 'financial literacy money education' },
+    { topic: 'From Student to Entrepreneur: How to Start While Still in School', tag: 'Business', img: 'student entrepreneur success' },
+    { topic: 'Trending Research: The Future of Digital Health in Africa', tag: 'Health', img: 'digital health technology africa' },
+    { topic: 'How TikTok and YouTube Are Creating New Millionaires in 2026', tag: 'Social', img: 'youtube tiktok content creator' }
+];
+
+const AUTO_BLOG_TEMPLATES = [
+    (t, tag) => `<img src="https://source.unsplash.com/800x400/?${encodeURIComponent(t.img)}" style="width:100%;border-radius:12px;margin-bottom:20px;" alt="${t.topic}">
+<p style="color:#10b981;font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:1px;">📌 ${tag} · 3EESHER-CLOUD Daily Blog</p>
+<p style="line-height:1.8;font-size:16px;">In today's rapidly evolving world, <strong>${t.topic}</strong> has become one of the most important topics for anyone seeking financial freedom and digital success. Millions across Africa are waking up to new realities, and the ones who stay informed will always lead the pack.</p>
+<h3 style="color:#fbbf24;margin:24px 0 12px;">🔑 The Key Insight Most People Miss</h3>
+<p style="line-height:1.8;">The biggest mistake people make is waiting for the "perfect time" to start. The truth is that knowledge combined with consistent daily action produces results that compound over time. Whether you are a student in Kano, a professional in Lagos, or a small business owner in Abuja — this topic directly impacts your financial future.</p>
+<h3 style="color:#fbbf24;margin:24px 0 12px;">📊 What The Data Shows</h3>
+<p style="line-height:1.8;">Studies show that people who actively invest in digital education are <strong>3x more likely</strong> to achieve their financial goals within 24 months. The African digital economy is growing at 22% annually — making this one of the greatest wealth-building opportunities of our generation.</p>
+<h3 style="color:#fbbf24;margin:24px 0 12px;">✅ Your Action Plan for Today</h3>
+<ol style="line-height:2;padding-left:20px;">
+<li>Spend 30 minutes daily learning about this topic</li>
+<li>Join our <a href="/library" style="color:#10b981;">free digital library</a> for in-depth resources</li>
+<li>Connect with our community and share your progress</li>
+<li>Take one small action today — momentum builds on itself</li>
+</ol>
+<p style="background:#1e293b;padding:20px;border-left:4px solid #10b981;border-radius:0 8px 8px 0;margin-top:24px;line-height:1.8;"><strong style="color:#fbbf24;">💡 3EESHER TIP:</strong> The gap between where you are and where you want to be is simply the information you haven't acted on yet. Start today. Your future self will thank you.</p>
+<p style="margin-top:24px;color:#94a3b8;font-size:14px;">📌 Published by <strong style="color:#10b981;">3EESHER BOT</strong> · Contact: <a href="mailto:abdullahharuna216@gmail.com" style="color:#10b981;">abdullahharuna216@gmail.com</a> · <a href="/" style="color:#10b981;">Visit 3EESHER-CLOUD</a></p>`,
+
+    (t, tag) => `<img src="https://source.unsplash.com/800x400/?${encodeURIComponent(t.img)}" style="width:100%;border-radius:12px;margin-bottom:20px;" alt="${t.topic}">
+<p style="color:#f59e0b;font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:1px;">🔥 ${tag} · Featured Daily Post</p>
+<p style="line-height:1.8;font-size:16px;"><strong>${t.topic}</strong> — This is the conversation that is shaping the next generation of African wealth builders. If you have been wondering where the real opportunities are, you are in the right place.</p>
+<h3 style="color:#fbbf24;margin:24px 0 12px;">📈 Why This Matters Right Now</h3>
+<p style="line-height:1.8;">The next 5 years will create more self-made millionaires in Africa than the last 50 years combined. The reason is simple: digital technology has leveled the playing field. A 22-year-old in Kaduna now has access to the same tools as an entrepreneur in Silicon Valley.</p>
+<h3 style="color:#fbbf24;margin:24px 0 12px;">🚀 3 Things You Must Do This Week</h3>
+<ul style="line-height:2;padding-left:20px;">
+<li><strong>Educate yourself daily</strong> — 30 minutes of focused learning compounds into mastery</li>
+<li><strong>Build your online presence</strong> — Your digital footprint is your new resume</li>
+<li><strong>Start before you are ready</strong> — Clarity comes through action, not preparation</li>
+</ul>
+<h3 style="color:#fbbf24;margin:24px 0 12px;">💰 The Income Opportunity</h3>
+<p style="line-height:1.8;">Thousands of Nigerians are already generating $500 to $5,000 monthly through digital skills and online platforms. Our <a href="/" style="color:#10b981;">30 verified money-making links</a> have helped our community members find real, sustainable income streams. The question is not whether this is possible — the question is when you will start.</p>
+<p style="background:#0f172a;padding:20px;border:1px solid #10b981;border-radius:8px;margin-top:24px;line-height:1.8;text-align:center;"><strong style="color:#fbbf24;font-size:18px;">"Success leaves clues. Find those who have done it, do what they did, and persist."</strong><br><span style="color:#94a3b8;font-size:13px;">— 3EESHER-CLOUD</span></p>
+<p style="margin-top:24px;color:#94a3b8;font-size:14px;">✍️ Auto-published by <strong style="color:#10b981;">3EESHER BOT</strong> · <a href="/library" style="color:#10b981;">Access Free Library →</a></p>`,
+
+    (t, tag) => `<img src="https://source.unsplash.com/800x400/?${encodeURIComponent(t.img)}" style="width:100%;border-radius:12px;margin-bottom:20px;" alt="${t.topic}">
+<p style="color:#8b5cf6;font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:1px;">🌟 ${tag} · 3EESHER Insights</p>
+<p style="line-height:1.8;font-size:16px;">Today we take a deep look at <strong>${t.topic}</strong>. This is not theory — this is practical, real-world intelligence that you can apply immediately to improve your financial situation, regardless of where you are starting from.</p>
+<h3 style="color:#fbbf24;margin:24px 0 12px;">🌍 The African Perspective</h3>
+<p style="line-height:1.8;">Africa's digital economy is no longer a future promise — it is a present reality. From Lagos to Nairobi, from Accra to Abuja, millions of young professionals are leveraging technology to build incomes that exceed what traditional employment could ever offer. The middle class of tomorrow is being built on digital skills today.</p>
+<h3 style="color:#fbbf24;margin:24px 0 12px;">⚡ Quick-Start Strategy</h3>
+<p style="line-height:1.8;">The most successful people we have seen on 3EESHER-CLOUD follow one simple pattern: <strong>Learn → Apply → Earn → Reinvest → Scale</strong>. It sounds simple because it is. The problem is not the strategy — it is the consistency. Most people give up in the first 30 days. The ones who stay past 90 days almost always succeed.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0;">
+<div style="background:#1e293b;padding:16px;border-radius:8px;border-top:3px solid #10b981;"><h4 style="color:#10b981;margin:0 0 8px;">✅ Do This</h4><p style="font-size:13px;line-height:1.7;color:#94a3b8;">Start with one skill, master it, then expand. Focus beats scattered effort every time.</p></div>
+<div style="background:#1e293b;padding:16px;border-radius:8px;border-top:3px solid #ef4444;"><h4 style="color:#ef4444;margin:0 0 8px;">❌ Avoid This</h4><p style="font-size:13px;line-height:1.7;color:#94a3b8;">Chasing multiple opportunities before mastering one. It leads to burnout and zero income.</p></div>
+</div>
+<p style="margin-top:24px;color:#94a3b8;font-size:14px;">📰 Daily post by <strong style="color:#10b981;">3EESHER-CLOUD BOT</strong> · <a href="/" style="color:#10b981;">Home</a> · <a href="/library" style="color:#fbbf24;">Free Library</a> · Contact: <a href="mailto:abdullahharuna216@gmail.com" style="color:#10b981;">abdullahharuna216@gmail.com</a></p>`
+];
+
+async function generateAutoBlog() {
+    try {
+        const data = getData();
+        const topicObj = AUTO_BLOG_DATA[Math.floor(Math.random() * AUTO_BLOG_DATA.length)];
+        const templateFn = AUTO_BLOG_TEMPLATES[Math.floor(Math.random() * AUTO_BLOG_TEMPLATES.length)];
+        const content = templateFn(topicObj, topicObj.tag);
+        const imageUrl = `https://source.unsplash.com/800x400/?${encodeURIComponent(topicObj.img)}`;
+
+        const newBlog = {
+            id: Date.now(),
+            title: topicObj.topic,
+            content: content,
+            tag: topicObj.tag,
+            image: imageUrl,
+            author: '3EESHER BOT',
+            date: new Date().toISOString(),
+            autoGenerated: true
+        };
+
+        data.blogPosts.unshift(newBlog);
+        // Keep a maximum of 60 blog posts in memory
+        if (data.blogPosts.length > 60) data.blogPosts = data.blogPosts.slice(0, 60);
+        saveData(data);
+
+        console.log('[3EESHER BOT] ✅ Daily blog published: "' + topicObj.topic + '" at ' + new Date().toLocaleTimeString());
+    } catch (err) {
+        console.error('[3EESHER BOT] Blog generation error:', err.message);
+    }
+}
+
+// Run at 7:00 AM server time every day
+cron.schedule('0 7 * * *', generateAutoBlog);
+
+// On server start — generate one if none published today
+setTimeout(async () => {
+    try {
+        const data = getData();
+        const today = new Date().toDateString();
+        const hasTodayBlog = data.blogPosts.some(p => p.autoGenerated && new Date(p.date).toDateString() === today);
+        if (!hasTodayBlog) {
+            await generateAutoBlog();
+            console.log('[3EESHER BOT] 🌅 Startup blog generated.');
+        }
+    } catch (e) {
+        console.error('[3EESHER BOT] Startup check error:', e.message);
+    }
+}, 6000);
 
 // ==================== 🚀 START ====================
 app.listen(PORT, '0.0.0.0', () => console.log('🚀 3EESHER-CLOUD EMPIRE READY ON PORT ' + PORT));
