@@ -140,6 +140,8 @@ function getData() {
             const d = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
             // Ensure new fields exist in older data files
             if (!d.socialLinks) d.socialLinks = { whatsapp:'', telegram:'', instagram:'', facebook:'', twitter:'', tiktok:'', youtube:'', linkedin:'', linkinbio_title:'3EESHER-CLOUD', linkinbio_bio:'Digital Wealth Platform | Affiliate Marketing | Free Library' };
+            if (!d.products) d.products = [];
+            if (!d.adsenseId) d.adsenseId = '';
             return d;
         }
     } catch (e) {}
@@ -233,7 +235,9 @@ function getDefaultData() {
             linkedin: '',
             linkinbio_title: '3EESHER-CLOUD',
             linkinbio_bio: 'Digital Wealth Platform | Affiliate Marketing | Free Library'
-        }
+        },
+        products: [],
+        adsenseId: ''
     };
 }
 
@@ -283,6 +287,7 @@ app.get('/admin/delete/:type/:id', checkAdmin, (req, res) => {
     const data = getData();
     if (req.params.type === 'blog') data.blogPosts = data.blogPosts.filter(p => p.id != req.params.id);
     if (req.params.type === 'video') data.videos = data.videos.filter(v => v.id != req.params.id);
+    if (req.params.type === 'product') data.products = (data.products || []).filter(p => p.id != req.params.id);
     saveData(data);
     res.redirect('/super-admin');
 });
@@ -326,6 +331,97 @@ app.post('/admin/save-social', checkAdmin, (req, res) => {
     };
     saveData(data);
     res.send('<script>alert("Social Links Saved! Your /links page is live."); window.location.href="/super-admin";</script>');
+});
+
+// ==================== 💰 ADSENSE ID SAVE ====================
+app.post('/admin/save-adsense', checkAdmin, (req, res) => {
+    const data = getData();
+    data.adsenseId = (req.body.adsenseId || '').trim();
+    saveData(data);
+    res.send('<script>alert("AdSense ID Saved! Ads will appear after Google approval."); window.location.href="/super-admin";</script>');
+});
+
+// ==================== 🛍️ DIGITAL PRODUCTS ====================
+app.get('/products', (req, res) => {
+    const data = getData();
+    const prods = data.products || [];
+    const productsHtml = prods.length ? prods.map(p =>
+        '<div class="prod-card">' +
+        (p.image ? '<img src="' + p.image + '" style="width:100%;height:200px;object-fit:cover;">' :
+            '<div style="height:200px;background:linear-gradient(135deg,#10b981,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:56px;">' + (p.icon || '📦') + '</div>') +
+        '<div style="padding:20px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+        '<span style="background:#10b981;color:#000;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:bold;">' + (p.category || 'Digital') + '</span>' +
+        '<span style="color:#fbbf24;font-weight:900;font-size:20px;">' + (p.price === '0' || !p.price ? 'FREE' : '$' + p.price) + '</span>' +
+        '</div>' +
+        '<h3 style="margin:0 0 8px;color:#fff;font-size:16px;">' + p.title + '</h3>' +
+        '<p style="color:#94a3b8;font-size:13px;line-height:1.6;margin-bottom:16px;">' + (p.description || '') + '</p>' +
+        (p.downloadUrl ? '<a href="' + p.downloadUrl + '" target="_blank" style="display:block;text-align:center;background:linear-gradient(135deg,#10b981,#3b82f6);color:#fff;padding:12px;border-radius:10px;text-decoration:none;font-weight:700;">📥 ' + (p.price === '0' || !p.price ? 'Download Free' : 'Buy Now →') + '</a>' : '') +
+        '</div></div>'
+    ).join('') : '<div style="text-align:center;padding:80px 20px;color:#64748b;"><div style="font-size:64px;margin-bottom:20px;">🛍️</div><p style="font-size:18px;">Products coming soon! Check back.</p></div>';
+
+    res.send(`<!DOCTYPE html>
+<html lang="en"><head>
+<title>Digital Products — 3EESHER-CLOUD</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Premium digital products — eBooks, courses and tools from 3EESHER-CLOUD">
+<script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');</script>
+${data.adsenseId ? '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + data.adsenseId + '" crossorigin="anonymous"></script>' : ''}
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0f1e;color:#fff;font-family:'Segoe UI',sans-serif;}
+.navbar{position:sticky;top:0;background:rgba(15,23,42,0.96);backdrop-filter:blur(10px);padding:14px 5%;display:flex;justify-content:space-between;align-items:center;z-index:1000;border-bottom:1px solid #1e3a2a;}
+.navbar a{color:#fff;text-decoration:none;font-weight:600;margin-left:16px;font-size:14px;}
+.navbar a:hover{color:#10b981;}
+.hero{background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(59,130,246,0.12));padding:60px 5%;text-align:center;border-bottom:1px solid #1e3a2a;}
+.container{max-width:1200px;margin:0 auto;padding:40px 5%;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px;}
+.prod-card{background:#1e293b;border-radius:16px;overflow:hidden;border:1px solid #1e3a2a;transition:transform 0.2s,box-shadow 0.2s;}
+.prod-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(16,185,129,0.15);}
+.section-title{color:#fbbf24;border-bottom:2px solid #10b981;padding-bottom:10px;margin-bottom:30px;}
+.site-footer{background:#0d1117;border-top:1px solid #1e3a2a;padding:24px 5%;text-align:center;color:#64748b;font-size:13px;}
+.site-footer a{color:#10b981;text-decoration:none;}
+</style>
+</head><body>
+<nav class="navbar">
+    <div style="font-size:18px;font-weight:900;color:#10b981;">3EESHER-CLOUD</div>
+    <div>
+        <a href="/">🏠 Home</a>
+        <a href="/library" style="color:#fbbf24;">📚 Library</a>
+        <a href="/links">🔗 Links</a>
+    </div>
+</nav>
+<div class="hero">
+    <h1 style="font-size:2.5rem;color:#fbbf24;margin-bottom:12px;">🛍️ Digital Products</h1>
+    <p style="color:#94a3b8;font-size:17px;max-width:600px;margin:0 auto;">Premium eBooks, courses and digital tools to accelerate your online income journey.</p>
+</div>
+<div class="container">
+    <h2 class="section-title">All Products (${prods.length})</h2>
+    <div class="grid">${productsHtml}</div>
+</div>
+<footer class="site-footer">
+    <p>© ${new Date().getFullYear()} 3EESHER-CLOUD · <a href="/">Home</a> · <a href="/library">Library</a> · <a href="/links">Links</a> · <a href="mailto:abdullahharuna216@gmail.com">Contact</a></p>
+</footer>
+</body></html>`);
+});
+
+app.post('/admin/add-product', checkAdmin, upload.single('image'), (req, res) => {
+    const data = getData();
+    if (!data.products) data.products = [];
+    data.products.unshift({
+        id: Date.now(),
+        title: req.body.title || 'Untitled Product',
+        description: req.body.description || '',
+        price: req.body.price || '0',
+        category: req.body.category || 'Digital',
+        icon: req.body.icon || '📦',
+        downloadUrl: req.body.downloadUrl || '',
+        image: req.file ? '/uploads/' + req.file.filename : '',
+        createdAt: new Date().toISOString()
+    });
+    saveData(data);
+    res.send('<script>alert("✅ Product Added Successfully!"); window.location.href="/super-admin";</script>');
 });
 
 // ==================== 🤖 REAL BOT — 24 COMMANDS ====================
@@ -698,6 +794,7 @@ app.get('/', (req, res) => {
     <meta name="description" content="3EESHER-CLOUD — The Ultimate Digital Wealth Platform. Earn online with 30 verified money-making platforms.">
     <script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');</script>
+    ${data.adsenseId ? '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + data.adsenseId + '" crossorigin="anonymous"></script>' : ''}
     ${inj.head}
     <style>
         :root { --bg: #0a0f1e; --card: #1e293b; --highlight: #10b981; }
@@ -746,6 +843,7 @@ ${socialSidebarHtml ? '<div class="soc-sidebar">' + socialSidebarHtml + '</div>'
     <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
         <a href="/" data-i18n="nav_home">HOME</a>
         <a href="/library" style="color:#fbbf24;" data-i18n="nav_lib">📚 LIBRARY</a>
+        <a href="/products" style="color:#a78bfa;">🛍️ PRODUCTS</a>
         <a href="/links">🔗 LINKS</a>
         <a href="/admin-login" data-i18n="nav_ceo">⚙️ CEO</a>
         <button class="lang-btn active" onclick="setLang('en')">EN</button>
@@ -797,6 +895,8 @@ ${socialSidebarHtml ? '<div class="soc-sidebar">' + socialSidebarHtml + '</div>'
         ${data.successStories.map(s => '<div class="card" style="padding:25px;border-top:4px solid ' + s.color + ';"><h4>' + s.avatar + ' ' + s.name + '</h4><p style="color:var(--highlight);font-weight:bold;">' + s.after + '</p><p style="font-size:14px;color:#94a3b8;line-height:1.7;">' + s.story + '</p></div>').join('')}
     </div>
 
+    ${(data.products && data.products.length) ? '<h2 class="section-title" style="margin-top:50px;">🛍️ Digital Products</h2><div class="grid">' + data.products.slice(0,3).map(p => '<div class="card"><div style="height:160px;background:linear-gradient(135deg,#10b981,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:52px;">' + (p.image ? '<img src="' + p.image + '" style="width:100%;height:160px;object-fit:cover;">' : (p.icon || '📦')) + '</div><div style="padding:16px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="background:#10b981;color:#000;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:bold;">' + (p.category||'Digital') + '</span><span style="color:#fbbf24;font-weight:900;">' + (p.price==="0"||!p.price?"FREE":"$"+p.price) + '</span></div><h4 style="margin:0 0 8px;font-size:14px;">' + p.title + '</h4><a href="/products" style="color:#10b981;font-size:13px;font-weight:bold;text-decoration:none;">View →</a></div></div>').join('') + '</div><div style="text-align:center;margin-bottom:50px;"><a href="/products" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;padding:14px 36px;border-radius:40px;text-decoration:none;font-weight:700;font-size:16px;">🛍️ View All Products →</a></div>' : ''}
+
     <div style="background:var(--card);padding:60px;border-radius:20px;border:1px solid #1e3a2a;margin-top:60px;">
         <h2 style="color:var(--highlight);" data-i18n="sec_mission">Our Mission & History</h2>
         <p style="font-size:17px;line-height:1.8;">${data.aboutContent.mission}</p>
@@ -815,6 +915,7 @@ ${inj.customHtml}
     <div class="footer-links">
         <a href="/">Home</a>
         <a href="/library">📚 Library</a>
+        <a href="/products">🛍️ Products</a>
         <a href="/links">🔗 Social Links</a>
         <a href="/sitemap.xml">Sitemap</a>
         <a href="mailto:abdullahharuna216@gmail.com">📧 Contact</a>
@@ -894,12 +995,15 @@ app.get('/super-admin', checkAdmin, (req, res) => {
         <a onclick="show('video')" id="tab_video">🎬 Videos</a>
         <a onclick="show('subscribers')" id="tab_subscribers">👥 Subscribers <span class="badge">${data.libraryUsers.length}</span></a>
         <a onclick="show('stores')" id="tab_stores">🏪 Store IDs</a>
+        <a onclick="show('products')" id="tab_products">🛍️ Digital Products <span class="badge" style="background:#a78bfa;">${(data.products||[]).length}</span></a>
         <a onclick="show('social')" id="tab_social">🌐 Social Links</a>
+        <a onclick="show('adsense')" id="tab_adsense">💰 AdSense</a>
         <a onclick="show('gmail')" id="tab_gmail">📧 Gmail Settings</a>
         <a onclick="show('inject')" id="tab_inject">💉 Injectors</a>
         <a onclick="show('security')" id="tab_security">🛡️ Security</a>
         <a href="/" style="color:#fbbf24;">🌐 View Site</a>
         <a href="/links" style="color:#f59e0b;">🔗 View /links</a>
+        <a href="/products" style="color:#a78bfa;">🛍️ View Products</a>
     </div>
     <div class="main">
 
@@ -973,6 +1077,51 @@ app.get('/super-admin', checkAdmin, (req, res) => {
                 <input type="text" name="id" placeholder="Your Affiliate ID" style="flex:1;min-width:120px;margin:0;">
                 <button type="submit" style="margin:0;">Add</button>
             </form>
+        </div>
+
+        <div id="products" class="panel">
+            <h3>🛍️ Digital Products</h3>
+            <p style="color:#94a3b8;font-size:13px;">Add eBooks, courses, or any digital product. Use Google Drive, Gumroad, Paystack or any link as the download/buy URL.</p>
+            <form action="/admin/add-product" method="POST" enctype="multipart/form-data">
+                <label>Product Title</label>
+                <input type="text" name="title" placeholder="e.g. Ultimate Affiliate Marketing Guide 2026" required>
+                <label>Description</label>
+                <textarea name="description" rows="3" placeholder="What will the buyer get?"></textarea>
+                <label>Category</label>
+                <input type="text" name="category" placeholder="eBook / Course / Tool / Template">
+                <label>Price USD — enter 0 for FREE</label>
+                <input type="text" name="price" placeholder="0">
+                <label>Emoji Icon (shown if no image)</label>
+                <input type="text" name="icon" placeholder="📚">
+                <label>Download / Buy Link</label>
+                <input type="text" name="downloadUrl" placeholder="https://drive.google.com/...">
+                <label>Product Cover Image (optional)</label>
+                <input type="file" name="image" accept="image/*">
+                <button>➕ Add Product</button>
+            </form>
+            <hr style="border-color:#1e3a2a;margin:20px 0;">
+            <table><tr><th>Title</th><th>Price</th><th>Category</th><th>Action</th></tr>
+                ${(data.products||[]).map(p => '<tr><td><a href="/products" target="_blank" style="color:#10b981;">' + p.title + '</a></td><td style="color:#fbbf24;">' + (p.price==="0"||!p.price?"FREE":"$"+p.price) + '</td><td style="color:#64748b;">' + p.category + '</td><td><a href="/admin/delete/product/' + p.id + '" style="color:#ef4444;" onclick="return confirm(\'Delete?\')">Delete</a></td></tr>').join('') || '<tr><td colspan="4" style="color:#64748b;">No products yet.</td></tr>'}
+            </table>
+        </div>
+
+        <div id="adsense" class="panel">
+            <h3>💰 Google AdSense</h3>
+            <p style="color:#94a3b8;font-size:13px;">Enter your AdSense Publisher ID after Google approves your site. Ads will appear automatically on all pages.</p>
+            <div style="background:#0f172a;padding:15px;border-radius:8px;margin-bottom:16px;border:1px solid #f59e0b;">
+                <p style="color:#f59e0b;font-size:13px;margin:0;">⚠️ HOW TO GET ADSENSE: Go to <strong>adsense.google.com</strong> → Apply with your website URL → Wait for approval 1-2 weeks → Copy Publisher ID (starts with <strong>ca-pub-</strong>)</p>
+            </div>
+            <div style="background:#0f172a;padding:15px;border-radius:8px;margin-bottom:16px;border:1px solid #334155;">
+                <p style="font-size:13px;margin:0;">Current AdSense ID: <strong style="color:${data.adsenseId ? '#10b981' : '#ef4444'}">${data.adsenseId || 'Not set yet'}</strong></p>
+            </div>
+            <form action="/admin/save-adsense" method="POST">
+                <label>Your AdSense Publisher ID</label>
+                <input type="text" name="adsenseId" placeholder="ca-pub-XXXXXXXXXXXXXXXX" value="${data.adsenseId || ''}">
+                <button>💾 Save AdSense ID</button>
+            </form>
+            <div style="background:#1e293b;padding:15px;border-radius:8px;margin-top:16px;border:1px solid #10b981;">
+                <p style="color:#10b981;font-size:13px;margin:0;">✅ Once saved, AdSense loads automatically on Homepage and Products page. No code editing needed.</p>
+            </div>
         </div>
 
         <div id="social" class="panel">
